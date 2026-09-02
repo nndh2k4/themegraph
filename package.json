@@ -1,0 +1,32 @@
+{
+  "name": "themegraph-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "ISC",
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.22.0",
+      "onFail": "download"
+    }
+  },
+  "scripts": {
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.4.0",
+    "eslint": "^10.9.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.69.0",
+    "vitest": "^4.1.11"
+  }
+}
