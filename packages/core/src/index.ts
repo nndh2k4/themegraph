@@ -29,3 +29,11 @@ export { findThemeRoot, GraphNotReadyError, openGraph } from './open.js';
 export type { GraphHandle, GraphMeta, GraphNotReadyReason } from './open.js';
 export { findNode, NodeNotFoundError } from './find-node.js';
 export type { FindNodeOptions } from './find-node.js';
+
+// Duyệt đồ thị bằng truy vấn đệ quy; nền của impact và renderFlow.
+export { traverse } from './traverse.js';
+export type { Direction, Reached } from './traverse.js';
+
+// Truy vấn: sửa file này thì những gì bị ảnh hưởng.
+export { impact } from './impact.js';
+export type { ImpactResult } from './impact.js';
