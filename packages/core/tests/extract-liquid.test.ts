@@ -83,3 +83,43 @@ describe('extractLiquidRefs — render và include', () => {
     expect(() => extractLiquidRefs(SECTION, "{% render 'a'")).toThrow('sections/hero.liquid');
   });
 });
+
+describe('extractLiquidRefs — section và sections', () => {
+  const LAYOUT: ThemeFile = { path: 'layout/theme.liquid', kind: 'layout', ext: 'liquid' };
+
+  const briefLayout = (content: string) =>
+    extractLiquidRefs(LAYOUT, content).map((r) => [r.kind, r.to, r.line]);
+
+  it('sinh ref section từ tag {% section %}', () => {
+    expect(extractLiquidRefs(LAYOUT, "{% section 'main-password-header' %}")).toEqual([
+      { from: 'layout/theme.liquid', to: 'main-password-header', kind: 'section', source: 'liquid', conditional: false, line: 1 },
+    ]);
+  });
+
+  it('sinh ref section_group từ tag {% sections %}', () => {
+    expect(extractLiquidRefs(LAYOUT, "{% sections 'header-group' %}")).toEqual([
+      { from: 'layout/theme.liquid', to: 'header-group', kind: 'section_group', source: 'liquid', conditional: false, line: 1 },
+    ]);
+  });
+
+  it('không nhầm section với sections khi cả hai cùng xuất hiện', () => {
+    const content = [
+      "{% sections 'header-group' %}",
+      '<main>{{ content_for_layout }}</main>',
+      "{%- sections 'footer-group' -%}",
+      "{% section 'mobile-navigation-bar' %}",
+    ].join('\n');
+
+    expect(briefLayout(content)).toEqual([
+      ['section_group', 'header-group', 1],
+      ['section_group', 'footer-group', 3],
+      ['section', 'mobile-navigation-bar', 4],
+    ]);
+  });
+
+  it('không coi {% schema %} hay biến section.settings là lời gọi section', () => {
+    const content = '{{ section.settings.title }}\n{% schema %}{ "name": "Hero" }{% endschema %}';
+
+    expect(briefLayout(content)).toEqual([]);
+  });
+});

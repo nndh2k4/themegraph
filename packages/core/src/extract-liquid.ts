@@ -21,7 +21,7 @@ function lineAt(content: string, offset: number): number {
  *
  * Nhận nội dung file dưới dạng chuỗi thay vì tự đọc đĩa, giống extractJsonRefs.
  *
- * Hiện trích: {% render %} và {% include %}.
+ * Hiện trích: {% render %}, {% include %}, {% section %}, {% sections %}.
  */
 export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
   // Chỉ file .liquid mới chứa mã Liquid. Asset (.css, .js) có thể chứa chuỗi
@@ -74,6 +74,26 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
       if (snippet.type !== NodeTypes.String) return;
 
       addRef(node.name, snippet.value, node.position.start);
+      return;
+    }
+
+    // {% section 'ten' %}: gọi thẳng một section, thường thấy trong layout.
+    if (node.name === "section") {
+      if (typeof node.markup === "string") return;
+
+      // Tên section trong tag này luôn là chuỗi; parser để nó ở markup.name.
+      addRef("section", node.markup.name.value, node.position.start);
+      return;
+    }
+
+    // {% sections 'ten-group' %}: gọi một section group, tức một file JSON
+    // trong sections/ liệt kê nhiều section. Khác tag ở trên đúng một chữ "s"
+    // nhưng trỏ tới loại file khác hẳn, nên dùng kind riêng.
+    if (node.name === "sections") {
+      // Với tag này parser để thẳng chuỗi tên vào markup, không bọc thêm lớp.
+      if (typeof node.markup === "string") return;
+
+      addRef("section_group", node.markup.value, node.position.start);
     }
   });
 
