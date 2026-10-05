@@ -1,3 +1,5 @@
+import os from "node:os";
+import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
 import {
@@ -30,6 +32,9 @@ import {
   VERSION,
 } from "@themegraph/core";
 import type { FormatOptions, GraphHandle, NodeKind } from "@themegraph/core";
+
+import { formatSetup, runClaudeCommand, setup } from "./setup.js";
+import type { SetupOptions } from "./setup.js";
 
 /**
  * Nơi lệnh in kết quả ra. Tách thành tham số để test gom được output mà không
@@ -64,7 +69,11 @@ Cách dùng:
   themegraph dead-code             File nào không còn được dùng
   themegraph verify                Đối chiếu truy vấn SQL với phép duyệt bằng JavaScript
 
-Trừ analyze và list, mọi lệnh chạy trên theme chứa thư mục đang đứng.
+  themegraph setup                 Nối ThemeGraph vào Claude Code và Cursor: đăng ký MCP
+                                   server, cài skill (--dry-run: chỉ xem; --remove: gỡ)
+  themegraph mcp                   Chạy MCP server trên stdin/stdout (do AI agent gọi)
+
+Trừ analyze, list, setup và mcp, mọi lệnh chạy trên theme chứa thư mục đang đứng.
 
 Tuỳ chọn:
   -t, --theme <thư-mục>            Dùng theme ở thư mục này thay vì thư mục đang đứng
@@ -81,6 +90,20 @@ interface Flags {
   limit: number | undefined;
   depth: number | undefined;
   kinds: NodeKind[];
+  dryRun: boolean;
+  remove: boolean;
+}
+
+/**
+ * Những thứ test thay được khi gọi run(). Khi chạy thật không ai truyền gì.
+ */
+export interface RunOverrides {
+  /**
+   * Ghi đè một phần tuỳ chọn của lệnh setup. Test dùng nó để lệnh làm việc
+   * trên một thư mục home giả và một lệnh `claude` giả, thay vì cấu hình thật
+   * của người chạy test.
+   */
+  setup?: Partial<SetupOptions>;
 }
 
 /**
@@ -245,6 +268,58 @@ function runBareQuery<T>(
 }
 
 /**
+ * Lệnh setup: nối ThemeGraph vào các AI agent có trên máy. Trả mã 1 nếu có
+ * bước nào muốn ghi mà không ghi được.
+ */
+function runSetup(positionals: string[], flags: Flags, io: Io, overrides: RunOverrides): number {
+  const rejected = rejectPositionals("setup", positionals, io);
+  if (rejected !== null) return rejected;
+
+  const options: SetupOptions = {
+    homeDir: os.homedir(),
+    nodePath: process.execPath,
+    // File này sau khi build nằm ở dist/run.js, cạnh dist/cli.js; thư mục
+    // skills/ nằm cạnh dist/ (và cạnh src/ khi chạy từ mã nguồn).
+    cliPath: fileURLToPath(new URL("./cli.js", import.meta.url)),
+    skillSource: fileURLToPath(new URL("../skills/themegraph/SKILL.md", import.meta.url)),
+    dryRun: flags.dryRun,
+    remove: flags.remove,
+    runClaude: runClaudeCommand,
+    ...overrides.setup,
+  };
+
+  const steps = setup(options);
+
+  if (flags.json) io.stdout(JSON.stringify(steps, null, 2));
+  else for (const line of formatSetup(steps, options)) io.stdout(line);
+
+  return steps.some((step) => step.outcome === "failed") ? EXIT_FAILED : EXIT_OK;
+}
+
+/**
+ * Lệnh mcp: chạy MCP server trên stdin/stdout cho tới khi client đóng stdin.
+ *
+ * Gói @themegraph/mcp (và bộ SDK nó kéo theo) chỉ được nạp ở đây, bằng
+ * import() dạng hàm: các lệnh khác không phải trả giá khởi động của nó.
+ *
+ * Trong lệnh này TUYỆT ĐỐI không in gì ra io.stdout: stdout là đường truyền
+ * của giao thức.
+ */
+async function runMcp(positionals: string[], flags: Flags, io: Io): Promise<number> {
+  const rejected = rejectPositionals("mcp", positionals, io);
+  if (rejected !== null) return rejected;
+
+  const { runStdioServer } = await import("@themegraph/mcp");
+
+  // --theme ở đây đổi "thư mục đang đứng" của server, tức theme mặc định khi
+  // agent không nêu theme.
+  await runStdioServer(flags.theme === undefined ? {} : { cwd: flags.theme });
+
+  // Server đã sẵn sàng và đang nghe stdin; tiến trình tự thoát khi stdin đóng.
+  return EXIT_OK;
+}
+
+/**
  * Lệnh search: tìm node theo tên. Từ khoá có thể gồm nhiều từ; không có từ
  * khoá thì liệt kê, thường đi kèm --kind.
  */
@@ -274,8 +349,18 @@ function parseCount(value: string | undefined, min: number): number | undefined 
 }
 
 /** Chọn và chạy lệnh con. Lỗi ném ra từ lõi được bắt ở run(). */
-async function dispatch(command: string, rest: string[], flags: Flags, io: Io): Promise<number> {
+async function dispatch(
+  command: string,
+  rest: string[],
+  flags: Flags,
+  io: Io,
+  overrides: RunOverrides,
+): Promise<number> {
   switch (command) {
+    case "setup":
+      return runSetup(rest, flags, io, overrides);
+    case "mcp":
+      return runMcp(rest, flags, io);
     case "analyze":
       return runAnalyze(rest, flags, io);
     case "list":
@@ -320,7 +405,7 @@ async function dispatch(command: string, rest: string[], flags: Flags, io: Io): 
  *
  * Lớp này cố ý mỏng: không đọc file theme, không biết gì về Liquid hay SQLite.
  */
-export async function run(argv: string[], io: Io): Promise<number> {
+export async function run(argv: string[], io: Io, overrides: RunOverrides = {}): Promise<number> {
   let parsed;
   try {
     parsed = parseArgs({
@@ -334,6 +419,8 @@ export async function run(argv: string[], io: Io): Promise<number> {
         limit: { type: "string" },
         depth: { type: "string" },
         kind: { type: "string", multiple: true },
+        "dry-run": { type: "boolean" },
+        remove: { type: "boolean" },
       },
       allowPositionals: true,
     });
@@ -374,10 +461,12 @@ export async function run(argv: string[], io: Io): Promise<number> {
     limit,
     depth,
     kinds: kinds as NodeKind[],
+    dryRun: parsed.values["dry-run"] ?? false,
+    remove: parsed.values.remove ?? false,
   };
 
   try {
-    return await dispatch(command, rest, flags, io);
+    return await dispatch(command, rest, flags, io, overrides);
   } catch (error) {
     // Mọi lỗi của lõi đi qua đây: thư mục không phải theme, theme chưa được
     // analyze, tên file không có trong đồ thị... Thông báo của chúng đã viết

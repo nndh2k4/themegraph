@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { appendFile, cp, mkdir, mkdtemp, rm, utimes, writeFile } from 'node:fs/promises';
+import { appendFile, cp, mkdir, mkdtemp, readFile, rm, utimes, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -1432,5 +1432,130 @@ describe('themegraph — lệnh đã build', () => {
     }
 
     expect(exitCode).toBe(1);
+  });
+});
+
+describe('themegraph setup', () => {
+  let home: string;
+
+  beforeEach(async () => {
+    // Thư mục home GIẢ, và một lệnh claude "không có trên máy": lệnh setup
+    // trong các test này không bao giờ chạm cấu hình thật của người chạy test.
+    home = path.join(tmp, 'home');
+    await mkdir(path.join(home, '.cursor'), { recursive: true });
+    await mkdir(path.join(home, '.claude'), { recursive: true });
+  });
+
+  async function runSetup(args: string[], overrides: Parameters<typeof run>[2] = {}) {
+    const out: string[] = [];
+    const err: string[] = [];
+    const code = await run(
+      ['setup', ...args],
+      { stdout: (line) => out.push(line), stderr: (line) => err.push(line) },
+      { setup: { homeDir: home, runClaude: () => null, ...overrides?.setup } },
+    );
+    return { code, stdout: out.join('\n'), stderr: err.join('\n') };
+  }
+
+  const cursorConfig = () => path.join(home, '.cursor', 'mcp.json');
+  const skillFile = () => path.join(home, '.claude', 'skills', 'themegraph', 'SKILL.md');
+
+  it('cấu hình các client tìm thấy và in mỗi bước một dòng', async () => {
+    const result = await runSetup([]);
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout).toContain('Nối ThemeGraph vào các AI agent:');
+    expect(result.stdout).toMatch(/Claude Code\s+bỏ qua/);
+    expect(result.stdout).toMatch(/Skill cho Claude Code\s+xong/);
+    expect(result.stdout).toMatch(/Cursor\s+xong/);
+    expect(result.stdout).toContain('Khởi động lại');
+    expect(existsSync(skillFile())).toBe(true);
+  });
+
+  it('ghi cấu hình trỏ tới node đang chạy và file cli.js nằm cạnh run.js', async () => {
+    await runSetup([]);
+    const config = JSON.parse(await readFile(cursorConfig(), 'utf8')) as {
+      mcpServers: { themegraph: { command: string; args: string[] } };
+    };
+
+    expect(config.mcpServers.themegraph.command).toBe(process.execPath);
+    // Test chạy trên mã nguồn nên "cạnh run.js" là src/; bản đã build là dist/.
+    expect(config.mcpServers.themegraph.args).toEqual([path.join(import.meta.dirname, '../src/cli.js'), 'mcp']);
+    expect(path.isAbsolute(config.mcpServers.themegraph.args[0] ?? '')).toBe(true);
+  });
+
+  it('skill được cài là file đi kèm gói', async () => {
+    await runSetup([]);
+
+    expect(await readFile(skillFile(), 'utf8')).toBe(
+      await readFile(path.join(import.meta.dirname, '../skills/themegraph/SKILL.md'), 'utf8'),
+    );
+  });
+
+  it('--dry-run chỉ báo việc sẽ làm', async () => {
+    const result = await runSetup(['--dry-run']);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('(chạy thử, không ghi gì)');
+    expect(result.stdout).toMatch(/Cursor\s+sẽ làm/);
+    expect(existsSync(cursorConfig())).toBe(false);
+    expect(existsSync(skillFile())).toBe(false);
+  });
+
+  it('--remove gỡ những gì đã cài', async () => {
+    await runSetup([]);
+    const result = await runSetup(['--remove']);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('Gỡ ThemeGraph khỏi các AI agent:');
+    expect(existsSync(skillFile())).toBe(false);
+    expect(JSON.parse(await readFile(cursorConfig(), 'utf8'))).toEqual({ mcpServers: {} });
+  });
+
+  it('in JSON với --json', async () => {
+    const result = await runSetup(['--json']);
+    const steps = JSON.parse(result.stdout) as { target: string; outcome: string }[];
+
+    expect(steps.map((step) => [step.target, step.outcome])).toEqual([
+      ['Claude Code', 'skipped'],
+      ['Skill cho Claude Code', 'done'],
+      ['Cursor', 'done'],
+    ]);
+  });
+
+  it('trả mã 1 khi có bước không ghi được, nhưng vẫn in kết quả của mọi bước', async () => {
+    await writeFile(cursorConfig(), 'không phải json');
+
+    const result = await runSetup([]);
+
+    expect(result.code).toBe(1);
+    expect(result.stdout).toMatch(/Cursor\s+LỖI/);
+    expect(result.stdout).toMatch(/Skill cho Claude Code\s+xong/);
+  });
+
+  it('trả mã 2 khi có tham số thừa', async () => {
+    const result = await runSetup(['thua']);
+
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain('themegraph setup không nhận tham số nào');
+  });
+});
+
+describe('themegraph mcp', () => {
+  it('trả mã 2 khi có tham số thừa, và không in gì ra stdout', async () => {
+    const result = await runCli(['mcp', 'thua']);
+
+    expect(result.code).toBe(2);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('themegraph mcp không nhận tham số nào');
+  });
+
+  it('có mặt trong hướng dẫn cùng lệnh setup', async () => {
+    const result = await runCli(['--help']);
+
+    expect(result.stdout).toContain('themegraph setup');
+    expect(result.stdout).toContain('themegraph mcp');
+    expect(result.stdout).toContain('themegraph search');
   });
 });

@@ -1,0 +1,27 @@
+{
+  "name": "@themegraph/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP server của ThemeGraph: sáu tool cho AI agent, bọc quanh @themegraph/core",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.31.0",
+    "@themegraph/core": "workspace:*",
+    "zod": "^4.6.5"
+  }
+}

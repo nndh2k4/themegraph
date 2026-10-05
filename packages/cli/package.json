@@ -15,6 +15,11 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@themegraph/core": "workspace:*"
-  }
+    "@themegraph/core": "workspace:*",
+    "@themegraph/mcp": "workspace:*"
+  },
+  "files": [
+    "dist",
+    "skills"
+  ]
 }
