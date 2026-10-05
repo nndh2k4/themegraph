@@ -94,7 +94,20 @@ describe('extractJsonRefs', () => {
     expect(extractJsonRefs(TEMPLATE, withLayout)).toEqual([
       { from: 'templates/product.json', to: 'password', kind: 'layout', source: 'json', conditional: false, line: 0 },
     ]);
-    expect(extractJsonRefs(TEMPLATE, noLayout)).toEqual([]);
+    // "layout": false nghĩa là trang không dùng layout nào. Phải ghi lại, nếu
+    // không tầng dựng đồ thị sẽ gán nhầm layout mặc định theme.liquid.
+    expect(extractJsonRefs(TEMPLATE, noLayout)).toEqual([
+      { from: 'templates/product.json', to: '', kind: 'no_layout', source: 'json', conditional: false, line: 0 },
+    ]);
+  });
+
+  it('không sinh ref layout nào khi template không có khoá layout hoặc giá trị vô nghĩa', () => {
+    expect(extractJsonRefs(TEMPLATE, JSON.stringify({ sections: {} }))).toEqual([]);
+
+    // Chỉ đúng giá trị false mới là "không layout"; null hay số thì bỏ qua,
+    // để template đó nhận layout mặc định như bình thường.
+    expect(extractJsonRefs(TEMPLATE, JSON.stringify({ layout: null, sections: {} }))).toEqual([]);
+    expect(extractJsonRefs(TEMPLATE, JSON.stringify({ layout: 0, sections: {} }))).toEqual([]);
   });
 
   it('đọc section group giống như template', () => {

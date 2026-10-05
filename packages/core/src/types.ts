@@ -30,7 +30,11 @@ export interface ScanResult {
  * - block: gọi một theme block, từ {% content_for 'block' %}, từ JSON template
  *   hoặc từ {% schema %}
  * - asset: tham chiếu một file trong assets/ qua filter asset_url
- * - layout: template JSON chỉ định layout bao ngoài qua khoá "layout"
+ * - layout: template chỉ định layout bao ngoài, qua khoá "layout" trong JSON
+ *   hoặc tag {% layout 'ten' %} trong template Liquid
+ * - no_layout: template khai rõ là KHÔNG dùng layout ("layout": false hoặc
+ *   {% layout none %}). Ref loại này có `to` rỗng; nó tồn tại để tầng dựng đồ
+ *   thị biết không được gán layout mặc định theme.liquid cho template đó.
  */
 export type RefKind =
   | "render"
@@ -39,7 +43,8 @@ export type RefKind =
   | "section_group"
   | "block"
   | "asset"
-  | "layout";
+  | "layout"
+  | "no_layout";
 
 /**
  * Nơi quan hệ được khai báo.

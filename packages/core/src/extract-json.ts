@@ -63,6 +63,9 @@ export function extractJsonRefs(file: ThemeFile, content: string): RawRef[] {
   // Không có khoá này thì dùng mặc định; việc đó để tầng dựng đồ thị xử lý.
   if (typeof data.layout === "string") {
     addRef("layout", data.layout, false);
+  } else if (data.layout === false) {
+    // Ghi lại lựa chọn "không layout" bằng một ref có đích rỗng.
+    addRef("no_layout", "", false);
   }
 
   /**

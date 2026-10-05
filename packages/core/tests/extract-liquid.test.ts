@@ -379,3 +379,25 @@ describe('extractLiquidRefs — conditional', () => {
     ]);
   });
 });
+
+describe('extractLiquidRefs — layout', () => {
+  const GIFT_CARD: ThemeFile = { path: 'templates/gift_card.liquid', kind: 'template', ext: 'liquid' };
+
+  const brief = (content: string) =>
+    extractLiquidRefs(GIFT_CARD, content).map((r) => [r.kind, r.to, r.line]);
+
+  it('sinh ref layout từ tag {% layout %} có tên trong dấu nháy', () => {
+    expect(extractLiquidRefs(GIFT_CARD, "{% layout 'alternate' %}")).toEqual([
+      { from: 'templates/gift_card.liquid', to: 'alternate', kind: 'layout', source: 'liquid', conditional: false, line: 1 },
+    ]);
+  });
+
+  it('sinh ref no_layout cho {% layout none %} và {% layout false %}', () => {
+    expect(brief(['<!doctype html>', '{% layout none %}'].join('\n'))).toEqual([['no_layout', '', 2]]);
+    expect(brief('{% layout false %}')).toEqual([['no_layout', '', 1]]);
+  });
+
+  it('bỏ qua {% layout %} có tên là biến', () => {
+    expect(brief('{% layout chosen_layout %}')).toEqual([]);
+  });
+});

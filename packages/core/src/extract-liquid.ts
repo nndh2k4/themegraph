@@ -172,6 +172,26 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
       return;
     }
 
+    // {% layout 'ten' %} trong template Liquid: chọn layout/ten.liquid thay cho
+    // layout mặc định. {% layout none %} và {% layout false %}: không dùng layout.
+    if (node.name === "layout") {
+      if (typeof node.markup === "string") return;
+
+      if (node.markup.type === NodeTypes.String) {
+        addRef("layout", node.markup.value, node);
+        return;
+      }
+
+      // Parser đọc chữ `none` như tên một biến, còn `false` là một hằng.
+      const isNone =
+        node.markup.type === NodeTypes.VariableLookup && node.markup.name === "none";
+      const isFalse =
+        node.markup.type === NodeTypes.LiquidLiteral && node.markup.value === false;
+
+      if (isNone || isFalse) addRef("no_layout", "", node);
+      return;
+    }
+
     // {% section 'ten' %}: gọi thẳng một section, thường thấy trong layout.
     if (node.name === "section") {
       if (typeof node.markup === "string") return;
