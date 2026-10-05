@@ -87,9 +87,9 @@ khi file nhận `@theme` đang được dùng. Sau khi sửa, `themegraph dead-c
 trên Purity báo 33 block chắc chắn chết, trùng từng tên với danh sách của agent
 tự grep. Chạy lại câu 4 ở nhánh "có" với bản đã sửa: 31 giây, đúng 33 block.
 
-Hệ quả cho số liệu cũ: con số "7 block riêng tư chết" của Purity trong
-[doi-chieu-tay-dawn.md](doi-chieu-tay-dawn.md) là kết quả của lỗi này; con số
-đúng là 33. Dawn không có thư mục `blocks/` nên không bị ảnh hưởng.
+Hệ quả cho số liệu cũ: mọi chỗ từng ghi Purity có "7 block chết" (ghi chú
+phạm vi, báo cáo tiến độ) là kết quả của lỗi này; con số đúng là 33. Dawn
+không có thư mục `blocks/` nên không bị ảnh hưởng.
 
 **Câu 5 (card-product trên Dawn).** Hai bên đúng. Nhánh "có" lần này ghép đúng
 section vào trang và nói rõ `collage` không nằm trong template nào; ở lượt
