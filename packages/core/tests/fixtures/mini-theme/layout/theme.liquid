@@ -1,1 +1,10 @@
-{% comment %}fixture{% endcomment %}
+<!doctype html>
+<html>
+  <head>
+    {{ 'base.css' | asset_url | stylesheet_tag }}
+  </head>
+  <body>
+    {{ content_for_layout }}
+    {% sections 'footer-group' %}
+  </body>
+</html>

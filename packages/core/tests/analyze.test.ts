@@ -1,0 +1,212 @@
+import { existsSync } from 'node:fs';
+import { cp, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import { analyze } from '../src/analyze.js';
+import { graphDbPath } from '../src/store.js';
+
+const FIXTURE = path.join(import.meta.dirname, 'fixtures', 'mini-theme');
+
+let themeRoot: string;
+
+beforeEach(async () => {
+  // Chép fixture ra thư mục tạm của hệ điều hành rồi phân tích bản chép.
+  // analyze() ghi graph.db vào thư mục theme; không được để nó ghi vào repo,
+  // và theme "nằm ngoài repo" cũng chính là cách công cụ được dùng thật.
+  const tmp = await mkdtemp(path.join(os.tmpdir(), 'themegraph-analyze-'));
+  themeRoot = path.join(tmp, 'mini-theme');
+  await cp(FIXTURE, themeRoot, { recursive: true });
+});
+
+afterEach(async () => {
+  await rm(path.dirname(themeRoot), { recursive: true, force: true });
+});
+
+/** Chạy một câu SELECT trên graph.db của bản chép, trả về mọi dòng. */
+function query(sql: string, ...params: string[]): Record<string, unknown>[] {
+  const db = new DatabaseSync(graphDbPath(themeRoot), { readOnly: true });
+  try {
+    return db
+      .prepare(sql)
+      .all(...params)
+      .map((row) => ({ ...row }));
+  } finally {
+    db.close();
+  }
+}
+
+describe('analyze', () => {
+  it('trả về thống kê của đồ thị', async () => {
+    const result = await analyze(themeRoot);
+
+    expect(result.stats).toEqual({
+      files: 13,
+      nodes: 17,
+      edges: 17,
+      refs: 13,
+      nodesByKind: {
+        asset: 1,
+        block: 1,
+        config: 1,
+        layout: 1,
+        locale: 1,
+        locale_schema: 1,
+        page_type: 4,
+        section: 1,
+        section_group: 1,
+        snippet: 1,
+        template: 4,
+      },
+      edgesByType: { RENDERS: 9, USES_ASSET: 1, USES_LAYOUT: 3, USES_TEMPLATE: 4 },
+      refsByStatus: { missing: 2, none: 1, resolved: 10 },
+    });
+  });
+
+  it('ghi graph.db vào thư mục theme và trả về đường dẫn tuyệt đối của nó', async () => {
+    const result = await analyze(themeRoot);
+
+    expect(result.dbPath).toBe(graphDbPath(themeRoot));
+    expect(path.isAbsolute(result.dbPath)).toBe(true);
+    expect(existsSync(result.dbPath)).toBe(true);
+  });
+
+  it('thay database cũ trong fixture bằng database thật', async () => {
+    // Fixture có sẵn .themegraph/graph.db chứa chữ, không phải SQLite.
+    await analyze(themeRoot);
+
+    expect(query('SELECT count(*) AS n FROM nodes')).toEqual([{ n: 17 }]);
+  });
+
+  it('liệt kê các tham chiếu hỏng kèm file và dòng', async () => {
+    const result = await analyze(themeRoot);
+
+    expect(result.missing.map((r) => [r.from, r.line, r.kind, r.target])).toEqual([
+      ['snippets/card.liquid', 4, 'asset', 'assets/icon-star'],
+      ['templates/customers/login.json', 0, 'section', 'sections/missing-section.liquid'],
+    ]);
+  });
+
+  it('liệt kê file bị bỏ qua', async () => {
+    const result = await analyze(themeRoot);
+
+    expect(result.skipped).toEqual(['listings/velyn/index.json']);
+  });
+
+  it('trả lời được: sửa snippets/card.liquid thì trang nào bị ảnh hưởng', async () => {
+    await analyze(themeRoot);
+
+    const pages = query(
+      `WITH RECURSIVE affected(id) AS (
+         SELECT ?
+         UNION
+         SELECT e.src FROM edges e JOIN affected a ON e.dst = a.id
+       )
+       SELECT n.id FROM affected a JOIN nodes n ON n.id = a.id
+       WHERE n.kind = 'page_type' ORDER BY n.id`,
+      'snippets/card.liquid',
+    ).map((r) => r.id);
+
+    // gift_card gọi card trực tiếp; index và product đi qua section hero;
+    // customers/login không có section nào hợp lệ nhưng vẫn dùng layout
+    // theme.liquid, mà layout gọi footer-group -> hero -> card.
+    expect(pages).toEqual(['page:customers/login', 'page:gift_card', 'page:index', 'page:product']);
+  });
+
+  it('trả lời được: trang index render những file nào', async () => {
+    await analyze(themeRoot);
+
+    const reached = query(
+      `WITH RECURSIVE reach(id) AS (
+         SELECT ?
+         UNION
+         SELECT e.dst FROM edges e JOIN reach r ON e.src = r.id
+       )
+       SELECT id FROM reach ORDER BY id`,
+      'page:index',
+    ).map((r) => r.id);
+
+    expect(reached).toEqual([
+      'assets/base.css',
+      'blocks/text.liquid',
+      'layout/theme.liquid',
+      'page:index',
+      'sections/footer-group.json',
+      'sections/hero.liquid',
+      'snippets/card.liquid',
+      'templates/index.json',
+    ]);
+  });
+
+  it('một file hỏng không làm dừng cả lần phân tích', async () => {
+    await writeFile(path.join(themeRoot, 'snippets', 'broken.liquid'), "{% render 'card'");
+
+    const result = await analyze(themeRoot);
+
+    expect(result.errors.map((e) => e.path)).toEqual(['snippets/broken.liquid']);
+    expect(result.errors[0]?.message).toContain('snippets/broken.liquid');
+    // File hỏng vẫn là một node; các file khác vẫn được phân tích đầy đủ.
+    expect(result.stats.files).toBe(14);
+    expect(result.stats.edgesByType.RENDERS).toBe(9);
+  });
+
+  it('không có lỗi nào khi mọi file đều đọc được', async () => {
+    const result = await analyze(themeRoot);
+
+    expect(result.errors).toEqual([]);
+  });
+
+  it('chạy hai lần liên tiếp cho cùng nội dung database', async () => {
+    const dump = () => ({
+      nodes: query('SELECT * FROM nodes ORDER BY id'),
+      edges: query('SELECT * FROM edges ORDER BY src, dst, type'),
+      refs: query('SELECT * FROM refs ORDER BY id'),
+    });
+
+    const first = await analyze(themeRoot);
+    const firstDump = dump();
+    const second = await analyze(themeRoot);
+
+    // Lần hai gặp .themegraph/graph.db do lần một ghi ra: không được quét nó.
+    expect(second.stats).toEqual(first.stats);
+    expect(dump()).toEqual(firstDump);
+    expect((await readdir(path.join(themeRoot, '.themegraph'))).sort()).toEqual(['.gitignore', 'graph.db']);
+  });
+
+  it('nhận đường dẫn tương đối, tính từ thư mục đang đứng', async () => {
+    const originalCwd = process.cwd();
+
+    try {
+      // Đây là cách dùng chính của lệnh: đứng trong thư mục theme, gõ "analyze ."
+      process.chdir(themeRoot);
+      const result = await analyze('.');
+
+      expect(result.stats.files).toBe(13);
+      expect(existsSync(path.join(themeRoot, '.themegraph', 'graph.db'))).toBe(true);
+
+      // Kết quả trả về phải là đường dẫn tuyệt đối, để người gọi dùng tiếp được
+      // dù sau đó có đổi thư mục đang đứng.
+      expect(path.isAbsolute(result.themeRoot)).toBe(true);
+      expect(path.isAbsolute(result.dbPath)).toBe(true);
+
+      process.chdir(originalCwd);
+      expect(existsSync(result.dbPath)).toBe(true);
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
+  it('ném lỗi và không tạo .themegraph khi thư mục không phải theme', async () => {
+    const notTheme = await mkdtemp(path.join(os.tmpdir(), 'themegraph-empty-'));
+
+    try {
+      await expect(analyze(notTheme)).rejects.toThrow('thiếu layout');
+      expect(existsSync(path.join(notTheme, '.themegraph'))).toBe(false);
+    } finally {
+      await rm(notTheme, { recursive: true, force: true });
+    }
+  });
+});

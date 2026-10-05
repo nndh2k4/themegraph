@@ -1,1 +1,9 @@
-{}
+/*
+ * IMPORTANT: The contents of this file are auto-generated.
+ */
+{
+  "sections": {
+    "main": { "type": "hero", "disabled": true }
+  },
+  "order": ["main"]
+}

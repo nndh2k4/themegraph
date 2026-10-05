@@ -1,1 +1,6 @@
-{% comment %}fixture{% endcomment %}
+<p>{{ block.settings.text }}</p>
+{% render 'card' %}
+
+{% schema %}
+{ "name": "Text" }
+{% endschema %}

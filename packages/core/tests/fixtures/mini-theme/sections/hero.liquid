@@ -1,1 +1,14 @@
-{% comment %}fixture{% endcomment %}
+<section>
+  {% if section.settings.show_card %}
+    {% render 'card' %}
+  {% endif %}
+  {% content_for 'blocks' %}
+</section>
+
+{% schema %}
+{
+  "name": "Hero",
+  "blocks": [{ "type": "text" }, { "type": "@app" }],
+  "presets": [{ "name": "Hero" }]
+}
+{% endschema %}

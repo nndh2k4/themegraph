@@ -1,1 +1,10 @@
-{}
+{
+  "sections": {
+    "hero": {
+      "type": "hero",
+      "blocks": { "t1": { "type": "text" } },
+      "block_order": ["t1"]
+    }
+  },
+  "order": ["hero"]
+}

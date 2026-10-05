@@ -19,3 +19,7 @@ export { buildGraph } from './graph.js';
 // Lưu trữ: đồ thị -> <theme>/.themegraph/graph.db.
 export { graphDbPath, saveGraph, SCHEMA_VERSION } from './store.js';
 export type { SaveGraphOptions } from './store.js';
+
+// Điểm nối của lõi: thư mục theme -> graph.db + thống kê.
+export { analyze } from './analyze.js';
+export type { AnalyzeError, AnalyzeResult, AnalyzeStats } from './analyze.js';

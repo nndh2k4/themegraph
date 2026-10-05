@@ -1,1 +1,6 @@
-{}
+{
+  "sections": {
+    "main": { "type": "missing-section" }
+  },
+  "order": ["main"]
+}

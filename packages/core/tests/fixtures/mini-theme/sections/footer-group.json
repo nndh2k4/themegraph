@@ -1,1 +1,8 @@
-{}
+{
+  "name": "Footer",
+  "type": "footer",
+  "sections": {
+    "footer": { "type": "hero" }
+  },
+  "order": ["footer"]
+}
