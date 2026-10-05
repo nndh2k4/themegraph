@@ -12,3 +12,6 @@ export { extractLiquidRefs } from './extract-liquid.js';
 
 // Resolver: quan hệ thô -> file thật trong theme.
 export { resolveRef } from './resolver.js';
+
+// Đồ thị: danh sách file + quan hệ thô -> node và cạnh.
+export { buildGraph } from './graph.js';

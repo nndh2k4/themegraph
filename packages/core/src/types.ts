@@ -86,3 +86,65 @@ export type Resolution =
   | { status: "local_block" }
   | { status: "missing"; expected: string }
   | { status: "none" };
+
+/** Loại node trong đồ thị: mọi loại file, cộng thêm loại trang. */
+export type NodeKind = FileKind | "page_type";
+
+/**
+ * Một node của đồ thị.
+ *
+ * - Node file: `id` chính là ThemeFile.path (ví dụ 'snippets/card.liquid')
+ * - Node loại trang: `id` có tiền tố 'page:' (ví dụ 'page:product'), để không
+ *   bao giờ trùng với đường dẫn của một file.
+ */
+export interface GraphNode {
+  id: string;
+  kind: NodeKind;
+}
+
+/**
+ * Loại cạnh.
+ *
+ * - USES_TEMPLATE: loại trang -> template phục vụ trang đó
+ * - USES_LAYOUT:   template -> layout bao ngoài nó
+ * - RENDERS:       file này chèn nội dung của file kia (snippet, section,
+ *                  section group, block)
+ * - USES_ASSET:    file này tham chiếu một file trong assets/
+ */
+export type EdgeType = "USES_TEMPLATE" | "USES_LAYOUT" | "RENDERS" | "USES_ASSET";
+
+/**
+ * Một cạnh của đồ thị. Mỗi bộ (from, to, type) chỉ có một cạnh: nhiều lời gọi
+ * giống nhau trong mã được gộp lại.
+ */
+export interface GraphEdge {
+  from: string; // id của node nguồn
+  to: string; // id của node đích
+  type: EdgeType;
+  // true khi MỌI lời gọi gộp vào cạnh này đều có điều kiện. Chỉ cần một lời
+  // gọi không điều kiện là file đích chắc chắn được dùng.
+  conditional: boolean;
+  // Các nguồn của cạnh, xếp theo bảng chữ cái, nối bằng dấu phẩy:
+  // 'liquid', 'json', 'schema', hoặc 'convention' cho cạnh suy từ quy ước
+  // (loại trang -> template, template -> layout mặc định).
+  sources: string;
+  count: number; // số lời gọi trong mã đã gộp vào cạnh này
+}
+
+/**
+ * Một tham chiếu thô kèm kết quả phân giải. Giữ lại từng lời gọi riêng lẻ
+ * (có số dòng), kể cả lời gọi hỏng, thứ mà cạnh đã gộp không còn giữ.
+ */
+export interface ResolvedRef extends RawRef {
+  status: Resolution["status"];
+  // resolved: đường dẫn file đích; missing: đường dẫn lẽ ra phải có;
+  // local_block và none: null.
+  target: string | null;
+}
+
+/** Toàn bộ đồ thị của một theme, đã sắp xếp ổn định. */
+export interface ThemeGraph {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  refs: ResolvedRef[];
+}
