@@ -9,7 +9,7 @@ import { VERSION } from "./version.js";
  * Phiên bản của lược đồ bảng bên dưới. Tăng số này mỗi khi đổi cấu trúc bảng,
  * để công cụ đọc biết một graph.db cũ có còn dùng được hay phải analyze lại.
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /** Thư mục công cụ ghi dữ liệu vào, nằm ngay trong thư mục theme. */
 const DATA_DIR = ".themegraph";
@@ -29,6 +29,9 @@ const DATA_DIR = ".themegraph";
  * schemas: dữ kiện đọc từ {% schema %} của section và block. Để ở bảng riêng
  * thay vì thêm cột vào nodes, vì phần lớn node (snippet, asset, loại trang...)
  * không có schema.
+ *
+ * file_hashes: hash nội dung của từng file analyze đã đọc. Lệnh status so nó
+ * với nội dung hiện có trên đĩa để biết đồ thị còn khớp hay không.
  */
 const SCHEMA_SQL = `
 CREATE TABLE meta (
@@ -72,6 +75,11 @@ CREATE TABLE schemas (
   file                 TEXT    PRIMARY KEY REFERENCES nodes (id),
   presets              INTEGER NOT NULL CHECK (presets >= 0),
   accepts_theme_blocks INTEGER NOT NULL CHECK (accepts_theme_blocks IN (0, 1))
+) STRICT, WITHOUT ROWID;
+
+CREATE TABLE file_hashes (
+  file TEXT PRIMARY KEY REFERENCES nodes (id),
+  hash TEXT NOT NULL
 ) STRICT, WITHOUT ROWID;
 `;
 
@@ -123,6 +131,7 @@ export function saveGraph(themeRoot: string, graph: ThemeGraph, options: SaveGra
       `INSERT INTO refs (src, name, kind, source, conditional, line, status, target)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     );
+    const insertFileHash = db.prepare("INSERT INTO file_hashes (file, hash) VALUES (?, ?)");
     const insertSchema = db.prepare(
       "INSERT INTO schemas (file, presets, accepts_theme_blocks) VALUES (?, ?, ?)",
     );
@@ -166,6 +175,10 @@ export function saveGraph(themeRoot: string, graph: ThemeGraph, options: SaveGra
 
       for (const schema of graph.schemas) {
         insertSchema.run(schema.file, schema.presets, schema.acceptsThemeBlocks ? 1 : 0);
+      }
+
+      for (const entry of graph.fileHashes) {
+        insertFileHash.run(entry.file, entry.hash);
       }
 
       db.exec("COMMIT");

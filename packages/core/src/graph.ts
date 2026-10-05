@@ -74,6 +74,7 @@ function pageTypeOf(templatePath: string): { page: string; alternate: boolean } 
  *   - translationKeys: các khoá dịch của locale mặc định; mỗi khoá thành một
  *     node, để ref loại translation có đích mà trỏ tới
  *   - settings: id node của các setting theme định nghĩa
+ *   - fileHashes: hash nội dung của các file đã đọc; chỉ được giữ lại và sắp xếp
  *
  * Hàm thuần: không đọc đĩa, không phụ thuộc thứ tự đầu vào. Cùng một tập file
  * và ref luôn cho ra đúng một kết quả, đã sắp xếp.
@@ -83,7 +84,7 @@ export function buildGraph(
   rawRefs: readonly RawRef[],
   facts: GraphFacts = {},
 ): ThemeGraph {
-  const { schemas = [], translationKeys = [], settings = [] } = facts;
+  const { schemas = [], translationKeys = [], settings = [], fileHashes = [] } = facts;
 
   const filePaths = new Set(files.map((file) => file.path));
 
@@ -316,6 +317,9 @@ export function buildGraph(
     // bảng nodes, nên một dòng mồ côi sẽ bị database từ chối.
     schemas: schemas
       .filter((schema) => filePaths.has(schema.file))
+      .sort((a, b) => compareText(a.file, b.file)),
+    fileHashes: fileHashes
+      .filter((entry) => filePaths.has(entry.file))
       .sort((a, b) => compareText(a.file, b.file)),
   };
 }

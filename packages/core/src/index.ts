@@ -68,3 +68,6 @@ export { themeStatus } from './status.js';
 export type { StatusResult } from './status.js';
 export { cleanAllThemes, cleanTheme } from './clean.js';
 export type { CleanResult } from './clean.js';
+
+// Hash nội dung file, dùng chung cho analyze và status.
+export { hashContent } from './hash.js';

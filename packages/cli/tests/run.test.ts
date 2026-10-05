@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { cp, mkdir, mkdtemp, rm, utimes, writeFile } from 'node:fs/promises';
+import { appendFile, cp, mkdir, mkdtemp, rm, utimes, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -822,8 +822,10 @@ describe('themegraph — sổ đăng ký: list, status, clean', () => {
 
     it('liệt kê file sửa, thêm và xoá khi đồ thị đã cũ', async () => {
       await runCli(['analyze', themeRoot]);
+      await appendFile(path.join(themeRoot, 'sections', 'hero.liquid'), '<!-- sua -->');
+      // Lưu lại mà không đổi nội dung thì không tính là sửa.
       const later = new Date(Date.now() + 3_600_000);
-      await utimes(path.join(themeRoot, 'sections', 'hero.liquid'), later, later);
+      await utimes(path.join(themeRoot, 'layout', 'theme.liquid'), later, later);
       await writeFile(path.join(themeRoot, 'snippets', 'moi.liquid'), '<p></p>');
       await rm(path.join(themeRoot, 'snippets', 'card.liquid'));
 

@@ -1,7 +1,9 @@
+import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, utimes, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -183,9 +185,18 @@ describe('unregisterTheme', () => {
     expect(readRegistry().map((e) => e.name)).toEqual(['purity']);
   });
 
-  it('trả false và không tạo file khi theme không có trong sổ', () => {
+  it('trả false và không tạo file nào khi chưa có sổ', async () => {
     expect(unregisterTheme(themeAt('dawn'))).toBe(false);
-    expect(existsSync(registryPath())).toBe(false);
+    // Kể cả file khoá cũng không được tạo.
+    expect(await readdir(home)).toEqual([]);
+  });
+
+  it('không tạo thư mục home khi nó chưa tồn tại', () => {
+    // clean trên một máy chưa từng analyze không được để lại ~/.themegraph rỗng.
+    process.env.THEMEGRAPH_HOME = path.join(home, 'chua', 'co');
+
+    expect(unregisterTheme(themeAt('dawn'))).toBe(false);
+    expect(existsSync(path.join(home, 'chua'))).toBe(false);
   });
 
   it('trả false và giữ nguyên sổ khi gỡ một theme khác', () => {
@@ -200,6 +211,81 @@ describe('unregisterTheme', () => {
     unregisterTheme(themeAt('dawn'));
 
     expect(JSON.parse(await readFile(registryPath(), 'utf8'))).toEqual({ version: 1, themes: [] });
+  });
+});
+
+describe('khoá của sổ đăng ký', () => {
+  const lockPath = () => path.join(home, 'registry.lock');
+
+  it('không để lại file khoá sau khi ghi xong', async () => {
+    registerTheme(entry(themeAt('dawn')));
+    unregisterTheme(themeAt('dawn'));
+
+    expect(await readdir(home)).toEqual(['registry.json']);
+  });
+
+  it('gỡ khoá cả khi việc ghi thất bại', async () => {
+    // Đặt một THƯ MỤC ở chỗ của registry.json: đổi tên file tạm đè lên nó sẽ lỗi.
+    await mkdir(registryPath());
+
+    expect(() => registerTheme(entry(themeAt('dawn')))).toThrow();
+    // Không còn khoá, và cũng không còn file tạm.
+    expect(await readdir(home)).toEqual(['registry.json']);
+  });
+
+  it('bỏ qua khoá cũ do một tiến trình đã chết để lại', async () => {
+    await writeFile(lockPath(), '');
+    const longAgo = new Date(Date.now() - 60_000);
+    await utimes(lockPath(), longAgo, longAgo);
+
+    registerTheme(entry(themeAt('dawn')));
+
+    expect(readRegistry()).toHaveLength(1);
+    expect(existsSync(lockPath())).toBe(false);
+  });
+
+  it('chờ khi khoá đang được giữ, rồi ghi tiếp khi khoá được nhả', async () => {
+    await writeFile(lockPath(), '');
+    // Một tiến trình khác nhả khoá sau 300 ms. Phải là tiến trình thật:
+    // registerTheme chạy đồng bộ, nên hẹn giờ trong chính tiến trình này sẽ
+    // không chạy được trong lúc nó đang chờ.
+    const releaser = spawn(process.execPath, [
+      '-e',
+      `setTimeout(() => require('node:fs').rmSync(${JSON.stringify(lockPath())}, { force: true }), 300)`,
+    ]);
+
+    const startedAt = Date.now();
+    registerTheme(entry(themeAt('dawn')));
+    const waited = Date.now() - startedAt;
+    await new Promise((resolve) => releaser.on('exit', resolve));
+
+    expect(waited).toBeGreaterThanOrEqual(200);
+    expect(readRegistry()).toHaveLength(1);
+  });
+
+  it('nhiều tiến trình cùng đăng ký thì không mục nào bị mất', async () => {
+    // Mười tiến trình thật, mỗi tiến trình đăng ký một theme khác nhau, chạy
+    // cùng lúc. Không có khoá thì các lượt đọc-sửa-ghi chồng lên nhau và một số
+    // mục bị ghi đè mất.
+    const registryModule = pathToFileURL(path.join(import.meta.dirname, '../dist/registry.js')).href;
+    expect(existsSync(path.join(import.meta.dirname, '../dist/registry.js')), 'chưa có dist: chạy "pnpm build"').toBe(true);
+
+    const script = (name: string) => `
+      const { registerTheme } = await import(${JSON.stringify(registryModule)});
+      registerTheme({ path: ${JSON.stringify(themeAt('x'))} + ${JSON.stringify(name)}, name: ${JSON.stringify(name)},
+        analyzedAt: '2026-10-05T08:00:00.000Z', nodes: 1, edges: 1 });`;
+
+    const exits = Array.from({ length: 10 }, (_, i) => {
+      const child = spawn(process.execPath, ['--input-type=module', '-e', script(`t${i}`)], {
+        env: { ...process.env, THEMEGRAPH_HOME: home },
+        stdio: 'ignore',
+      });
+      return new Promise<number | null>((resolve) => child.on('exit', resolve));
+    });
+
+    expect(await Promise.all(exits)).toEqual(Array.from({ length: 10 }, () => 0));
+    expect(readRegistry().map((e) => e.name).sort()).toEqual(Array.from({ length: 10 }, (_, i) => `t${i}`).sort());
+    expect(await readdir(home)).toEqual(['registry.json']);
   });
 });
 

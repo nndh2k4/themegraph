@@ -240,6 +240,32 @@ describe('analyze', () => {
     }
   });
 
+  it('ghi hash nội dung của mọi file Liquid và JSON, không ghi cho file khác', async () => {
+    await analyze(themeRoot);
+
+    const rows = query('SELECT file, hash FROM file_hashes ORDER BY file');
+    const files = rows.map((r) => String(r.file));
+
+    // 12 file .liquid / .json của fixture; assets/base.css không được đọc.
+    expect(files).toHaveLength(12);
+    expect(files).toContain('snippets/card.liquid');
+    expect(files).toContain('locales/en.default.json');
+    expect(files).not.toContain('assets/base.css');
+    expect(rows.every((r) => /^[0-9a-f]{40}$/.test(String(r.hash)))).toBe(true);
+  });
+
+  it('hai file cùng nội dung có cùng hash, khác nội dung thì khác hash', async () => {
+    await writeFile(path.join(themeRoot, 'snippets', 'a.liquid'), '<p>giong</p>');
+    await writeFile(path.join(themeRoot, 'snippets', 'b.liquid'), '<p>giong</p>');
+    await writeFile(path.join(themeRoot, 'snippets', 'c.liquid'), '<p>khac</p>');
+    await analyze(themeRoot);
+
+    const hashOf = (file: string) => query('SELECT hash FROM file_hashes WHERE file = ?', file)[0]?.hash;
+
+    expect(hashOf('snippets/a.liquid')).toBe(hashOf('snippets/b.liquid'));
+    expect(hashOf('snippets/a.liquid')).not.toBe(hashOf('snippets/c.liquid'));
+  });
+
   it('liệt kê file bị bỏ qua', async () => {
     const result = await analyze(themeRoot);
 
@@ -322,6 +348,7 @@ describe('analyze', () => {
       edges: query('SELECT * FROM edges ORDER BY src, dst, type'),
       refs: query('SELECT * FROM refs ORDER BY id'),
       schemas: query('SELECT * FROM schemas ORDER BY file'),
+      fileHashes: query('SELECT * FROM file_hashes ORDER BY file'),
     });
 
     const first = await analyze(themeRoot);

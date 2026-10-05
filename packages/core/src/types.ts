@@ -113,6 +113,12 @@ export interface FileSchema extends SchemaInfo {
   file: string; // cùng định dạng với ThemeFile.path
 }
 
+/** Hash nội dung của một file tại thời điểm phân tích (xem hashContent). */
+export interface FileHash {
+  file: string; // cùng định dạng với ThemeFile.path
+  hash: string;
+}
+
 /**
  * Những thứ tầng parse rút ra được mà không phải là tham chiếu: chúng mô tả
  * theme CÓ gì, còn tham chiếu mô tả ai DÙNG gì. buildGraph nhận cả hai.
@@ -123,6 +129,8 @@ export interface GraphFacts {
   translationKeys?: readonly string[];
   // Id node của mọi setting theme định nghĩa (xem settingNodeId).
   settings?: readonly string[];
+  // Hash nội dung của các file đã đọc, để status biết file nào đã đổi.
+  fileHashes?: readonly FileHash[];
 }
 
 /**
@@ -227,4 +235,5 @@ export interface ThemeGraph {
   edges: GraphEdge[];
   refs: ResolvedRef[];
   schemas: FileSchema[];
+  fileHashes: FileHash[];
 }

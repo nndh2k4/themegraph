@@ -542,3 +542,29 @@ describe('buildGraph — setting', () => {
     expect(buildGraph(files, [...refs].reverse(), facts)).toEqual(buildGraph(files, refs, facts));
   });
 });
+
+describe('buildGraph — hash nội dung file', () => {
+  const card = { file: 'snippets/card.liquid', hash: 'aaa' };
+  const price = { file: 'snippets/price.liquid', hash: 'bbb' };
+
+  it('trả mảng rỗng khi không được đưa hash nào', () => {
+    expect(buildGraph(FILES, []).fileHashes).toEqual([]);
+  });
+
+  it('giữ nguyên hash và xếp theo tên file', () => {
+    expect(buildGraph(FILES, [], { fileHashes: [price, card] }).fileHashes).toEqual([card, price]);
+  });
+
+  it('bỏ hash của file không có trong theme', () => {
+    const stray = { file: 'snippets/khong-co.liquid', hash: 'x' };
+
+    expect(buildGraph(FILES, [], { fileHashes: [card, stray] }).fileHashes).toEqual([card]);
+  });
+
+  it('không sửa mảng được đưa vào', () => {
+    const input = [price, card];
+    buildGraph(FILES, [], { fileHashes: input });
+
+    expect(input).toEqual([price, card]);
+  });
+});

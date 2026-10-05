@@ -66,7 +66,11 @@ function sampleGraph(): ThemeGraph {
     { file: 'sections/main-product.liquid', presets: 2, acceptsThemeBlocks: true },
     { file: 'sections/grid.liquid', presets: 0, acceptsThemeBlocks: false },
   ];
-  return buildGraph(files, refs, { schemas });
+  const fileHashes = [
+    { file: 'snippets/price.liquid', hash: 'bbb' },
+    { file: 'snippets/card.liquid', hash: 'aaa' },
+  ];
+  return buildGraph(files, refs, { schemas, fileHashes });
 }
 
 let themeRoot: string;
@@ -217,6 +221,29 @@ describe('saveGraph — nội dung', () => {
     ]);
   });
 
+  it('ghi hash nội dung của từng file vào bảng file_hashes', () => {
+    saveGraph(themeRoot, sampleGraph());
+
+    const rows = withDb((db) =>
+      db
+        .prepare('SELECT file, hash FROM file_hashes ORDER BY file')
+        .all()
+        .map((r) => ({ ...r })),
+    );
+
+    expect(rows).toEqual([
+      { file: 'snippets/card.liquid', hash: 'aaa' },
+      { file: 'snippets/price.liquid', hash: 'bbb' },
+    ]);
+  });
+
+  it('database từ chối hash của file không phải node', () => {
+    const graph = sampleGraph();
+    graph.fileHashes.push({ file: 'snippets/khong-co.liquid', hash: 'x' });
+
+    expect(() => saveGraph(themeRoot, graph)).toThrow(/FOREIGN KEY/);
+  });
+
   it('database từ chối schema của file không phải node', () => {
     const graph = sampleGraph();
     graph.schemas.push({ file: 'sections/khong-co.liquid', presets: 1, acceptsThemeBlocks: false });
@@ -257,6 +284,7 @@ describe('saveGraph — nội dung', () => {
         edges: db.prepare('SELECT * FROM edges ORDER BY src, dst, type').all(),
         refs: db.prepare('SELECT * FROM refs ORDER BY id').all(),
         schemas: db.prepare('SELECT * FROM schemas ORDER BY file').all(),
+        fileHashes: db.prepare('SELECT * FROM file_hashes ORDER BY file').all(),
       }));
 
     saveGraph(themeRoot, sampleGraph());

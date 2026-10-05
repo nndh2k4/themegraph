@@ -1,6 +1,7 @@
-import { stat } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { hashContent } from "./hash.js";
 import { openGraph } from "./open.js";
 import { scanThemeDir } from "./scanner.js";
 
@@ -15,7 +16,7 @@ export interface StatusResult {
   // true khi theme đã đổi từ lần phân tích, tức ít nhất một trong ba danh
   // sách dưới đây không rỗng. Khi đó kết quả truy vấn có thể không còn đúng.
   stale: boolean;
-  modified: string[]; // file có trong đồ thị và đã bị sửa sau lần phân tích
+  modified: string[]; // file có trong đồ thị mà nội dung đã khác lúc phân tích
   added: string[]; // file có trên đĩa nhưng chưa có trong đồ thị
   removed: string[]; // file có trong đồ thị nhưng không còn trên đĩa
 }
@@ -23,11 +24,11 @@ export interface StatusResult {
 /**
  * So đồ thị đã ghi của một theme với các file đang có trên đĩa.
  *
- * "Đã bị sửa" được xác định bằng THỜI ĐIỂM SỬA của file (mtime) so với thời
- * điểm phân tích, không phải bằng nội dung. Cách này nhanh và không phải lưu
- * gì thêm trong graph.db, nhưng có thể báo dư: một file được lưu lại mà không
- * đổi chữ nào, hoặc bị git checkout ghi lại, vẫn tính là đã sửa. Báo dư ở đây
- * chỉ dẫn tới một lần analyze thừa, còn báo thiếu thì dẫn tới câu trả lời sai.
+ * "Đã bị sửa" được xác định bằng NỘI DUNG: hash của file hiện có trên đĩa
+ * được so với hash analyze đã ghi vào graph.db. Thời điểm sửa của file không
+ * được dùng tới, vì nó đổi cả khi nội dung không đổi (git checkout, trình
+ * soạn thảo lưu lại file) và có thể không đổi khi nội dung đổi (file được
+ * chép đè kèm thời điểm cũ).
  *
  * Chỉ file .liquid và .json mới được xét là "đã sửa": đó là những file mà
  * analyze đọc nội dung. Sửa một ảnh hay một file css không làm đồ thị đổi.
@@ -38,6 +39,7 @@ export async function themeStatus(themeRoot: string): Promise<StatusResult> {
   const graph = openGraph(themeRoot);
 
   let inGraph: Set<string>;
+  let hashOf: Map<string, string>;
   let counts: { nodes: number; edges: number };
   try {
     // Node file là mọi node trừ ba loại không ứng với file nào trên đĩa.
@@ -46,6 +48,12 @@ export async function themeStatus(themeRoot: string): Promise<StatusResult> {
         .prepare("SELECT id FROM nodes WHERE kind NOT IN ('page_type', 'translation_key', 'setting')")
         .all()
         .map((row) => String(row.id)),
+    );
+    hashOf = new Map(
+      graph.db
+        .prepare("SELECT file, hash FROM file_hashes")
+        .all()
+        .map((row) => [String(row.file), String(row.hash)]),
     );
     counts = {
       nodes: Number(graph.db.prepare("SELECT count(*) AS n FROM nodes").get()?.n),
@@ -56,7 +64,6 @@ export async function themeStatus(themeRoot: string): Promise<StatusResult> {
     graph.close();
   }
 
-  const analyzedAtMs = Date.parse(graph.meta.analyzedAt);
   const { files } = await scanThemeDir(graph.themeRoot);
   const onDisk = new Set(files.map((file) => file.path));
 
@@ -65,8 +72,10 @@ export async function themeStatus(themeRoot: string): Promise<StatusResult> {
     if (!inGraph.has(file.path)) continue;
     if (file.ext !== "liquid" && file.ext !== "json") continue;
 
-    const { mtimeMs } = await stat(path.join(graph.themeRoot, file.path));
-    if (mtimeMs > analyzedAtMs) modified.push(file.path);
+    // File không có hash là file lần phân tích không đọc được; không biết nội
+    // dung cũ của nó nên coi là đã đổi.
+    const content = await readFile(path.join(graph.themeRoot, file.path), "utf8");
+    if (hashOf.get(file.path) !== hashContent(content)) modified.push(file.path);
   }
 
   // scanThemeDir đã xếp `files` theo tên, nên modified và added cũng đã xếp.
