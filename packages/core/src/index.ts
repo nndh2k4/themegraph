@@ -23,3 +23,9 @@ export type { SaveGraphOptions } from './store.js';
 // Điểm nối của lõi: thư mục theme -> graph.db + thống kê.
 export { analyze } from './analyze.js';
 export type { AnalyzeError, AnalyzeResult, AnalyzeStats } from './analyze.js';
+
+// Đọc đồ thị: mở graph.db của một theme và tìm node theo tên người dùng gõ.
+export { findThemeRoot, GraphNotReadyError, openGraph } from './open.js';
+export type { GraphHandle, GraphMeta, GraphNotReadyReason } from './open.js';
+export { findNode, NodeNotFoundError } from './find-node.js';
+export type { FindNodeOptions } from './find-node.js';
