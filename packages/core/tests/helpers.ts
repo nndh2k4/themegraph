@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { buildGraph } from '../src/graph.js';
 import { saveGraph } from '../src/store.js';
-import type { FileKind, RawRef, RefKind, RefSource, ThemeFile, ThemeGraph } from '../src/types.js';
+import type { FileKind, FileSchema, RawRef, RefKind, RefSource, ThemeFile, ThemeGraph } from '../src/types.js';
 
 /** Tạo một ThemeFile từ đường dẫn và loại. */
 export const file = (p: string, kind: FileKind): ThemeFile => ({
@@ -29,6 +29,16 @@ export const ref = (
 });
 
 /**
+ * Dữ kiện schema mặc định của đồ thị mẫu: featured có preset (merchant thêm
+ * được), main-product nhận mọi theme block công khai qua "@theme".
+ */
+export const QUERY_SCHEMAS: FileSchema[] = [
+  { file: 'sections/featured.liquid', presets: 1, acceptsThemeBlocks: false },
+  { file: 'sections/main-product.liquid', presets: 0, acceptsThemeBlocks: true },
+  { file: 'sections/api-only.liquid', presets: 0, acceptsThemeBlocks: false },
+];
+
+/**
  * Đồ thị mẫu cho các test truy vấn. Mỗi phần của nó phục vụ một tình huống:
  *
  *   page:product    -> templates/product.json     -> sections/main-product.liquid -> snippets/card.liquid -> snippets/price.liquid
@@ -45,7 +55,7 @@ export const ref = (
  *   sections/api-only.liquid  (không presets) -> snippets/api-row.liquid
  *   blocks/_unused.liquid, blocks/text.liquid, assets/unused.png
  */
-export function queryGraph(): ThemeGraph {
+export function queryGraph(schemas: FileSchema[] = QUERY_SCHEMAS): ThemeGraph {
   const files = [
     file('layout/theme.liquid', 'layout'),
     file('templates/product.json', 'template'),
@@ -106,7 +116,7 @@ export function queryGraph(): ThemeGraph {
     ref('sections/api-only.liquid', 'render', 'api-row', { line: 1 }),
   ];
 
-  return buildGraph(files, refs);
+  return buildGraph(files, refs, schemas);
 }
 
 /**

@@ -45,3 +45,7 @@ export type { FlowNode, RenderFlowResult } from './render-flow.js';
 // Truy vấn: file này là gì, ai gọi nó, nó gọi ai.
 export { context } from './context.js';
 export type { BrokenRef, ContextLink, ContextResult } from './context.js';
+
+// Truy vấn: file nào không còn được dùng.
+export { deadCode } from './dead-code.js';
+export type { DeadCodeResult, DeadConfidence, DeadFile, DeadReason } from './dead-code.js';
