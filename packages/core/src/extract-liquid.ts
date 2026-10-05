@@ -4,6 +4,15 @@ import { collectSchemaBlockTypes } from "./extract-schema.js";
 import type { RawRef, RefKind, RefSource, ThemeFile } from "./types.js";
 
 /**
+ * Các filter biến tên file thành đường dẫn hoặc nội dung của một file trong
+ * thư mục assets/ của theme.
+ *
+ * Cố ý KHÔNG có shopify_asset_url và global_asset_url: hai filter đó trỏ tới
+ * file dùng chung trên máy chủ Shopify, không phải file của theme.
+ */
+const ASSET_FILTERS = new Set(["asset_url", "asset_img_url", "inline_asset_content"]);
+
+/**
  * Đổi một vị trí ký tự (offset) trong chuỗi thành số dòng, đếm từ 1.
  *
  * Parser chỉ cho vị trí ký tự của mỗi nút; số dòng phải tự tính bằng cách
@@ -23,7 +32,8 @@ function lineAt(content: string, offset: number): number {
  * Nhận nội dung file dưới dạng chuỗi thay vì tự đọc đĩa, giống extractJsonRefs.
  *
  * Hiện trích: {% render %}, {% include %}, {% section %}, {% sections %},
- * {% content_for 'block' %}, và các theme block nhắc trong {% schema %}.
+ * {% content_for 'block' %}, các theme block nhắc trong {% schema %},
+ * và file asset đi qua filter asset_url / asset_img_url / inline_asset_content.
  */
 export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
   // Chỉ file .liquid mới chứa mã Liquid. Asset (.css, .js) có thể chứa chuỗi
@@ -90,6 +100,23 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
       for (const blockType of blockTypes) {
         addRef("block", blockType, node.position.start, "schema", true);
       }
+      return;
+    }
+
+    // LiquidVariable là một biểu thức kèm chuỗi filter, ví dụ
+    //   'base.css' | asset_url | stylesheet_tag
+    // Nó xuất hiện trong {{ ... }}, trong assign, trong echo... nên bắt ở mức
+    // nút này thì không cần quan tâm nó nằm trong tag nào.
+    if (node.type === NodeTypes.LiquidVariable) {
+      // Chỉ xét filter ĐẦU TIÊN: nếu trước asset_url còn filter khác (append,
+      // replace...) thì tên file thật là kết quả tính toán, không phải chuỗi gốc.
+      const firstFilter = node.filters[0];
+      if (firstFilter === undefined || !ASSET_FILTERS.has(firstFilter.name)) return;
+
+      // Tên file phải là chuỗi viết sẵn; là biến thì không biết khi đọc mã.
+      if (node.expression.type !== NodeTypes.String) return;
+
+      addRef("asset", node.expression.value, node.position.start);
       return;
     }
 

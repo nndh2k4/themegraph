@@ -260,3 +260,51 @@ describe('extractLiquidRefs — schema', () => {
     );
   });
 });
+
+describe('extractLiquidRefs — asset', () => {
+  const assets = (content: string) =>
+    extractLiquidRefs(SECTION, content)
+      .filter((r) => r.kind === 'asset')
+      .map((r) => [r.to, r.line]);
+
+  it('sinh ref asset từ chuỗi đi qua filter asset_url', () => {
+    expect(extractLiquidRefs(SECTION, "{{ 'base.css' | asset_url | stylesheet_tag }}")).toEqual([
+      { from: 'sections/hero.liquid', to: 'base.css', kind: 'asset', source: 'liquid', conditional: false, line: 1 },
+    ]);
+  });
+
+  it('nhận cả inline_asset_content và asset_img_url', () => {
+    const content = "{{ 'icon-cart.svg' | inline_asset_content }}\n{{ 'logo.png' | asset_img_url: '100x' }}";
+
+    expect(assets(content)).toEqual([
+      ['icon-cart.svg', 1],
+      ['logo.png', 2],
+    ]);
+  });
+
+  it('bắt được asset_url nằm trong assign và trong tag liquid', () => {
+    const content = "{% assign url = 'app.js' | asset_url %}\n{% liquid\n  echo 'theme.css' | asset_url\n%}";
+
+    expect(assets(content)).toEqual([
+      ['app.js', 1],
+      ['theme.css', 3],
+    ]);
+  });
+
+  it('bỏ qua shopify_asset_url vì file đó nằm trên máy chủ Shopify, không trong theme', () => {
+    expect(assets("{{ 'option_selection.js' | shopify_asset_url }}")).toEqual([]);
+  });
+
+  it('bỏ qua khi tên file là biến', () => {
+    expect(assets('{{ icon_file | asset_url }}')).toEqual([]);
+  });
+
+  it('bỏ qua khi chuỗi bị biến đổi trước khi tới asset_url', () => {
+    // Tên file thật là kết quả của append, không phải chuỗi viết trong mã.
+    expect(assets("{{ 'icon-' | append: name | asset_url }}")).toEqual([]);
+  });
+
+  it('không coi chuỗi không qua filter asset là tham chiếu', () => {
+    expect(assets("{{ 'base.css' | upcase }}\n{{ 'general.title' | t }}")).toEqual([]);
+  });
+});
