@@ -63,8 +63,10 @@ tự ghi chú điều này ("đồ thị chỉ xác nhận danh sách trang và 
 chứ không nêu từng cặp"); ở lượt 1 thì không. Danh sách trang, tức câu trả lời
 cho câu hỏi của đề cương, đúng ở cả hai lượt.
 
-Cách chữa nếu làm tiếp: cho `impact` ghi với mỗi trang một đường đi ngắn nhất
-tới file đang hỏi. Chưa làm trong tuần 7.
+Đã sửa sau nghiệm thu (commit `49d053f`): `impact` ghi với mỗi trang các file
+gọi trực tiếp mà trang đi qua, và gắn nhãn cho file không nằm trên trang nào.
+Chạy lại câu hỏi này, agent ghép đúng; xem
+[doi-chung-co-va-khong-co-themegraph.md](doi-chung-co-va-khong-co-themegraph.md).
 
 ## Skill có tác dụng gì
 
