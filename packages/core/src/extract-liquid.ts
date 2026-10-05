@@ -1,4 +1,5 @@
 import { NodeTypes, toLiquidAST, walk } from "@shopify/liquid-html-parser";
+import type { LiquidHtmlNode } from "@shopify/liquid-html-parser";
 
 import { collectSchemaBlockTypes } from "./extract-schema.js";
 import type { RawRef, RefKind, RefSource, ThemeFile } from "./types.js";
@@ -11,6 +12,18 @@ import type { RawRef, RefKind, RefSource, ThemeFile } from "./types.js";
  * file dùng chung trên máy chủ Shopify, không phải file của theme.
  */
 const ASSET_FILTERS = new Set(["asset_url", "asset_img_url", "inline_asset_content"]);
+
+/**
+ * Các tag mà nội dung bên trong KHÔNG chắc được chạy:
+ *   - if / unless / case: chỉ chạy khi điều kiện đúng
+ *   - for / tablerow: chạy 0 lần nếu danh sách rỗng
+ *
+ * Các nhánh elsif / else / when không cần liệt kê: chúng luôn nằm bên trong
+ * một trong các tag trên.
+ *
+ * capture, form, paginate KHÔNG có ở đây: nội dung của chúng luôn được chạy.
+ */
+const CONDITIONAL_TAGS = new Set(["if", "unless", "case", "for", "tablerow"]);
 
 /**
  * Đổi một vị trí ký tự (offset) trong chuỗi thành số dòng, đếm từ 1.
@@ -56,16 +69,37 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
 
   const refs: RawRef[] = [];
 
+  // LƯỢT 1: ghi lại nút cha của từng nút.
+  //
+  // Cần lượt riêng vì walk() của parser gọi hàm cho nút CON trước, nút cha
+  // sau, và chỉ đưa cha trực tiếp. Muốn biết một nút có nằm trong {% if %} ở
+  // xa phía trên hay không thì phải có sẵn toàn bộ quan hệ cha-con để leo lên.
+  const parentOf = new Map<LiquidHtmlNode, LiquidHtmlNode | undefined>();
+  walk(ast, (node, parent) => {
+    parentOf.set(node, parent);
+  });
+
+  /** Leo từ một nút lên tới gốc; trả true nếu gặp một tag có điều kiện. */
+  const isInsideConditional = (node: LiquidHtmlNode): boolean => {
+    let current = parentOf.get(node);
+    while (current !== undefined) {
+      if (current.type === NodeTypes.LiquidTag && CONDITIONAL_TAGS.has(current.name)) {
+        return true;
+      }
+      current = parentOf.get(current);
+    }
+    return false;
+  };
+
   // Hàm con để mọi ref được tạo ở đúng một chỗ, cùng một khuôn.
-  // source và conditional có giá trị mặc định cho trường hợp thường gặp nhất
-  // (một tag Liquid); nhánh schema truyền giá trị riêng.
+  // Mặc định source là 'liquid' và conditional được tính từ vị trí của nút;
+  // nhánh schema truyền giá trị riêng cho cả hai.
   const addRef = (
     kind: RefKind,
     to: string,
-    offset: number,
+    node: LiquidHtmlNode,
     source: RefSource = "liquid",
-    // Với tag Liquid: chưa xét ngữ cảnh if / for; sẽ tính khi có ngăn xếp nút cha.
-    conditional = false,
+    conditional: boolean = isInsideConditional(node),
   ): void => {
     refs.push({
       from: file.path,
@@ -73,10 +107,12 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
       kind,
       source,
       conditional,
-      line: lineAt(content, offset),
+      line: lineAt(content, node.position.start),
     });
   };
 
+  // LƯỢT 2: tìm các nút là tham chiếu.
+  //
   // walk() ghé qua mọi nút của cây, kể cả các câu lệnh bên trong {% liquid %}.
   // Nội dung của {% comment %} là văn bản thô, không thành nút, nên ví dụ
   // "cách dùng" viết trong chú thích tự động không bị tính.
@@ -98,7 +134,7 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
       // conditional = true: schema chỉ nói file này NHẬN ĐƯỢC các block đó.
       // Block có thật sự được render hay không tuỳ cấu hình trong JSON template.
       for (const blockType of blockTypes) {
-        addRef("block", blockType, node.position.start, "schema", true);
+        addRef("block", blockType, node, "schema", true);
       }
       return;
     }
@@ -116,7 +152,7 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
       // Tên file phải là chuỗi viết sẵn; là biến thì không biết khi đọc mã.
       if (node.expression.type !== NodeTypes.String) return;
 
-      addRef("asset", node.expression.value, node.position.start);
+      addRef("asset", node.expression.value, node);
       return;
     }
 
@@ -132,7 +168,7 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
       // biến: tên chỉ có lúc chạy, không biết được khi đọc mã.
       if (snippet.type !== NodeTypes.String) return;
 
-      addRef(node.name, snippet.value, node.position.start);
+      addRef(node.name, snippet.value, node);
       return;
     }
 
@@ -141,7 +177,7 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
       if (typeof node.markup === "string") return;
 
       // Tên section trong tag này luôn là chuỗi; parser để nó ở markup.name.
-      addRef("section", node.markup.name.value, node.position.start);
+      addRef("section", node.markup.name.value, node);
       return;
     }
 
@@ -152,7 +188,7 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
       // Với tag này parser để thẳng chuỗi tên vào markup, không bọc thêm lớp.
       if (typeof node.markup === "string") return;
 
-      addRef("section_group", node.markup.value, node.position.start);
+      addRef("section_group", node.markup.value, node);
       return;
     }
 
@@ -173,7 +209,7 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
       if (typeArg === undefined) return;
       if (typeArg.value.type !== NodeTypes.String) return;
 
-      addRef("block", typeArg.value.value, node.position.start);
+      addRef("block", typeArg.value.value, node);
     }
   });
 

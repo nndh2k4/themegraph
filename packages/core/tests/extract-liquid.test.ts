@@ -308,3 +308,74 @@ describe('extractLiquidRefs — asset', () => {
     expect(assets("{{ 'base.css' | upcase }}\n{{ 'general.title' | t }}")).toEqual([]);
   });
 });
+
+describe('extractLiquidRefs — conditional', () => {
+  /** Trả về cặp [tên, conditional] của mọi ref, theo thứ tự xuất hiện. */
+  const flags = (content: string, file: ThemeFile = SECTION) =>
+    extractLiquidRefs(file, content).map((r) => [r.to, r.conditional]);
+
+  it('đánh dấu ref nằm trong if, không đánh dấu ref nằm ngoài', () => {
+    const content = "{% render 'before' %}\n{% if x %}{% render 'inside' %}{% endif %}\n{% render 'after' %}";
+
+    expect(flags(content)).toEqual([
+      ['before', false],
+      ['inside', true],
+      ['after', false],
+    ]);
+  });
+
+  it.each([
+    ['elsif', "{% if a %}1{% elsif b %}{% render 'x' %}{% endif %}"],
+    ['else', "{% if a %}1{% else %}{% render 'x' %}{% endif %}"],
+    ['unless', "{% unless a %}{% render 'x' %}{% endunless %}"],
+    ['case / when', "{% case a %}{% when 1 %}{% render 'x' %}{% endcase %}"],
+    ['for', "{% for i in list %}{% render 'x' %}{% endfor %}"],
+    ['for / else', "{% for i in list %}1{% else %}{% render 'x' %}{% endfor %}"],
+    ['tablerow', "{% tablerow i in list %}{% render 'x' %}{% endtablerow %}"],
+  ])('coi %s là ngữ cảnh có điều kiện', (_name, content) => {
+    expect(flags(content)).toEqual([['x', true]]);
+  });
+
+  it.each([
+    ['capture', "{% capture c %}{% render 'x' %}{% endcapture %}"],
+    ['form', "{% form 'product', product %}{% render 'x' %}{% endform %}"],
+    ['paginate', "{% paginate c.products by 5 %}{% render 'x' %}{% endpaginate %}"],
+    ['thẻ HTML', "<div><span>{% render 'x' %}</span></div>"],
+  ])('không coi %s là ngữ cảnh có điều kiện', (_name, content) => {
+    expect(flags(content)).toEqual([['x', false]]);
+  });
+
+  it('nhận ra điều kiện ở tổ tiên xa, qua nhiều tầng lồng nhau', () => {
+    const content = "{% for p in products %}<li>{% capture c %}{% form 'x', p %}{% render 'deep' %}{% endform %}{% endcapture %}</li>{% endfor %}";
+
+    expect(flags(content)).toEqual([['deep', true]]);
+  });
+
+  it('xét đúng if viết bên trong tag {% liquid %}', () => {
+    const content = "{% liquid\n  render 'top'\n  if x\n    render 'inner'\n  endif\n%}";
+
+    expect(flags(content)).toEqual([
+      ['top', false],
+      ['inner', true],
+    ]);
+  });
+
+  it('áp dụng cho mọi loại ref, không riêng render', () => {
+    const layout: ThemeFile = { path: 'layout/theme.liquid', kind: 'layout', ext: 'liquid' };
+    const content = [
+      '{% if request.design_mode %}',
+      "  {{ 'editor.js' | asset_url }}",
+      "  {% section 'debug-bar' %}",
+      "  {% sections 'overlay-group' %}",
+      "  {% content_for 'block', type: '_note', id: 'n' %}",
+      '{% endif %}',
+    ].join('\n');
+
+    expect(flags(content, layout)).toEqual([
+      ['editor.js', true],
+      ['debug-bar', true],
+      ['overlay-group', true],
+      ['_note', true],
+    ]);
+  });
+});
