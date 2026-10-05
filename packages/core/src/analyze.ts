@@ -4,6 +4,7 @@ import path from "node:path";
 import { extractFile } from "./extract.js";
 import { buildGraph } from "./graph.js";
 import { scanThemeDir } from "./scanner.js";
+import { registerTheme } from "./registry.js";
 import { graphDbPath, saveGraph } from "./store.js";
 import type { FileSchema, RawRef, ResolvedRef } from "./types.js";
 
@@ -32,6 +33,9 @@ export interface AnalyzeResult {
   missing: ResolvedRef[]; // các tham chiếu hỏng, kèm file và dòng
   skipped: string[]; // file nằm trong theme nhưng ngoài quy ước thư mục
   errors: AnalyzeError[]; // file không đọc hoặc không phân tích được
+  // false khi không ghi được theme vào sổ đăng ký toàn cục (ví dụ thư mục home
+  // không cho ghi). Đồ thị vẫn được ghi đầy đủ; chỉ lệnh list là không thấy theme.
+  registered: boolean;
   durationMs: number;
 }
 
@@ -51,6 +55,7 @@ function countBy<T>(items: readonly T[], keyOf: (item: T) => string): Record<str
  *
  * Đây là điểm nối của toàn bộ lõi:
  *   quét thư mục -> đọc từng file -> trích quan hệ thô -> dựng đồ thị -> ghi SQLite
+ *   -> ghi theme vào sổ đăng ký toàn cục
  *
  * Mọi lớp vỏ (CLI, MCP, server) chỉ gọi hàm này; không lớp nào tự đọc Liquid.
  *
@@ -104,8 +109,26 @@ export async function analyze(themeRoot: string): Promise<AnalyzeResult> {
   // Bước 4: dựng đồ thị (phân giải tên thô thành file, gộp cạnh, thêm loại trang).
   const graph = buildGraph(files, rawRefs, { schemas, translationKeys, settings });
 
-  // Bước 5: ghi xuống đĩa.
-  saveGraph(root, graph);
+  // Bước 5: ghi xuống đĩa. Cùng một thời điểm được ghi vào graph.db và vào
+  // sổ đăng ký, để hai nơi không bao giờ lệch nhau.
+  const analyzedAt = new Date();
+  saveGraph(root, graph, { analyzedAt });
+
+  // Bước 6: ghi theme vào sổ đăng ký toàn cục, để lệnh list và MCP server
+  // biết theme này tồn tại. Sổ đăng ký chỉ là chỉ mục; không ghi được nó thì
+  // lần phân tích vẫn thành công.
+  let registered = true;
+  try {
+    registerTheme({
+      path: root,
+      name: path.basename(root),
+      analyzedAt: analyzedAt.toISOString(),
+      nodes: graph.nodes.length,
+      edges: graph.edges.length,
+    });
+  } catch {
+    registered = false;
+  }
 
   return {
     themeRoot: root,
@@ -122,6 +145,7 @@ export async function analyze(themeRoot: string): Promise<AnalyzeResult> {
     missing: graph.refs.filter((ref) => ref.status === "missing"),
     skipped,
     errors,
+    registered,
     durationMs: Math.round(performance.now() - startedAt),
   };
 }

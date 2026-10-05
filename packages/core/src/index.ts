@@ -58,3 +58,7 @@ export type { DeadCodeResult, DeadConfidence, DeadFile, DeadReason } from './dea
 // Kiểm chứng: đối chiếu truy vấn SQL với phép duyệt bằng JavaScript.
 export { bfsTraverse, diffTraversals, verify } from './verify.js';
 export type { PlainEdge, Reach, VerifyMismatch, VerifyResult } from './verify.js';
+
+// Sổ đăng ký toàn cục: những theme nào đã được phân tích, nằm ở đâu.
+export { listThemes, readRegistry, registerTheme, registryDir, registryPath, unregisterTheme } from './registry.js';
+export type { ListedTheme, RegistryEntry } from './registry.js';

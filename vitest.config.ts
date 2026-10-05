@@ -14,5 +14,10 @@ export default defineConfig({
   test: {
     include: ['packages/*/tests/**/*.test.ts'],
     environment: 'node',
+    // Cho mỗi file test một thư mục THEMEGRAPH_HOME tạm (xem file đó).
+    setupFiles: ['./vitest.setup.ts'],
+    // Hầu hết test tạo thư mục tạm và file SQLite thật. Khi máy đang bận, một
+    // test như vậy có lúc vượt mức 5 giây mặc định dù không có gì sai.
+    testTimeout: 20_000,
   },
 });

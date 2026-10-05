@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { analyze } from '../src/analyze.js';
+import { readRegistry, registryPath } from '../src/registry.js';
 import { graphDbPath } from '../src/store.js';
 
 const FIXTURE = path.join(import.meta.dirname, 'fixtures', 'mini-theme');
@@ -38,6 +39,12 @@ function query(sql: string, ...params: string[]): Record<string, unknown>[] {
     db.close();
   }
 }
+
+/**
+ * Các mục của sổ đăng ký ứng với theme của test đang chạy. Mọi test trong file
+ * này dùng chung một sổ đăng ký tạm, nên sổ còn chứa theme của các test khác.
+ */
+const registered = () => readRegistry().filter((entry) => entry.path === themeRoot);
 
 describe('analyze', () => {
   it('trả về thống kê của đồ thị', async () => {
@@ -184,6 +191,53 @@ describe('analyze', () => {
 
     expect(result.stats.refsByStatus.unresolved).toBe(1);
     expect(result.missing.some((r) => r.kind === 'setting')).toBe(false);
+  });
+
+  it('ghi theme vào sổ đăng ký toàn cục, khớp với những gì ghi trong graph.db', async () => {
+    const result = await analyze(themeRoot);
+
+    const [meta] = query("SELECT value FROM meta WHERE key = 'analyzed_at'");
+
+    expect(result.registered).toBe(true);
+    expect(registered()).toEqual([
+      { path: themeRoot, name: 'mini-theme', analyzedAt: meta?.value, nodes: 22, edges: 22 },
+    ]);
+  });
+
+  it('phân tích lại thì cập nhật mục cũ trong sổ đăng ký, không thêm mục trùng', async () => {
+    await analyze(themeRoot);
+    await writeFile(path.join(themeRoot, 'snippets', 'moi.liquid'), '<p></p>');
+    await analyze(themeRoot);
+
+    expect(registered().map((e) => [e.name, e.nodes])).toEqual([['mini-theme', 23]]);
+  });
+
+  it('vẫn phân tích thành công khi không ghi được sổ đăng ký', async () => {
+    const previous = process.env.THEMEGRAPH_HOME;
+    // Đặt "thư mục home" là đường dẫn đi xuyên qua một FILE: không tạo được.
+    process.env.THEMEGRAPH_HOME = path.join(themeRoot, 'layout', 'theme.liquid', 'home');
+
+    try {
+      const result = await analyze(themeRoot);
+
+      expect(result.registered).toBe(false);
+      expect(result.stats.nodes).toBe(22);
+      expect(existsSync(result.dbPath)).toBe(true);
+    } finally {
+      process.env.THEMEGRAPH_HOME = previous;
+    }
+  });
+
+  it('không ghi vào sổ đăng ký khi thư mục không phải theme', async () => {
+    const before = existsSync(registryPath()) ? readRegistry() : [];
+    const notTheme = await mkdtemp(path.join(os.tmpdir(), 'themegraph-empty-'));
+
+    try {
+      await expect(analyze(notTheme)).rejects.toThrow();
+      expect(readRegistry()).toEqual(before);
+    } finally {
+      await rm(notTheme, { recursive: true, force: true });
+    }
   });
 
   it('liệt kê file bị bỏ qua', async () => {
