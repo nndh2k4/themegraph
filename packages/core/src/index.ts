@@ -9,3 +9,6 @@ export { scanThemeDir } from './scanner.js';
 export { extractRefs } from './extract.js';
 export { extractJsonRefs } from './extract-json.js';
 export { extractLiquidRefs } from './extract-liquid.js';
+
+// Resolver: quan hệ thô -> file thật trong theme.
+export { resolveRef } from './resolver.js';

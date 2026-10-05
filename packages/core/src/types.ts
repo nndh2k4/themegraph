@@ -70,3 +70,19 @@ export interface RawRef {
   conditional: boolean; // true nếu lời gọi nằm trong if / unless / case / for
   line: number; // dòng mở tag, đếm từ 1; ref lấy từ file JSON thì là 0
 }
+
+/**
+ * Kết quả của việc đổi một tham chiếu thô thành file thật trong theme.
+ *
+ * - resolved: tìm thấy file đích, `path` cùng định dạng với ThemeFile.path
+ * - local_block: ref tới một block không có file trong blocks/, đến từ JSON
+ *   template. Được coi là block cục bộ khai trong {% schema %} của section;
+ *   không phải lỗi, nhưng cũng không thành cạnh trong đồ thị.
+ * - missing: tham chiếu HỎNG. `expected` là đường dẫn lẽ ra phải có.
+ * - none: ref không trỏ tới đâu (no_layout).
+ */
+export type Resolution =
+  | { status: "resolved"; path: string }
+  | { status: "local_block" }
+  | { status: "missing"; expected: string }
+  | { status: "none" };
