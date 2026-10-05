@@ -192,7 +192,8 @@ describe('findNode', () => {
   it('gợi ý theo tên file, bỏ qua thư mục và đuôi gõ sai', () => {
     const error = errorOf(() => findNode(open(), 'sections/price.css'));
 
-    expect((error as NodeNotFoundError).suggestions).toEqual(['snippets/price.liquid']);
+    // Gợi ý tìm trong mọi node, nên khoá dịch có chữ "price" cũng được đưa ra.
+    expect((error as NodeNotFoundError).suggestions).toEqual(['snippets/price.liquid', 't:product.price']);
   });
 
   it('không gợi ý gì khi không có node nào giống', () => {

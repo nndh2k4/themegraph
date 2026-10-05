@@ -413,7 +413,11 @@ describe('extractLiquid — dữ kiện schema', () => {
   it('trả schema null cho file không phải Liquid', () => {
     const css: ThemeFile = { path: 'assets/base.css', kind: 'asset', ext: 'css' };
 
-    expect(extractLiquid(css, '{% schema %}{ "presets": [{}] }{% endschema %}')).toEqual({ refs: [], schema: null });
+    expect(extractLiquid(css, '{% schema %}{ "presets": [{}] }{% endschema %}')).toEqual({
+      refs: [],
+      schema: null,
+      translationKeys: [],
+    });
   });
 
   it('đếm số preset', () => {
@@ -442,6 +446,7 @@ describe('extractLiquid — dữ kiện schema', () => {
     expect(extractLiquid(SECTION, '{% schema %}[]{% endschema %}')).toEqual({
       refs: [],
       schema: { presets: 0, acceptsThemeBlocks: false },
+      translationKeys: [],
     });
   });
 
@@ -450,5 +455,68 @@ describe('extractLiquid — dữ kiện schema', () => {
 
     expect(extractLiquid(SECTION, content).refs).toEqual(extractLiquidRefs(SECTION, content));
     expect(extractLiquid(SECTION, content).refs).toHaveLength(2);
+  });
+});
+
+describe('extractLiquidRefs — khoá dịch', () => {
+  it('sinh ref translation từ chuỗi đi qua filter t', () => {
+    expect(extractLiquidRefs(SECTION, "<h2>{{ 'general.cart.title' | t }}</h2>")).toEqual([
+      {
+        from: 'sections/hero.liquid',
+        to: 'general.cart.title',
+        kind: 'translation',
+        source: 'liquid',
+        conditional: false,
+        line: 1,
+      },
+    ]);
+  });
+
+  it('nhận cả tên đầy đủ translate và filter có tham số', () => {
+    const content = "{{ 'a.one' | translate }}\n{{ 'a.items' | t: count: cart.item_count }}";
+
+    expect(brief(content)).toEqual([
+      ['translation', 'a.one', 1],
+      ['translation', 'a.items', 2],
+    ]);
+  });
+
+  it('bắt được khoá dịch trong assign, trong {% liquid %} và khi còn filter phía sau', () => {
+    const content = [
+      "{% assign label = 'a.label' | t %}",
+      '{% liquid',
+      "  assign other = 'a.other' | t",
+      '%}',
+      "{{ 'a.html' | t | escape }}",
+    ].join('\n');
+
+    expect(brief(content)).toEqual([
+      ['translation', 'a.label', 1],
+      ['translation', 'a.other', 3],
+      ['translation', 'a.html', 5],
+    ]);
+  });
+
+  it('bỏ qua khi khoá là biến hoặc là kết quả của filter khác', () => {
+    const content = "{{ key | t }}\n{{ 'products.' | append: handle | t }}";
+
+    expect(brief(content)).toEqual([]);
+  });
+
+  it('không nhầm filter có tên bắt đầu bằng t', () => {
+    expect(brief("{{ 'a.b' | truncate: 5 }}{{ 'x' | times: 2 }}")).toEqual([]);
+  });
+
+  it('đánh dấu conditional khi nằm trong if', () => {
+    const refs = extractLiquidRefs(SECTION, "{% if cart.empty? %}{{ 'cart.empty' | t }}{% endif %}");
+
+    expect(refs.map((r) => [r.to, r.conditional])).toEqual([['cart.empty', true]]);
+  });
+
+  it('vẫn trích asset như trước', () => {
+    expect(brief("{{ 'base.css' | asset_url }}{{ 'a.b' | t }}")).toEqual([
+      ['asset', 'base.css', 1],
+      ['translation', 'a.b', 1],
+    ]);
   });
 });

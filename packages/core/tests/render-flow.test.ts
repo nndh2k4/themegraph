@@ -58,6 +58,16 @@ describe('renderFlow — danh sách file', () => {
     ]);
   });
 
+  it('không kể khoá dịch: chỉ đi theo cạnh nối file với file', () => {
+    // card và main-product đều dùng khoá dịch, nhưng danh sách ở test trên
+    // không có node t: nào.
+    const result = renderFlow(graph, 'page:product');
+    const inTree = flatten(result.tree).map((n) => n.id);
+
+    expect(result.files.some((f) => f.kind === 'translation_key')).toBe(false);
+    expect(inTree.some((id) => id.startsWith('t:'))).toBe(false);
+  });
+
   it('không kể node gốc trong danh sách file', () => {
     const result = renderFlow(graph, 'page:cart');
 

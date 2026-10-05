@@ -16,7 +16,7 @@ function isObject(value: unknown): value is JsonObject {
  * JSON chuẩn không cho phép chú thích, nên phải cắt đi trước khi JSON.parse.
  * Chỉ cắt khối nằm ở ĐẦU file, không đụng tới nội dung bên trong.
  */
-function stripLeadingComment(content: string): string {
+export function stripLeadingComment(content: string): string {
   return content.replace(/^\uFEFF?\s*\/\*[\s\S]*?\*\//, "");
 }
 

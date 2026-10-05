@@ -45,9 +45,9 @@ describe('analyze', () => {
 
     expect(result.stats).toEqual({
       files: 13,
-      nodes: 17,
-      edges: 17,
-      refs: 13,
+      nodes: 19,
+      edges: 19,
+      refs: 15,
       nodesByKind: {
         asset: 1,
         block: 1,
@@ -60,9 +60,10 @@ describe('analyze', () => {
         section_group: 1,
         snippet: 1,
         template: 4,
+        translation_key: 2,
       },
-      edgesByType: { RENDERS: 9, USES_ASSET: 1, USES_LAYOUT: 3, USES_TEMPLATE: 4 },
-      refsByStatus: { missing: 2, none: 1, resolved: 10 },
+      edgesByType: { RENDERS: 9, USES_ASSET: 1, USES_LAYOUT: 3, USES_TEMPLATE: 4, USES_TRANSLATION: 2 },
+      refsByStatus: { missing: 2, none: 1, resolved: 12 },
     });
   });
 
@@ -78,7 +79,7 @@ describe('analyze', () => {
     // Fixture có sẵn .themegraph/graph.db chứa chữ, không phải SQLite.
     await analyze(themeRoot);
 
-    expect(query('SELECT count(*) AS n FROM nodes')).toEqual([{ n: 17 }]);
+    expect(query('SELECT count(*) AS n FROM nodes')).toEqual([{ n: 19 }]);
   });
 
   it('ghi dữ kiện schema của section và block vào database', async () => {
@@ -98,6 +99,39 @@ describe('analyze', () => {
       ['snippets/card.liquid', 4, 'asset', 'assets/icon-star'],
       ['templates/customers/login.json', 0, 'section', 'sections/missing-section.liquid'],
     ]);
+  });
+
+  it('báo khoá dịch không có trong locale mặc định là tham chiếu hỏng', async () => {
+    await writeFile(path.join(themeRoot, 'snippets', 'badge.liquid'), "<b>{{ 'general.tilte' | t }}</b>");
+
+    const result = await analyze(themeRoot);
+
+    expect(result.missing.map((r) => [r.from, r.line, r.kind, r.target])).toContainEqual([
+      'snippets/badge.liquid',
+      1,
+      'translation',
+      't:general.tilte',
+    ]);
+  });
+
+  it('nối file tới khoá dịch nó dùng, kể cả khoá số nhiều', async () => {
+    await analyze(themeRoot);
+
+    expect(query("SELECT src, dst FROM edges WHERE type = 'USES_TRANSLATION' ORDER BY src")).toEqual([
+      { src: 'sections/hero.liquid', dst: 't:general.title' },
+      { src: 'snippets/card.liquid', dst: 't:cart.items' },
+    ]);
+  });
+
+  it('ghi lỗi của file locale mặc định hỏng mà không dừng cả lần phân tích', async () => {
+    await writeFile(path.join(themeRoot, 'locales', 'en.default.json'), '{ "general": ');
+
+    const result = await analyze(themeRoot);
+
+    expect(result.errors.map((e) => e.path)).toEqual(['locales/en.default.json']);
+    // Không đọc được khoá nào thì mọi lời gọi t đều thành tham chiếu hỏng.
+    expect(result.stats.nodesByKind.translation_key).toBeUndefined();
+    expect(result.missing.filter((r) => r.kind === 'translation')).toHaveLength(2);
   });
 
   it('liệt kê file bị bỏ qua', async () => {
@@ -147,6 +181,9 @@ describe('analyze', () => {
       'sections/footer-group.json',
       'sections/hero.liquid',
       'snippets/card.liquid',
+      // Câu SQL này đi qua mọi loại cạnh nên gặp cả khoá dịch mà hero và card dùng.
+      't:cart.items',
+      't:general.title',
       'templates/index.json',
     ]);
   });

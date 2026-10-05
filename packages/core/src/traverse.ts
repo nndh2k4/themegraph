@@ -1,5 +1,5 @@
 import type { GraphHandle } from "./open.js";
-import type { NodeKind } from "./types.js";
+import type { EdgeType, NodeKind } from "./types.js";
 
 /**
  * Chiều duyệt đồ thị.
@@ -40,26 +40,33 @@ export interface Reached {
  *
  * Câu SELECT cuối lấy độ sâu NHỎ NHẤT của mỗi node (một node có thể được tới
  * bằng nhiều đường dài ngắn khác nhau).
+ *
+ * `edgeTypes` giới hạn phép duyệt vào một số loại cạnh; null là mọi loại.
+ * Tên loại cạnh được ghép thẳng vào câu SQL, điều chỉ an toàn vì chúng là
+ * hằng số của chương trình (kiểu EdgeType), không bao giờ là chữ người dùng gõ.
  */
-function traverseSql(from: "src" | "dst", to: "src" | "dst"): string {
+function traverseSql(from: "src" | "dst", to: "src" | "dst", edgeTypes: readonly EdgeType[] | null): string {
+  const typeFilter = edgeTypes === null ? "1" : `e.type IN (${edgeTypes.map((type) => `'${type}'`).join(", ")})`;
+
   return `
 WITH RECURSIVE
   reach(id) AS (
     SELECT ?1
     UNION
     SELECT e.${to} FROM edges e JOIN reach r ON e.${from} = r.id
+    WHERE ${typeFilter}
   ),
   walk(id, depth) AS (
     SELECT ?1, 0
     UNION
     SELECT e.${to}, w.depth + 1 FROM edges e JOIN walk w ON e.${from} = w.id
-    WHERE w.depth + 1 < (SELECT count(*) FROM reach)
+    WHERE ${typeFilter} AND w.depth + 1 < (SELECT count(*) FROM reach)
   ),
   sure(id) AS (
     SELECT ?1
     UNION
     SELECT e.${to} FROM edges e JOIN sure s ON e.${from} = s.id
-    WHERE e.conditional = 0
+    WHERE ${typeFilter} AND e.conditional = 0
   )
 SELECT w.id AS id,
        n.kind AS kind,
@@ -70,20 +77,28 @@ GROUP BY w.id
 ORDER BY depth, w.id`;
 }
 
-const FORWARD_SQL = traverseSql("src", "dst");
-const BACKWARD_SQL = traverseSql("dst", "src");
+export interface TraverseOptions {
+  /** Chỉ đi qua các loại cạnh này. Không có thì đi qua mọi loại cạnh. */
+  edgeTypes?: readonly EdgeType[];
+}
 
 /**
  * Duyệt đồ thị từ một node theo một chiều, bằng truy vấn đệ quy của SQLite.
  *
  * Trả về mọi node tới được, KỂ CẢ node xuất phát (độ sâu 0), xếp theo độ sâu
- * rồi theo id. Đi qua mọi loại cạnh.
+ * rồi theo id. Mặc định đi qua mọi loại cạnh.
  *
  * `startId` phải là id của một node có thật; dùng findNode() để đổi tên người
  * dùng gõ thành id.
  */
-export function traverse(graph: GraphHandle, startId: string, direction: Direction): Reached[] {
-  const sql = direction === "forward" ? FORWARD_SQL : BACKWARD_SQL;
+export function traverse(
+  graph: GraphHandle,
+  startId: string,
+  direction: Direction,
+  options: TraverseOptions = {},
+): Reached[] {
+  const edgeTypes = options.edgeTypes ?? null;
+  const sql = direction === "forward" ? traverseSql("src", "dst", edgeTypes) : traverseSql("dst", "src", edgeTypes);
 
   return graph.db
     .prepare(sql)

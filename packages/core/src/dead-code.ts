@@ -38,6 +38,10 @@ export interface DeadCodeResult {
   // Theme có file nào nhận mọi theme block qua "@theme" hay không. Nếu có,
   // block công khai không bao giờ bị báo, vì merchant thêm được chúng.
   acceptsThemeBlocks: boolean;
+  // Khoá dịch có trong locale mặc định mà không file nào gọi bằng tên viết
+  // sẵn. Luôn ở mức cần xem lại: khoá còn có thể được gọi bằng tên ghép lúc
+  // chạy ('products.' | append: handle | t), thứ đồ thị không thấy.
+  unusedTranslationKeys: string[];
 }
 
 /**
@@ -163,5 +167,15 @@ export function deadCode(graph: GraphHandle): DeadCodeResult {
 
   const review = files.filter((entry) => entry.confidence === "review").length;
 
-  return { files, certain: files.length - review, review, acceptsThemeBlocks };
+  // Id của node khoá dịch là 't:<khoá>'; trả về phần khoá, như cách mã gọi nó.
+  const unusedTranslationKeys = graph.db
+    .prepare(
+      `SELECT substr(id, 3) AS key FROM nodes
+       WHERE kind = 'translation_key' AND id NOT IN (SELECT dst FROM edges)
+       ORDER BY id`,
+    )
+    .all()
+    .map((row) => String(row.key));
+
+  return { files, certain: files.length - review, review, acceptsThemeBlocks, unusedTranslationKeys };
 }

@@ -66,7 +66,7 @@ function sampleGraph(): ThemeGraph {
     { file: 'sections/main-product.liquid', presets: 2, acceptsThemeBlocks: true },
     { file: 'sections/grid.liquid', presets: 0, acceptsThemeBlocks: false },
   ];
-  return buildGraph(files, refs, schemas);
+  return buildGraph(files, refs, { schemas });
 }
 
 let themeRoot: string;

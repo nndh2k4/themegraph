@@ -112,3 +112,69 @@ describe('resolveRef', () => {
     });
   });
 });
+
+describe('resolveRef — khoá dịch', () => {
+  const KNOWN = new Set(['t:general.cart.title', 'snippets/general.cart.title.liquid']);
+
+  it('đổi ref translation thành node t:<khoá>', () => {
+    expect(resolveRef(ref('translation', 'general.cart.title'), KNOWN)).toEqual({
+      status: 'resolved',
+      path: 't:general.cart.title',
+    });
+  });
+
+  it('báo missing kèm id lẽ ra phải có khi khoá không tồn tại', () => {
+    expect(resolveRef(ref('translation', 'general.cart.tilte'), KNOWN)).toEqual({
+      status: 'missing',
+      expected: 't:general.cart.tilte',
+    });
+  });
+});
+
+describe('resolveRef — dạng số nhiều của khoá dịch', () => {
+  // Locale có "cart.items": { "one": ..., "other": ... }, tức một node t:cart.items.
+  const KNOWN = new Set(['t:cart.items', 't:cart.title']);
+
+  it('đưa lời gọi thẳng tới một dạng số nhiều về khoá chứa nó', () => {
+    // Theme thật hay viết {{ 'cart.items.one' | t }} để lấy riêng một dạng.
+    expect(resolveRef(ref('translation', 'cart.items.one'), KNOWN)).toEqual({
+      status: 'resolved',
+      path: 't:cart.items',
+    });
+    expect(resolveRef(ref('translation', 'cart.items.other'), KNOWN)).toEqual({
+      status: 'resolved',
+      path: 't:cart.items',
+    });
+  });
+
+  it('vẫn báo missing khi phần đuôi không phải dạng số nhiều', () => {
+    expect(resolveRef(ref('translation', 'cart.items.label'), KNOWN)).toEqual({
+      status: 'missing',
+      expected: 't:cart.items.label',
+    });
+  });
+
+  it('vẫn báo missing khi khoá chứa nó cũng không tồn tại', () => {
+    expect(resolveRef(ref('translation', 'cart.lines.one'), KNOWN)).toEqual({
+      status: 'missing',
+      expected: 't:cart.lines.one',
+    });
+  });
+
+  it('ưu tiên khoá khớp nguyên văn hơn cách hiểu số nhiều', () => {
+    const known = new Set(['t:step.one', 't:step']);
+
+    expect(resolveRef(ref('translation', 'step.one'), known)).toEqual({ status: 'resolved', path: 't:step.one' });
+  });
+
+  it('không áp cách hiểu số nhiều cho ref không phải khoá dịch', () => {
+    // Một asset không có đuôi tên "icon" và một lời gọi tới "icon.one": nếu áp
+    // nhầm quy tắc số nhiều thì lời gọi này sẽ được coi là trỏ tới "icon".
+    const known = new Set(['assets/icon']);
+
+    expect(resolveRef(ref('asset', 'icon.one'), known)).toEqual({
+      status: 'missing',
+      expected: 'assets/icon.one',
+    });
+  });
+});

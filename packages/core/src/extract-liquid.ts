@@ -14,6 +14,9 @@ import type { Extraction, RawRef, RefKind, RefSource, SchemaInfo, ThemeFile } fr
  */
 const ASSET_FILTERS = new Set(["asset_url", "asset_img_url", "inline_asset_content"]);
 
+/** Filter tra một khoá dịch trong file locale; `translate` là tên đầy đủ của `t`. */
+const TRANSLATION_FILTERS = new Set(["t", "translate"]);
+
 /**
  * Các tag mà nội dung bên trong KHÔNG chắc được chạy:
  *   - if / unless / case: chỉ chạy khi điều kiện đúng
@@ -54,12 +57,13 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
  *
  * Quan hệ được trích: {% render %}, {% include %}, {% section %}, {% sections %},
  * {% content_for 'block' %}, các theme block nhắc trong {% schema %},
- * và file asset đi qua filter asset_url / asset_img_url / inline_asset_content.
+ * file asset đi qua filter asset_url / asset_img_url / inline_asset_content,
+ * và khoá dịch đi qua filter t.
  */
 export function extractLiquid(file: ThemeFile, content: string): Extraction {
   // Chỉ file .liquid mới chứa mã Liquid. Asset (.css, .js) có thể chứa chuỗi
   // trông giống tag nhưng Shopify không chạy Liquid trong đó.
-  if (file.ext !== "liquid") return { refs: [], schema: null };
+  if (file.ext !== "liquid") return { refs: [], schema: null, translationKeys: [] };
 
   let ast;
   try {
@@ -157,15 +161,21 @@ export function extractLiquid(file: ThemeFile, content: string): Extraction {
     // Nó xuất hiện trong {{ ... }}, trong assign, trong echo... nên bắt ở mức
     // nút này thì không cần quan tâm nó nằm trong tag nào.
     if (node.type === NodeTypes.LiquidVariable) {
-      // Chỉ xét filter ĐẦU TIÊN: nếu trước asset_url còn filter khác (append,
-      // replace...) thì tên file thật là kết quả tính toán, không phải chuỗi gốc.
+      // Chỉ xét filter ĐẦU TIÊN: nếu trước asset_url hay t còn filter khác
+      // (append, replace...) thì tên thật là kết quả tính toán, không phải
+      // chuỗi gốc.
       const firstFilter = node.filters[0];
-      if (firstFilter === undefined || !ASSET_FILTERS.has(firstFilter.name)) return;
+      if (firstFilter === undefined) return;
 
-      // Tên file phải là chuỗi viết sẵn; là biến thì không biết khi đọc mã.
+      // Tên file hay khoá dịch phải là chuỗi viết sẵn; là biến thì không biết
+      // được khi đọc mã.
       if (node.expression.type !== NodeTypes.String) return;
 
-      addRef("asset", node.expression.value, node);
+      if (ASSET_FILTERS.has(firstFilter.name)) {
+        addRef("asset", node.expression.value, node);
+      } else if (TRANSLATION_FILTERS.has(firstFilter.name)) {
+        addRef("translation", node.expression.value, node);
+      }
       return;
     }
 
@@ -246,5 +256,5 @@ export function extractLiquid(file: ThemeFile, content: string): Extraction {
     }
   });
 
-  return { refs, schema };
+  return { refs, schema, translationKeys: [] };
 }

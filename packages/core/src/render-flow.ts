@@ -3,6 +3,7 @@ import type { FindNodeOptions } from "./find-node.js";
 import type { GraphHandle } from "./open.js";
 import { traverse } from "./traverse.js";
 import type { Reached } from "./traverse.js";
+import { FILE_EDGE_TYPES } from "./types.js";
 import type { EdgeType, GraphNode, NodeKind } from "./types.js";
 
 /** Một node trong cây render. */
@@ -34,8 +35,9 @@ export interface RenderFlowResult {
 /**
  * Trả lời câu hỏi: "trang này render những file nào, theo thứ tự lồng nhau ra sao?"
  *
- * Đi XUÔI chiều mũi tên từ node đang hỏi, qua mọi loại cạnh: loại trang ->
- * template -> layout và section -> snippet, block, asset.
+ * Đi XUÔI chiều mũi tên từ node đang hỏi: loại trang -> template -> layout và
+ * section -> snippet, block, asset. Chỉ đi qua cạnh nối file với file
+ * (FILE_EDGE_TYPES); khoá dịch mà các file đó dùng không thuộc luồng render.
  *
  * Kết quả có hai dạng của cùng một tập node:
  *   - `files`: danh sách phẳng, mỗi node một lần, kèm độ sâu nhỏ nhất
@@ -52,7 +54,7 @@ export interface RenderFlowResult {
 export function renderFlow(graph: GraphHandle, name: string, options: FindNodeOptions = {}): RenderFlowResult {
   const root = findNode(graph, name, options);
 
-  const reached = traverse(graph, root.id, "forward");
+  const reached = traverse(graph, root.id, "forward", { edgeTypes: FILE_EDGE_TYPES });
 
   // Tra nhanh độ sâu nhỏ nhất của từng node khi dựng cây.
   const depthOf = new Map(reached.map((node) => [node.id, node.depth]));
@@ -62,7 +64,7 @@ export function renderFlow(graph: GraphHandle, name: string, options: FindNodeOp
   const outgoing = graph.db.prepare(
     `SELECT e.dst, n.kind, e.type, e.conditional, e.count
      FROM edges e JOIN nodes n ON n.id = e.dst
-     WHERE e.src = ?
+     WHERE e.src = ? AND e.type IN (${FILE_EDGE_TYPES.map((type) => `'${type}'`).join(", ")})
      ORDER BY e.conditional, e.dst, e.type`,
   );
 

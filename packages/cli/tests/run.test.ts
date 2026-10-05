@@ -45,8 +45,8 @@ describe('themegraph analyze', () => {
     expect(result.stderr).toBe('');
     expect(result.stdout).toContain(themeRoot);
     expect(result.stdout).toMatch(/File\s+13\b/);
-    expect(result.stdout).toMatch(/Node\s+17\b/);
-    expect(result.stdout).toMatch(/Cạnh\s+17\b/);
+    expect(result.stdout).toMatch(/Node\s+19\b/);
+    expect(result.stdout).toMatch(/Cạnh\s+19\b/);
     expect(result.stdout).toContain('RENDERS 9');
     expect(result.stdout).toContain('page_type 4');
     expect(result.stdout).toContain(path.join(themeRoot, '.themegraph', 'graph.db'));
@@ -61,7 +61,7 @@ describe('themegraph analyze', () => {
       const result = await runCli(['analyze']);
 
       expect(result.code).toBe(0);
-      expect(result.stdout).toMatch(/Node\s+17\b/);
+      expect(result.stdout).toMatch(/Node\s+19\b/);
     } finally {
       process.chdir(originalCwd);
     }
@@ -121,7 +121,7 @@ describe('themegraph analyze --json', () => {
     const json = JSON.parse(result.stdout) as { stats: { nodes: number }; missing: unknown[]; dbPath: string };
 
     expect(result.code).toBe(0);
-    expect(json.stats.nodes).toBe(17);
+    expect(json.stats.nodes).toBe(19);
     expect(json.missing).toHaveLength(2);
     expect(json.dbPath).toBe(path.join(themeRoot, '.themegraph', 'graph.db'));
   });
@@ -362,6 +362,9 @@ describe('themegraph context', () => {
       'Gọi tới (2):',
       '  blocks/text.liquid    dòng 8  RENDERS  [có điều kiện]',
       '  snippets/card.liquid  dòng 3  RENDERS  [có điều kiện]',
+      '',
+      'Khoá dịch (1):',
+      '  general.title  dòng 1',
     ]);
   });
 
@@ -381,6 +384,30 @@ describe('themegraph context', () => {
 
     expect(fromJson.stdout).toContain('Tham chiếu hỏng (1):\n  (JSON)  section -> sections/missing-section.liquid');
     expect(fromLiquid.stdout).toContain('Tham chiếu hỏng (1):\n  dòng 4  asset -> assets/icon-star');
+  });
+
+  it('in mục khoá dịch với số dòng, và bỏ mục đó khi file không dùng khoá nào', async () => {
+    await writeFile(
+      path.join(themeRoot, 'snippets', 'card.liquid'),
+      "{{ 'cart.items' | t }}\n{% if a %}{{ 'general.title' | t }}{% endif %}\n{{ 'cart.items' | t }}",
+    );
+    await runCli(['analyze', themeRoot]);
+
+    const card = await runCli(['context', 'snippets/card.liquid', '-t', themeRoot]);
+    const css = await runCli(['context', 'assets/base.css', '-t', themeRoot]);
+
+    expect(card.stdout).toContain(
+      ['Khoá dịch (2):', '  cart.items     dòng 1, 3', '  general.title  dòng 2     [có điều kiện]'].join('\n'),
+    );
+    expect(css.stdout).not.toContain('Khoá dịch');
+  });
+
+  it('hỏi được về một khoá dịch bằng id t:<khoá>', async () => {
+    const result = await runCli(['context', 't:general.title', '-t', themeRoot]);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('t:general.title (translation_key)');
+    expect(result.stdout).toContain('  sections/hero.liquid:1  USES_TRANSLATION');
   });
 
   it('không in mục tham chiếu hỏng khi file không có cái nào', async () => {
@@ -481,6 +508,41 @@ describe('themegraph dead-code', () => {
     expect(result.stdout).not.toContain('Vì sao');
   });
 
+  it('in mục khoá dịch không dùng, kể cả khi không có file thừa', async () => {
+    await writeFile(
+      path.join(themeRoot, 'locales', 'en.default.json'),
+      JSON.stringify({ general: { title: 'x', old: 'y' }, cart: { items: { one: '1', other: 'n' } }, zz: 'z' }),
+    );
+    await runCli(['analyze', themeRoot]);
+
+    const result = await runCli(['dead-code', '-t', themeRoot]);
+
+    expect(result.stdout.split('\n')).toEqual([
+      'Không tìm thấy file nào không được dùng.',
+      '',
+      'Khoá dịch không file nào gọi bằng tên viết sẵn (2), cần xem lại:',
+      '  general.old',
+      '  zz',
+      "  Khoá vẫn có thể được gọi bằng tên ghép lúc chạy, ví dụ 'products.' | append: handle | t.",
+    ]);
+  });
+
+  it('in mục khoá dịch không dùng sau danh sách file', async () => {
+    await writeFile(path.join(themeRoot, 'snippets', 'old.liquid'), '<p>cu</p>');
+    await writeFile(path.join(themeRoot, 'locales', 'en.default.json'), JSON.stringify({ general: { title: 'x' }, cart: { items: 'n', old: 'o' } }));
+    await runCli(['analyze', themeRoot]);
+
+    const lines = (await runCli(['dead-code', '-t', themeRoot])).stdout.split('\n');
+
+    expect(lines.slice(0, 4)).toEqual([
+      'Không trang nào dùng tới 1 file: 1 chắc chắn, 0 cần xem lại.',
+      '',
+      'Chắc chắn không dùng (1):',
+      '  snippets/old.liquid  snippet',
+    ]);
+    expect(lines.slice(4, 7)).toEqual(['', 'Khoá dịch không file nào gọi bằng tên viết sẵn (1), cần xem lại:', '  cart.old']);
+  });
+
   it('in JSON với --json', async () => {
     await writeFile(path.join(themeRoot, 'snippets', 'old.liquid'), '<p>cu</p>');
     await runCli(['analyze', themeRoot]);
@@ -522,11 +584,11 @@ describe('themegraph verify', () => {
 
     expect(result.code).toBe(0);
     expect(lines.slice(0, 6)).toEqual([
-      'Đã đối chiếu 34 phép duyệt (17 node × 2 chiều), 140 cặp so sánh.',
+      'Đã đối chiếu 38 phép duyệt (19 node × 2 chiều), 188 cặp so sánh.',
       '',
       '  Sai khác giữa SQL và BFS   0',
       '  Lỗi toàn vẹn của database  0',
-      '  Độ sâu lớn nhất            5',
+      '  Độ sâu lớn nhất            6',
       '  Node nằm trên vòng         0',
     ]);
     expect(lines.at(-1)).toMatch(/^Kết quả: ĐẠT \(\d+ ms\)$/);
@@ -617,7 +679,7 @@ describe('themegraph — lệnh đã build', () => {
       encoding: 'utf8',
     });
 
-    expect(stdout).toMatch(/Node\s+17\b/);
+    expect(stdout).toMatch(/Node\s+19\b/);
     expect(existsSync(path.join(themeRoot, '.themegraph', 'graph.db'))).toBe(true);
   });
 

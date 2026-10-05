@@ -131,6 +131,28 @@ describe('impact', () => {
     expect(impact(graph, 'assets/unused.png').affected).toEqual([]);
   });
 
+  it('đi ngược từ một khoá dịch lên các file và trang dùng nó', () => {
+    const result = impact(graph, 't:product.price');
+
+    expect(result.target).toEqual({ id: 't:product.price', kind: 'translation_key' });
+    expect(rows(result.affected).slice(0, 3)).toEqual([
+      ['snippets/card.liquid', 1, true],
+      ['sections/grid.liquid', 2, false],
+      ['sections/main-product.liquid', 2, true],
+    ]);
+    expect(rows(result.pages)).toEqual([
+      ['page:collection', 4, false],
+      ['page:product', 4, true],
+    ]);
+  });
+
+  it('khoá dịch không lọt vào kết quả khi hỏi về một file', () => {
+    // Khoá dịch chỉ nhận cạnh vào, nên đi ngược từ một file không bao giờ gặp nó.
+    const kinds = impact(graph, 'snippets/price.liquid').affected.map((n) => n.kind);
+
+    expect(kinds).not.toContain('translation_key');
+  });
+
   it('nhận tên theo mọi cách findNode hiểu', () => {
     expect(impact(graph, 'snippets\\price.liquid').target.id).toBe('snippets/price.liquid');
     expect(impact(graph, 'price.liquid', { baseDir: `${themeRoot}/snippets` }).target.id).toBe(

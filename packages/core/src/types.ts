@@ -35,6 +35,8 @@ export interface ScanResult {
  * - no_layout: template khai rõ là KHÔNG dùng layout ("layout": false hoặc
  *   {% layout none %}). Ref loại này có `to` rỗng; nó tồn tại để tầng dựng đồ
  *   thị biết không được gán layout mặc định theme.liquid cho template đó.
+ * - translation: dùng một khoá dịch qua filter t, ví dụ {{ 'cart.title' | t }}.
+ *   `to` là khoá ('cart.title'), không phải tên file.
  */
 export type RefKind =
   | "render"
@@ -44,7 +46,8 @@ export type RefKind =
   | "block"
   | "asset"
   | "layout"
-  | "no_layout";
+  | "no_layout"
+  | "translation";
 
 /**
  * Nơi quan hệ được khai báo.
@@ -88,6 +91,9 @@ export interface SchemaInfo {
 export interface Extraction {
   refs: RawRef[];
   schema: SchemaInfo | null; // null khi file không có khối {% schema %}
+  // Các khoá dịch file này ĐỊNH NGHĨA. Chỉ file locale mặc định mới có; mọi
+  // file khác trả mảng rỗng.
+  translationKeys: string[];
 }
 
 /** Dữ kiện schema của một file cụ thể, dạng lưu trong đồ thị. */
@@ -96,9 +102,20 @@ export interface FileSchema extends SchemaInfo {
 }
 
 /**
- * Kết quả của việc đổi một tham chiếu thô thành file thật trong theme.
+ * Những thứ tầng parse rút ra được mà không phải là tham chiếu: chúng mô tả
+ * theme CÓ gì, còn tham chiếu mô tả ai DÙNG gì. buildGraph nhận cả hai.
+ */
+export interface GraphFacts {
+  schemas?: readonly FileSchema[];
+  // Mọi khoá dịch của locale mặc định, dạng 'general.cart.title'.
+  translationKeys?: readonly string[];
+}
+
+/**
+ * Kết quả của việc đổi một tham chiếu thô thành node đích trong đồ thị.
  *
- * - resolved: tìm thấy file đích, `path` cùng định dạng với ThemeFile.path
+ * - resolved: tìm thấy đích; `path` là id của node đích, tức ThemeFile.path
+ *   với file, hoặc 't:<khoá>' với khoá dịch
  * - local_block: ref tới một block không có file trong blocks/, đến từ JSON
  *   template. Được coi là block cục bộ khai trong {% schema %} của section;
  *   không phải lỗi, nhưng cũng không thành cạnh trong đồ thị.
@@ -111,8 +128,11 @@ export type Resolution =
   | { status: "missing"; expected: string }
   | { status: "none" };
 
-/** Loại node trong đồ thị: mọi loại file, cộng thêm loại trang. */
-export type NodeKind = FileKind | "page_type";
+/**
+ * Loại node trong đồ thị: mọi loại file, cộng thêm các thứ không phải file:
+ * loại trang và khoá dịch.
+ */
+export type NodeKind = FileKind | "page_type" | "translation_key";
 
 /**
  * Một node của đồ thị.
@@ -120,6 +140,7 @@ export type NodeKind = FileKind | "page_type";
  * - Node file: `id` chính là ThemeFile.path (ví dụ 'snippets/card.liquid')
  * - Node loại trang: `id` có tiền tố 'page:' (ví dụ 'page:product'), để không
  *   bao giờ trùng với đường dẫn của một file.
+ * - Node khoá dịch: `id` có tiền tố 't:' (ví dụ 't:general.cart.title').
  */
 export interface GraphNode {
   id: string;
@@ -134,8 +155,16 @@ export interface GraphNode {
  * - RENDERS:       file này chèn nội dung của file kia (snippet, section,
  *                  section group, block)
  * - USES_ASSET:    file này tham chiếu một file trong assets/
+ * - USES_TRANSLATION: file này dùng một khoá dịch qua filter t
  */
-export type EdgeType = "USES_TEMPLATE" | "USES_LAYOUT" | "RENDERS" | "USES_ASSET";
+export type EdgeType = "USES_TEMPLATE" | "USES_LAYOUT" | "RENDERS" | "USES_ASSET" | "USES_TRANSLATION";
+
+/**
+ * Các loại cạnh nối FILE với FILE (và loại trang với template). Đi theo đúng
+ * các cạnh này là đi theo luồng render của theme; cạnh tới khoá dịch không
+ * thuộc luồng đó.
+ */
+export const FILE_EDGE_TYPES: readonly EdgeType[] = ["USES_TEMPLATE", "USES_LAYOUT", "RENDERS", "USES_ASSET"];
 
 /**
  * Một cạnh của đồ thị. Mỗi bộ (from, to, type) chỉ có một cạnh: nhiều lời gọi
@@ -161,7 +190,7 @@ export interface GraphEdge {
  */
 export interface ResolvedRef extends RawRef {
   status: Resolution["status"];
-  // resolved: đường dẫn file đích; missing: đường dẫn lẽ ra phải có;
+  // resolved: id của node đích; missing: id lẽ ra phải có;
   // local_block và none: null.
   target: string | null;
 }

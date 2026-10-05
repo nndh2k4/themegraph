@@ -53,6 +53,11 @@ function formatCounts(counts: Record<string, number>): string {
     .join(", ");
 }
 
+/** "t:general.cart.title" -> "general.cart.title": khoá dịch như mã Liquid viết. */
+function translationKey(id: string): string {
+  return id.startsWith("t:") ? id.slice("t:".length) : id;
+}
+
 /** "page:product" -> "product": tên trang như người dùng gõ. */
 function pageName(id: string): string {
   return id.startsWith("page:") ? id.slice("page:".length) : id;
@@ -178,7 +183,7 @@ function linkNotes(link: ContextLink): string {
 }
 
 export function formatContext(result: ContextResult): string[] {
-  const { node, usedBy, uses, broken, pages } = result;
+  const { node, usedBy, uses, translations, broken, pages } = result;
   const lines = [`${node.id} (${node.kind})`];
 
   // Với chính một loại trang thì câu "thuộc trang nào" không có nghĩa.
@@ -209,6 +214,19 @@ export function formatContext(result: ContextResult): string[] {
       ]),
     ),
   );
+
+  if (translations.length > 0) {
+    lines.push("", `Khoá dịch (${translations.length}):`);
+    lines.push(
+      ...table(
+        translations.map((link) => [
+          translationKey(link.id),
+          `dòng ${link.lines.join(", ")}`,
+          link.conditional ? CONDITIONAL : "",
+        ]),
+      ),
+    );
+  }
 
   if (broken.length > 0) {
     lines.push("", `Tham chiếu hỏng (${broken.length}):`);
@@ -242,9 +260,21 @@ function deadRows(files: readonly DeadFile[]): string[] {
   );
 }
 
+/** Mục khoá dịch không thấy dùng; rỗng khi không có khoá nào. */
+function unusedKeyLines(keys: readonly string[]): string[] {
+  if (keys.length === 0) return [];
+
+  return [
+    "",
+    `Khoá dịch không file nào gọi bằng tên viết sẵn (${keys.length}), cần xem lại:`,
+    ...keys.map((key) => `  ${key}`),
+    "  Khoá vẫn có thể được gọi bằng tên ghép lúc chạy, ví dụ 'products.' | append: handle | t.",
+  ];
+}
+
 export function formatDeadCode(result: DeadCodeResult): string[] {
   if (result.files.length === 0) {
-    return ["Không tìm thấy file nào không được dùng."];
+    return ["Không tìm thấy file nào không được dùng.", ...unusedKeyLines(result.unusedTranslationKeys)];
   }
 
   const certain = result.files.filter((entry) => entry.confidence === "certain");
@@ -270,6 +300,7 @@ export function formatDeadCode(result: DeadCodeResult): string[] {
     lines.push("  File khác trong mục này: chỉ được gọi bởi một file cần xem lại.");
   }
 
+  lines.push(...unusedKeyLines(result.unusedTranslationKeys));
   return lines;
 }
 

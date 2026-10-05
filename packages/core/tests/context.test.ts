@@ -108,6 +108,38 @@ describe('context', () => {
     expect(result.totalPages).toBe(3);
   });
 
+  it('tách khoá dịch khỏi danh sách file được gọi', () => {
+    const result = context(graph, 'snippets/card.liquid');
+
+    expect(result.uses.map((l) => l.id)).toEqual(['snippets/price.liquid']);
+    expect(result.translations).toEqual([
+      {
+        id: 't:product.price',
+        kind: 'translation_key',
+        type: 'USES_TRANSLATION',
+        conditional: false,
+        count: 2,
+        sources: 'liquid',
+        lines: [14, 31],
+      },
+    ]);
+  });
+
+  it('trả mảng khoá dịch rỗng cho file không dùng khoá nào', () => {
+    expect(context(graph, 'snippets/price.liquid').translations).toEqual([]);
+  });
+
+  it('cho biết file nào dùng một khoá dịch', () => {
+    const result = context(graph, 't:product.title');
+
+    expect(result.node).toEqual({ id: 't:product.title', kind: 'translation_key' });
+    expect(result.usedBy.map((l) => [l.id, l.type, l.conditional, l.lines])).toEqual([
+      ['sections/main-product.liquid', 'USES_TRANSLATION', true, [3]],
+    ]);
+    expect(result.uses).toEqual([]);
+    expect(result.translations).toEqual([]);
+  });
+
   it('hiện cạnh tự trỏ ở cả hai phía', () => {
     const { usedBy, uses } = context(graph, 'snippets/menu.liquid');
 

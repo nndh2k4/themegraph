@@ -1,5 +1,6 @@
 import { extractJsonRefs } from "./extract-json.js";
 import { extractLiquid } from "./extract-liquid.js";
+import { collectTranslationKeys, isDefaultLocale } from "./extract-locale.js";
 import type { Extraction, RawRef, ThemeFile } from "./types.js";
 
 /**
@@ -9,7 +10,8 @@ import type { Extraction, RawRef, ThemeFile } from "./types.js";
  * Liquid hay JSON, chỉ cần đưa file (kết quả của scanThemeDir) và nội dung.
  *
  * - file .liquid  -> extractLiquid   (render, section, block, asset, schema...)
- * - file .json    -> extractJsonRefs (chỉ template và section group mới có ref)
+ * - file .json    -> extractJsonRefs (chỉ template và section group mới có ref);
+ *                    riêng locale mặc định thì trả các khoá dịch nó định nghĩa
  * - loại khác     -> không có gì (css, js, ảnh: không chứa quan hệ nào cần trích)
  *
  * Ném lỗi có tên file nếu nội dung không phân tích được; nơi gọi quyết định
@@ -17,8 +19,11 @@ import type { Extraction, RawRef, ThemeFile } from "./types.js";
  */
 export function extractFile(file: ThemeFile, content: string): Extraction {
   if (file.ext === "liquid") return extractLiquid(file, content);
-  if (file.ext === "json") return { refs: extractJsonRefs(file, content), schema: null };
-  return { refs: [], schema: null };
+  if (isDefaultLocale(file)) {
+    return { refs: [], schema: null, translationKeys: collectTranslationKeys(file, content) };
+  }
+  if (file.ext === "json") return { refs: extractJsonRefs(file, content), schema: null, translationKeys: [] };
+  return { refs: [], schema: null, translationKeys: [] };
 }
 
 /** Trích mọi quan hệ thô từ một file của theme. Là extractFile() chỉ lấy phần refs. */

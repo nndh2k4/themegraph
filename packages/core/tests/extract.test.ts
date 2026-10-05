@@ -25,7 +25,8 @@ describe('extractRefs', () => {
     const files: ThemeFile[] = [
       { path: 'assets/base.css', kind: 'asset', ext: 'css' },
       { path: 'assets/app.js', kind: 'asset', ext: 'js' },
-      { path: 'locales/en.default.json', kind: 'locale', ext: 'json' },
+      { path: 'locales/fr.json', kind: 'locale', ext: 'json' },
+      { path: 'locales/en.default.schema.json', kind: 'locale_schema', ext: 'json' },
       { path: 'config/settings_schema.json', kind: 'config', ext: 'json' },
     ];
 
@@ -55,7 +56,7 @@ describe('extractFile', () => {
 
     expect(fromJson.refs.map((r) => r.to)).toEqual(['hero']);
     expect(fromJson.schema).toBeNull();
-    expect(core.extractFile(asset, 'body {}')).toEqual({ refs: [], schema: null });
+    expect(core.extractFile(asset, 'body {}')).toEqual({ refs: [], schema: null, translationKeys: [] });
   });
 });
 

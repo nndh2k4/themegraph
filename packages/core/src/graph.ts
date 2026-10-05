@@ -1,8 +1,8 @@
-import { resolveRef } from "./resolver.js";
+import { resolveRef, TRANSLATION_PREFIX } from "./resolver.js";
 import type {
   EdgeType,
-  FileSchema,
   GraphEdge,
+  GraphFacts,
   GraphNode,
   RawRef,
   RefKind,
@@ -33,6 +33,7 @@ const EDGE_TYPE_OF: Partial<Record<RefKind, EdgeType>> = {
   block: "RENDERS",
   asset: "USES_ASSET",
   layout: "USES_LAYOUT",
+  translation: "USES_TRANSLATION",
 };
 
 /**
@@ -64,8 +65,11 @@ function pageTypeOf(templatePath: string): { page: string; alternate: boolean } 
 /**
  * Dựng đồ thị của một theme từ danh sách file và danh sách tham chiếu thô.
  *
- * `schemas` là dữ kiện đọc từ {% schema %} của từng file; đồ thị chỉ giữ lại
- * và sắp xếp chúng, không suy ra cạnh nào từ đó.
+ * `facts` là những gì theme CÓ ngoài file:
+ *   - schemas: dữ kiện đọc từ {% schema %} của từng file; đồ thị chỉ giữ lại
+ *     và sắp xếp chúng, không suy ra cạnh nào từ đó
+ *   - translationKeys: các khoá dịch của locale mặc định; mỗi khoá thành một
+ *     node, để ref loại translation có đích mà trỏ tới
  *
  * Hàm thuần: không đọc đĩa, không phụ thuộc thứ tự đầu vào. Cùng một tập file
  * và ref luôn cho ra đúng một kết quả, đã sắp xếp.
@@ -73,9 +77,11 @@ function pageTypeOf(templatePath: string): { page: string; alternate: boolean } 
 export function buildGraph(
   files: readonly ThemeFile[],
   rawRefs: readonly RawRef[],
-  schemas: readonly FileSchema[] = [],
+  facts: GraphFacts = {},
 ): ThemeGraph {
-  const knownPaths = new Set(files.map((file) => file.path));
+  const { schemas = [], translationKeys = [] } = facts;
+
+  const filePaths = new Set(files.map((file) => file.path));
 
   // ---- Node -------------------------------------------------------------
 
@@ -85,6 +91,15 @@ export function buildGraph(
   for (const file of files) {
     nodes.set(file.path, { id: file.path, kind: file.kind });
   }
+
+  for (const key of translationKeys) {
+    const id = TRANSLATION_PREFIX + key;
+    nodes.set(id, { id, kind: "translation_key" });
+  }
+
+  // Mọi thứ một ref có thể trỏ tới: file và khoá dịch. Loại trang không có ở
+  // đây vì không ref nào trỏ tới loại trang.
+  const knownPaths = new Set(nodes.keys());
 
   // ---- Cạnh -------------------------------------------------------------
 
@@ -171,7 +186,7 @@ export function buildGraph(
 
   // ---- Layout mặc định ------------------------------------------------------
 
-  if (knownPaths.has(DEFAULT_LAYOUT)) {
+  if (filePaths.has(DEFAULT_LAYOUT)) {
     for (const file of files) {
       if (file.kind !== "template") continue;
       if (templatesWithLayoutChoice.has(file.path)) continue;
@@ -208,7 +223,7 @@ export function buildGraph(
     // Chỉ giữ schema của file có trong theme: bảng schemas tham chiếu tới
     // bảng nodes, nên một dòng mồ côi sẽ bị database từ chối.
     schemas: schemas
-      .filter((schema) => knownPaths.has(schema.file))
+      .filter((schema) => filePaths.has(schema.file))
       .sort((a, b) => compareText(a.file, b.file)),
   };
 }

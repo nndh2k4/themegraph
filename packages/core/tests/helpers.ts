@@ -39,6 +39,12 @@ export const QUERY_SCHEMAS: FileSchema[] = [
 ];
 
 /**
+ * Khoá dịch của đồ thị mẫu: card dùng product.price (hai lần), main-product
+ * dùng product.title trong một điều kiện, còn general.unused không ai dùng.
+ */
+export const QUERY_KEYS = ['product.price', 'product.title', 'general.unused'];
+
+/**
  * Đồ thị mẫu cho các test truy vấn. Mỗi phần của nó phục vụ một tình huống:
  *
  *   page:product    -> templates/product.json     -> sections/main-product.liquid -> snippets/card.liquid -> snippets/price.liquid
@@ -114,9 +120,13 @@ export function queryGraph(schemas: FileSchema[] = QUERY_SCHEMAS): ThemeGraph {
     ref('snippets/orphan.liquid', 'asset', 'icon.svg', { line: 2 }),
     ref('sections/featured.liquid', 'render', 'featured-item', { line: 1 }),
     ref('sections/api-only.liquid', 'render', 'api-row', { line: 1 }),
+
+    ref('snippets/card.liquid', 'translation', 'product.price', { line: 14 }),
+    ref('snippets/card.liquid', 'translation', 'product.price', { line: 31 }),
+    ref('sections/main-product.liquid', 'translation', 'product.title', { line: 3, conditional: true }),
   ];
 
-  return buildGraph(files, refs, schemas);
+  return buildGraph(files, refs, { schemas, translationKeys: QUERY_KEYS });
 }
 
 /**

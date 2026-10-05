@@ -1,1 +1,11 @@
-{}
+{
+  "general": {
+    "title": "Mini shop"
+  },
+  "cart": {
+    "items": {
+      "one": "{{ count }} item",
+      "other": "{{ count }} items"
+    }
+  }
+}

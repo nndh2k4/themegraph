@@ -9,9 +9,10 @@ export { scanThemeDir } from './scanner.js';
 export { extractFile, extractRefs } from './extract.js';
 export { extractJsonRefs } from './extract-json.js';
 export { extractLiquid, extractLiquidRefs } from './extract-liquid.js';
+export { collectTranslationKeys, isDefaultLocale } from './extract-locale.js';
 
 // Resolver: quan hệ thô -> file thật trong theme.
-export { resolveRef } from './resolver.js';
+export { resolveRef, TRANSLATION_PREFIX } from './resolver.js';
 
 // Đồ thị: danh sách file + quan hệ thô -> node và cạnh.
 export { buildGraph } from './graph.js';
@@ -32,7 +33,7 @@ export type { FindNodeOptions } from './find-node.js';
 
 // Duyệt đồ thị bằng truy vấn đệ quy; nền của impact và renderFlow.
 export { traverse } from './traverse.js';
-export type { Direction, Reached } from './traverse.js';
+export type { Direction, Reached, TraverseOptions } from './traverse.js';
 
 // Truy vấn: sửa file này thì những gì bị ảnh hưởng.
 export { impact } from './impact.js';

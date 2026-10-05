@@ -5,6 +5,9 @@ import type { GraphHandle } from "./open.js";
 import type { Reached } from "./traverse.js";
 import type { EdgeType, GraphNode, NodeKind, RefKind } from "./types.js";
 
+/** Cạnh tới khoá dịch, tách khỏi danh sách "file này gọi file nào". */
+const TRANSLATION_EDGE: EdgeType = "USES_TRANSLATION";
+
 /** Một quan hệ trực tiếp giữa node đang hỏi và một node khác. */
 export interface ContextLink {
   id: string; // node ở đầu bên kia của cạnh
@@ -31,7 +34,8 @@ export interface BrokenRef {
 export interface ContextResult {
   node: GraphNode;
   usedBy: ContextLink[]; // ai dùng trực tiếp node này
-  uses: ContextLink[]; // node này dùng trực tiếp những gì
+  uses: ContextLink[]; // node này dùng trực tiếp những FILE nào
+  translations: ContextLink[]; // các khoá dịch node này dùng
   broken: BrokenRef[]; // tham chiếu hỏng nằm trong file này
   pages: Reached[]; // các loại trang đi tới được node này, qua bao nhiêu tầng cũng tính
   totalPages: number;
@@ -100,10 +104,15 @@ export function context(graph: GraphHandle, name: string, options: FindNodeOptio
   // "File này thuộc trang nào" chính là phần trang của truy vấn impact.
   const { pages, totalPages } = impact(graph, node.id);
 
+  // Một section dùng vài chục khoá dịch là chuyện thường. Để lẫn chúng vào
+  // danh sách file được gọi thì danh sách đó hết đọc nổi, nên tách riêng.
+  const outgoing = links("src", "dst");
+
   return {
     node,
     usedBy: links("dst", "src"),
-    uses: links("src", "dst"),
+    uses: outgoing.filter((link) => link.type !== TRANSLATION_EDGE),
+    translations: outgoing.filter((link) => link.type === TRANSLATION_EDGE),
     broken,
     pages,
     totalPages,

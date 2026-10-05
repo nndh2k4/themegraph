@@ -38,7 +38,7 @@ const BASE_REFS: RawRef[] = [ref('templates/index.json', 'section', 'hero', { so
 
 /** Dựng theme tối thiểu cộng thêm vài file và quan hệ, rồi chạy deadCode. */
 const withExtra = (files: ThemeFile[], refs: RawRef[] = [], schemas: FileSchema[] = []) =>
-  deadCodeOf(buildGraph([...BASE_FILES, ...files], [...BASE_REFS, ...refs], schemas));
+  deadCodeOf(buildGraph([...BASE_FILES, ...files], [...BASE_REFS, ...refs], { schemas }));
 
 /** Viết gọn kết quả thành [id, mức tin cậy, lý do]. */
 const rows = (result: DeadCodeResult) => result.files.map((f) => [f.id, f.confidence, f.reason]);
@@ -63,6 +63,19 @@ describe('deadCode — đồ thị mẫu', () => {
 
     expect(result.certain).toBe(3);
     expect(result.review).toBe(4);
+  });
+
+  it('liệt kê khoá dịch không file nào dùng, không kèm tiền tố t:', async () => {
+    const result = await deadCodeOf(queryGraph());
+
+    expect(result.unusedTranslationKeys).toEqual(['general.unused']);
+  });
+
+  it('không đưa khoá dịch vào danh sách file', async () => {
+    const result = await deadCodeOf(queryGraph());
+
+    expect(result.files.some((f) => f.kind === 'translation_key')).toBe(false);
+    expect(result.certain + result.review).toBe(result.files.length);
   });
 
   it('ghi kind và danh sách file đang gọi tới từng file', async () => {
@@ -145,7 +158,23 @@ describe('deadCode — từng quy tắc', () => {
   it('trả danh sách rỗng cho theme không có file thừa', async () => {
     const result = await withExtra([]);
 
-    expect(result).toEqual({ files: [], certain: 0, review: 0, acceptsThemeBlocks: false });
+    expect(result).toEqual({
+      files: [],
+      certain: 0,
+      review: 0,
+      acceptsThemeBlocks: false,
+      unusedTranslationKeys: [],
+    });
+  });
+
+  it('xếp khoá dịch không dùng theo tên, bỏ khoá đang được dùng', async () => {
+    const graph = buildGraph(
+      BASE_FILES,
+      [...BASE_REFS, ref('sections/hero.liquid', 'translation', 'b.used', { conditional: true })],
+      { translationKeys: ['z.last', 'b.used', 'a.first'] },
+    );
+
+    expect((await deadCodeOf(graph)).unusedTranslationKeys).toEqual(['a.first', 'z.last']);
   });
 
   it('không bao giờ báo template, config hay locale', async () => {

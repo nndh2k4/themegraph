@@ -263,20 +263,84 @@ describe('buildGraph — schemas', () => {
   });
 
   it('giữ nguyên dữ kiện schema và xếp theo tên file', () => {
-    expect(buildGraph(FILES, [], [hero, text]).schemas).toEqual([text, hero]);
-    expect(buildGraph(FILES, [], [text, hero]).schemas).toEqual([text, hero]);
+    expect(buildGraph(FILES, [], { schemas: [hero, text] }).schemas).toEqual([text, hero]);
+    expect(buildGraph(FILES, [], { schemas: [text, hero] }).schemas).toEqual([text, hero]);
   });
 
   it('bỏ schema của file không có trong theme', () => {
     const stray = { file: 'sections/khong-co.liquid', presets: 1, acceptsThemeBlocks: false };
 
-    expect(buildGraph(FILES, [], [hero, stray]).schemas).toEqual([hero]);
+    expect(buildGraph(FILES, [], { schemas: [hero, stray] }).schemas).toEqual([hero]);
   });
 
   it('không sửa mảng schemas được đưa vào', () => {
     const input = [hero, text];
-    buildGraph(FILES, [], input);
+    buildGraph(FILES, [], { schemas: input });
 
     expect(input).toEqual([hero, text]);
+  });
+});
+
+describe('buildGraph — khoá dịch', () => {
+  const KEYS = ['general.title', 'cart.items'];
+
+  it('tạo một node cho mỗi khoá dịch, id có tiền tố t:', () => {
+    const graph = buildGraph(FILES, [], { translationKeys: KEYS });
+
+    expect(graph.nodes.filter((n) => n.kind === 'translation_key')).toEqual([
+      { id: 't:cart.items', kind: 'translation_key' },
+      { id: 't:general.title', kind: 'translation_key' },
+    ]);
+  });
+
+  it('không tạo node khoá dịch nào khi không được đưa khoá', () => {
+    expect(buildGraph(FILES, []).nodes.some((n) => n.kind === 'translation_key')).toBe(false);
+  });
+
+  it('nối file tới khoá dịch nó dùng bằng cạnh USES_TRANSLATION, gộp lời gọi trùng', () => {
+    const graph = buildGraph(
+      FILES,
+      [
+        ref('snippets/card.liquid', 'translation', 'general.title', { line: 2 }),
+        ref('snippets/card.liquid', 'translation', 'general.title', { line: 9, conditional: true }),
+      ],
+      { translationKeys: KEYS },
+    );
+
+    expect(graph.edges.filter((e) => e.type === 'USES_TRANSLATION')).toEqual([
+      {
+        from: 'snippets/card.liquid',
+        to: 't:general.title',
+        type: 'USES_TRANSLATION',
+        conditional: false,
+        sources: 'liquid',
+        count: 2,
+      },
+    ]);
+  });
+
+  it('ghi khoá dịch không tồn tại là tham chiếu hỏng, không tạo cạnh', () => {
+    const graph = buildGraph(FILES, [ref('snippets/card.liquid', 'translation', 'general.tilte', { line: 4 })], {
+      translationKeys: KEYS,
+    });
+
+    expect(graph.edges.filter((e) => e.type === 'USES_TRANSLATION')).toEqual([]);
+    expect(graph.refs.map((r) => [r.to, r.status, r.target])).toEqual([['general.tilte', 'missing', 't:general.tilte']]);
+  });
+
+  it('không để khoá dịch làm đích của lời gọi render trùng tên', () => {
+    // Một snippet tên "t:x" không thể có, nhưng khoá "card" thì có thể: ref
+    // render 'card' phải ra file snippet, không ra khoá dịch.
+    const graph = buildGraph(FILES, [ref('sections/main-product.liquid', 'render', 'card')], {
+      translationKeys: ['card'],
+    });
+
+    expect(edgeKeys(graph)).toContain('sections/main-product.liquid -RENDERS-> snippets/card.liquid');
+  });
+
+  it('vẫn gán layout mặc định khi có khoá dịch', () => {
+    const graph = buildGraph(FILES, [], { translationKeys: KEYS });
+
+    expect(graph.edges.filter((e) => e.type === 'USES_LAYOUT').length).toBeGreaterThan(0);
   });
 });
