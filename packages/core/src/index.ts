@@ -41,7 +41,7 @@ export type { Direction, Reached, TraverseOptions } from './traverse.js';
 
 // Truy vấn: sửa file này thì những gì bị ảnh hưởng.
 export { impact } from './impact.js';
-export type { ImpactResult } from './impact.js';
+export type { ImpactPage, ImpactResult } from './impact.js';
 
 // Truy vấn: trang này render những file nào.
 export { renderFlow } from './render-flow.js';

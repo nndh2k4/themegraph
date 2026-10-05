@@ -136,6 +136,21 @@ export function formatAnalyze(result: AnalyzeResult): string[] {
 
 // ---- impact -----------------------------------------------------------------
 
+/** Số file tối đa nêu tên sau chữ "qua" ở mỗi trang; phần còn lại chỉ đếm. */
+const MAX_VIA_SHOWN = 3;
+
+/** Ghi chú của file có dùng target nhưng không nằm trên trang nào. */
+const OFF_PAGE = "[không trang nào dùng]";
+
+/** "qua a, b, c và 2 file khác"; rỗng khi trang gọi thẳng target. */
+function viaNote(via: readonly string[]): string {
+  if (via.length === 0) return "";
+
+  const shown = via.slice(0, MAX_VIA_SHOWN).join(", ");
+  const more = via.length > MAX_VIA_SHOWN ? ` và ${via.length - MAX_VIA_SHOWN} file khác` : "";
+  return `qua ${shown}${more}`;
+}
+
 export function formatImpact(result: ImpactResult, options: FormatOptions = {}): string[] {
   const { target, affected, pages } = result;
 
@@ -144,6 +159,7 @@ export function formatImpact(result: ImpactResult, options: FormatOptions = {}):
   }
 
   const files = affected.filter((node) => node.kind !== "page_type");
+  const offPage = new Set(result.offPage);
   const lines = [
     `Sửa ${target.id} (${target.kind}) ảnh hưởng ${files.length} file và ${pages.length} trên ${result.totalPages} trang.`,
   ];
@@ -151,7 +167,14 @@ export function formatImpact(result: ImpactResult, options: FormatOptions = {}):
   if (pages.length > 0) {
     lines.push("", `Trang (${pages.length}):`);
     lines.push(
-      ...table(pages.map((page) => [pageName(page.id), `cách ${page.depth} tầng`, page.certain ? "" : CONDITIONAL])),
+      ...table(
+        pages.map((page) => [
+          pageName(page.id),
+          `cách ${page.depth} tầng`,
+          page.certain ? "" : CONDITIONAL,
+          viaNote(page.via),
+        ]),
+      ),
     );
   }
 
@@ -160,11 +183,26 @@ export function formatImpact(result: ImpactResult, options: FormatOptions = {}):
     lines.push("", `File (${files.length}), gần nhất trước:`);
     lines.push(
       ...capped(
-        table(files.map((node) => [String(node.depth), node.id, node.kind, node.certain ? "" : CONDITIONAL])),
+        table(
+          files.map((node) => [
+            String(node.depth),
+            node.id,
+            node.kind,
+            node.certain ? "" : CONDITIONAL,
+            offPage.has(node.id) ? OFF_PAGE : "",
+          ]),
+        ),
         options,
         "file",
       ),
     );
+
+    if (offPage.size > 0) {
+      lines.push(
+        "",
+        `File ghi ${OFF_PAGE} có dùng ${target.id} nhưng bản thân nó không nằm trên trang nào, nên không làm trang nào đổi.`,
+      );
+    }
   }
 
   return lines;

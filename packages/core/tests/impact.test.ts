@@ -5,7 +5,8 @@ import { impact } from '../src/impact.js';
 import { openGraph } from '../src/open.js';
 import type { GraphHandle } from '../src/open.js';
 import type { Reached } from '../src/traverse.js';
-import { queryGraph, removeTempTheme, saveToTempTheme } from './helpers.js';
+import { buildGraph } from '../src/graph.js';
+import { file, queryGraph, ref, removeTempTheme, saveToTempTheme } from './helpers.js';
 
 let themeRoot: string;
 let graph: GraphHandle;
@@ -172,5 +173,117 @@ describe('impact', () => {
 
   it('ném NodeNotFoundError cho tên không có trong đồ thị', () => {
     expect(() => impact(graph, 'snippets/khong-co.liquid')).toThrow(NodeNotFoundError);
+  });
+});
+
+describe('impact — trang nào đi qua file nào', () => {
+  const viaOf = (name: string) => impact(graph, name).pages.map((page) => [page.id, page.via]);
+
+  it('mỗi trang ghi các file gọi target trực tiếp mà nó đi tới được', () => {
+    // card được gọi trực tiếp bởi main-product và grid; trang product chỉ có
+    // main-product, trang collection chỉ có grid.
+    expect(viaOf('snippets/card.liquid')).toEqual([
+      ['page:collection', ['sections/grid.liquid']],
+      ['page:product', ['sections/main-product.liquid']],
+    ]);
+  });
+
+  it('via là file gọi TRỰC TIẾP, không phải file nằm sát trang', () => {
+    // price chỉ được card gọi; hai trang đều đi tới price qua card, dù giữa
+    // chúng còn section và template.
+    expect(viaOf('snippets/price.liquid')).toEqual([
+      ['page:collection', ['snippets/card.liquid']],
+      ['page:product', ['snippets/card.liquid']],
+    ]);
+  });
+
+  it('via rỗng khi target là template của chính trang đó', () => {
+    expect(viaOf('templates/cart.json')).toEqual([['page:cart', []]]);
+  });
+
+  it('giữ nguyên độ sâu và mức chắc chắn của trang', () => {
+    const [collection] = impact(graph, 'snippets/card.liquid').pages;
+
+    expect(collection).toEqual({
+      id: 'page:collection',
+      kind: 'page_type',
+      depth: 3,
+      certain: false,
+      via: ['sections/grid.liquid'],
+    });
+  });
+
+  it('không có file ngoài trang khi mọi file bị ảnh hưởng đều nằm trên một trang', () => {
+    expect(impact(graph, 'snippets/card.liquid').offPage).toEqual([]);
+  });
+
+  it('gom vào offPage mọi file bị ảnh hưởng khi không trang nào bị ảnh hưởng', () => {
+    // featured có preset nhưng không template nào chứa nó.
+    const result = impact(graph, 'snippets/featured-item.liquid');
+
+    expect(result.pages).toEqual([]);
+    expect(result.offPage).toEqual(['sections/featured.liquid']);
+  });
+
+  describe('đồ thị vừa có file trên trang vừa có file ngoài trang', () => {
+    let mixedRoot: string;
+    let mixed: GraphHandle;
+
+    beforeEach(async () => {
+      //   page:index -> templates/index.json -> sections/on-b.liquid -> snippets/x.liquid
+      //                                      -> sections/on-a.liquid -> snippets/x.liquid
+      //                                      -> sections/other.liquid            (không gọi x)
+      //   sections/off.liquid -> snippets/x.liquid          (không template nào chứa off)
+      //   snippets/off-parent.liquid -> snippets/mid.liquid -> snippets/x.liquid   (cũng ngoài mọi trang)
+      mixedRoot = await saveToTempTheme(
+        buildGraph(
+          [
+            file('templates/index.json', 'template'),
+            file('sections/on-a.liquid', 'section'),
+            file('sections/on-b.liquid', 'section'),
+            file('sections/other.liquid', 'section'),
+            file('sections/off.liquid', 'section'),
+            file('snippets/x.liquid', 'snippet'),
+            file('snippets/mid.liquid', 'snippet'),
+            file('snippets/off-parent.liquid', 'snippet'),
+          ],
+          [
+            ref('templates/index.json', 'section', 'on-b', { source: 'json', line: 0 }),
+            ref('templates/index.json', 'section', 'on-a', { source: 'json', line: 0 }),
+            ref('templates/index.json', 'section', 'other', { source: 'json', line: 0 }),
+            ref('sections/on-a.liquid', 'render', 'x'),
+            ref('sections/on-b.liquid', 'render', 'x'),
+            ref('sections/off.liquid', 'render', 'x'),
+            ref('snippets/mid.liquid', 'render', 'x'),
+            ref('snippets/off-parent.liquid', 'render', 'mid'),
+          ],
+          {},
+        ),
+      );
+      mixed = openGraph(mixedRoot);
+    });
+
+    afterEach(async () => {
+      mixed.close();
+      await removeTempTheme(mixedRoot);
+    });
+
+    it('via liệt kê mọi lối, xếp theo id, không gồm file ngoài trang hay file không gọi target', () => {
+      const result = impact(mixed, 'snippets/x.liquid');
+
+      expect(result.pages.map((page) => [page.id, page.via])).toEqual([
+        ['page:index', ['sections/on-a.liquid', 'sections/on-b.liquid']],
+      ]);
+    });
+
+    it('offPage gồm file ngoài trang ở mọi độ sâu, theo thứ tự của affected, không gồm trang', () => {
+      const result = impact(mixed, 'snippets/x.liquid');
+
+      // off và mid gọi x trực tiếp (độ sâu 1); off-parent ở độ sâu 2.
+      expect(result.offPage).toEqual(['sections/off.liquid', 'snippets/mid.liquid', 'snippets/off-parent.liquid']);
+      // File trên trang không lọt vào.
+      expect(result.offPage).not.toContain('sections/on-a.liquid');
+      expect(result.offPage).not.toContain('templates/index.json');
+    });
   });
 });

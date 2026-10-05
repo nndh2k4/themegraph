@@ -218,10 +218,10 @@ describe('themegraph impact', () => {
       'Sửa snippets/card.liquid (snippet) ảnh hưởng 8 file và 4 trên 4 trang.',
       '',
       'Trang (4):',
-      '  gift_card        cách 2 tầng',
-      '  index            cách 3 tầng',
-      '  product          cách 3 tầng  [có điều kiện]',
-      '  customers/login  cách 5 tầng  [có điều kiện]',
+      '  gift_card        cách 2 tầng                  qua templates/gift_card.liquid',
+      '  index            cách 3 tầng                  qua blocks/text.liquid, sections/hero.liquid',
+      '  product          cách 3 tầng  [có điều kiện]  qua blocks/text.liquid, sections/hero.liquid',
+      '  customers/login  cách 5 tầng  [có điều kiện]  qua blocks/text.liquid, sections/hero.liquid',
       '',
       'File (8), gần nhất trước:',
       '  1  blocks/text.liquid                block',
@@ -243,6 +243,64 @@ describe('themegraph impact', () => {
 
     expect(result.code).toBe(0);
     expect(result.stdout).toBe('Không file hay trang nào dùng tới snippets/old.liquid (snippet).');
+  });
+
+  it('đánh dấu file có dùng target nhưng không nằm trên trang nào, kèm một dòng giải thích', async () => {
+    // Một section gọi card nhưng không template nào chứa section đó.
+    await writeFile(path.join(themeRoot, 'sections', 'lonely.liquid'), "{% render 'card' %}");
+    await runCli(['analyze', themeRoot]);
+
+    const result = await impact('snippets/card.liquid');
+    const lines = result.stdout.split('\n');
+
+    // Cột "có điều kiện" của dòng này trống, nên chỉ kiểm thứ tự các ô.
+    expect(lines.some((line) => /^ +1 +sections\/lonely\.liquid +section +\[không trang nào dùng\]$/.test(line))).toBe(true);
+    expect(lines.at(-1)).toBe(
+      'File ghi [không trang nào dùng] có dùng snippets/card.liquid nhưng bản thân nó không nằm trên trang nào, nên không làm trang nào đổi.',
+    );
+    // Trang nào cũng không đi qua section đó.
+    expect(lines.filter((line) => line.includes('qua ')).some((line) => line.includes('lonely'))).toBe(false);
+    // File nằm trên trang thì không có nhãn.
+    expect(lines.find((line) => line.includes('sections/hero.liquid  '))).not.toContain('không trang nào dùng');
+  });
+
+  it('không có dòng giải thích khi mọi file đều nằm trên một trang', async () => {
+    const result = await impact('snippets/card.liquid');
+
+    expect(result.stdout).not.toContain('không trang nào dùng');
+  });
+
+  it('nêu tối đa ba file sau chữ "qua" và đếm phần còn lại', async () => {
+    // hero gọi thêm bốn snippet, mỗi snippet lại gọi card: trang index đi tới
+    // card qua sáu file gọi trực tiếp.
+    const names = ['w1', 'w2', 'w3', 'w4'];
+    for (const name of names) await writeFile(path.join(themeRoot, 'snippets', `${name}.liquid`), "{% render 'card' %}");
+    await appendFile(path.join(themeRoot, 'sections', 'hero.liquid'), names.map((name) => `{% render '${name}' %}`).join(''));
+    await runCli(['analyze', themeRoot]);
+
+    const result = await impact('snippets/card.liquid');
+    const index = result.stdout.split('\n').find((line) => line.startsWith('  index '));
+
+    expect(index).toMatch(/qua blocks\/text\.liquid, sections\/hero\.liquid, snippets\/w1\.liquid và 3 file khác$/);
+  });
+
+  it('trang gọi thẳng target thì không có chữ "qua"', async () => {
+    const result = await impact('templates/index.json');
+
+    // Cả dòng, để một chữ "qua" trơ trọi ở cuối cũng bị bắt.
+    expect(result.stdout.split('\n')).toContain('  index  cách 1 tầng');
+    expect(result.stdout).not.toContain('qua');
+  });
+
+  it('--json có via của từng trang và danh sách offPage', async () => {
+    await writeFile(path.join(themeRoot, 'sections', 'lonely.liquid'), "{% render 'card' %}");
+    await runCli(['analyze', themeRoot]);
+
+    const result = await impact('snippets/card.liquid', '--json');
+    const json = JSON.parse(result.stdout) as { pages: { id: string; via: string[] }[]; offPage: string[] };
+
+    expect(json.offPage).toEqual(['sections/lonely.liquid']);
+    expect(json.pages.find((page) => page.id === 'page:gift_card')?.via).toEqual(['templates/gift_card.liquid']);
   });
 
   it('bỏ mục File khi chỉ có trang bị ảnh hưởng', async () => {
@@ -520,10 +578,10 @@ describe('themegraph — --limit ở các lệnh khác', () => {
       'Sửa snippets/card.liquid (snippet) ảnh hưởng 8 file và 4 trên 4 trang.',
       '',
       'Trang (4):',
-      '  gift_card        cách 2 tầng',
-      '  index            cách 3 tầng',
-      '  product          cách 3 tầng  [có điều kiện]',
-      '  customers/login  cách 5 tầng  [có điều kiện]',
+      '  gift_card        cách 2 tầng                  qua templates/gift_card.liquid',
+      '  index            cách 3 tầng                  qua blocks/text.liquid, sections/hero.liquid',
+      '  product          cách 3 tầng  [có điều kiện]  qua blocks/text.liquid, sections/hero.liquid',
+      '  customers/login  cách 5 tầng  [có điều kiện]  qua blocks/text.liquid, sections/hero.liquid',
       '',
       'File (8), gần nhất trước:',
       '  1  blocks/text.liquid                block',
