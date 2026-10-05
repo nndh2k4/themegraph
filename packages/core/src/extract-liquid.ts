@@ -1,6 +1,7 @@
 import { NodeTypes, toLiquidAST, walk } from "@shopify/liquid-html-parser";
 
-import type { RawRef, RefKind, ThemeFile } from "./types.js";
+import { collectSchemaBlockTypes } from "./extract-schema.js";
+import type { RawRef, RefKind, RefSource, ThemeFile } from "./types.js";
 
 /**
  * Đổi một vị trí ký tự (offset) trong chuỗi thành số dòng, đếm từ 1.
@@ -22,7 +23,7 @@ function lineAt(content: string, offset: number): number {
  * Nhận nội dung file dưới dạng chuỗi thay vì tự đọc đĩa, giống extractJsonRefs.
  *
  * Hiện trích: {% render %}, {% include %}, {% section %}, {% sections %},
- * {% content_for 'block' %}.
+ * {% content_for 'block' %}, và các theme block nhắc trong {% schema %}.
  */
 export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
   // Chỉ file .liquid mới chứa mã Liquid. Asset (.css, .js) có thể chứa chuỗi
@@ -46,14 +47,22 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
   const refs: RawRef[] = [];
 
   // Hàm con để mọi ref được tạo ở đúng một chỗ, cùng một khuôn.
-  const addRef = (kind: RefKind, to: string, offset: number): void => {
+  // source và conditional có giá trị mặc định cho trường hợp thường gặp nhất
+  // (một tag Liquid); nhánh schema truyền giá trị riêng.
+  const addRef = (
+    kind: RefKind,
+    to: string,
+    offset: number,
+    source: RefSource = "liquid",
+    // Với tag Liquid: chưa xét ngữ cảnh if / for; sẽ tính khi có ngăn xếp nút cha.
+    conditional = false,
+  ): void => {
     refs.push({
       from: file.path,
       to,
       kind,
-      source: "liquid",
-      // Chưa xét ngữ cảnh if / for; sẽ tính khi có ngăn xếp nút cha.
-      conditional: false,
+      source,
+      conditional,
       line: lineAt(content, offset),
     });
   };
@@ -62,6 +71,28 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
   // Nội dung của {% comment %} là văn bản thô, không thành nút, nên ví dụ
   // "cách dùng" viết trong chú thích tự động không bị tính.
   walk(ast, (node) => {
+    // {% schema %} là "raw tag": parser không phân tích phần thân mà giữ
+    // nguyên dạng chuỗi trong body.value. Phần thân đó là JSON.
+    if (node.type === NodeTypes.LiquidRawTag && node.name === "schema") {
+      let blockTypes: string[];
+      try {
+        blockTypes = collectSchemaBlockTypes(node.body.value);
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `Không đọc được JSON trong {% schema %} của "${file.path}": ${reason}`,
+          { cause: error },
+        );
+      }
+
+      // conditional = true: schema chỉ nói file này NHẬN ĐƯỢC các block đó.
+      // Block có thật sự được render hay không tuỳ cấu hình trong JSON template.
+      for (const blockType of blockTypes) {
+        addRef("block", blockType, node.position.start, "schema", true);
+      }
+      return;
+    }
+
     if (node.type !== NodeTypes.LiquidTag) return;
 
     if (node.name === "render" || node.name === "include") {

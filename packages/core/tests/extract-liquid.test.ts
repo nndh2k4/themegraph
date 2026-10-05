@@ -164,3 +164,99 @@ describe('extractLiquidRefs — content_for', () => {
     expect(briefBlock(content)).toEqual([]);
   });
 });
+
+describe('extractLiquidRefs — schema', () => {
+  /** Bọc một object thành khối {% schema %} nằm ở dòng 3 của file. */
+  const withSchema = (schema: unknown) =>
+    `<div></div>\n\n{% schema %}\n${JSON.stringify(schema, null, 2)}\n{% endschema %}`;
+
+  const targets = (schema: unknown) =>
+    extractLiquidRefs(SECTION, withSchema(schema)).map((r) => r.to);
+
+  it('sinh ref block cho mục blocks chỉ có type', () => {
+    const refs = extractLiquidRefs(SECTION, withSchema({ name: 'Hero', blocks: [{ type: '_heading' }] }));
+
+    // conditional: schema chỉ nói section NHẬN ĐƯỢC block này; có render hay
+    // không còn tuỳ merchant đặt gì trong theme editor.
+    expect(refs).toEqual([
+      { from: 'sections/hero.liquid', to: '_heading', kind: 'block', source: 'schema', conditional: true, line: 3 },
+    ]);
+  });
+
+  it('bỏ qua @theme và @app', () => {
+    expect(targets({ blocks: [{ type: '@theme' }, { type: '@app' }, { type: '_text' }] })).toEqual(['_text']);
+  });
+
+  it('không coi block cục bộ (có name) là tham chiếu tới file', () => {
+    const schema = {
+      blocks: [
+        { type: 'heading', name: 'Heading', settings: [] },
+        { type: 'buttons', name: 'Buttons' },
+      ],
+      // Preset dùng lại chính các block cục bộ ở trên: cũng không phải file.
+      presets: [{ name: 'Hero', blocks: [{ type: 'heading' }, { type: 'buttons' }] }],
+    };
+
+    expect(targets(schema)).toEqual([]);
+  });
+
+  it('đọc blocks trong presets ở dạng mảng, kể cả block lồng nhau', () => {
+    const schema = {
+      blocks: [{ type: '@theme' }],
+      presets: [
+        {
+          name: 'A',
+          blocks: [{ type: '_group', blocks: [{ type: '_title', blocks: [{ type: '_badge' }] }] }],
+        },
+      ],
+    };
+
+    expect(targets(schema)).toEqual(['_group', '_title', '_badge']);
+  });
+
+  it('đọc blocks trong presets ở dạng object', () => {
+    const schema = {
+      blocks: [{ type: '@theme' }],
+      presets: [
+        {
+          name: 'A',
+          blocks: { one: { type: '_image', blocks: { two: { type: '_caption' } } } },
+          block_order: ['one'],
+        },
+      ],
+    };
+
+    expect(targets(schema)).toEqual(['_image', '_caption']);
+  });
+
+  it('đọc blocks trong default', () => {
+    expect(targets({ default: { blocks: [{ type: '_link' }] } })).toEqual(['_link']);
+  });
+
+  it('mỗi block chỉ sinh một ref dù được nhắc nhiều lần trong schema', () => {
+    const schema = {
+      blocks: [{ type: '_text' }],
+      presets: [
+        { name: 'A', blocks: [{ type: '_text' }, { type: '_text' }] },
+        { name: 'B', blocks: [{ type: '_text' }] },
+      ],
+    };
+
+    expect(targets(schema)).toEqual(['_text']);
+  });
+
+  it('vẫn trích render trong cùng file có schema', () => {
+    const content = `{% render 'icon' %}\n${withSchema({ blocks: [{ type: '_text' }] })}`;
+
+    expect(extractLiquidRefs(SECTION, content).map((r) => [r.kind, r.source, r.to])).toEqual([
+      ['render', 'liquid', 'icon'],
+      ['block', 'schema', '_text'],
+    ]);
+  });
+
+  it('ném lỗi có tên file khi JSON trong schema hỏng', () => {
+    expect(() => extractLiquidRefs(SECTION, '{% schema %}{ "name": {% endschema %}')).toThrow(
+      'sections/hero.liquid',
+    );
+  });
+});
