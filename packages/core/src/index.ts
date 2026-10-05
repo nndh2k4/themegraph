@@ -49,3 +49,7 @@ export type { BrokenRef, ContextLink, ContextResult } from './context.js';
 // Truy vấn: file nào không còn được dùng.
 export { deadCode } from './dead-code.js';
 export type { DeadCodeResult, DeadConfidence, DeadFile, DeadReason } from './dead-code.js';
+
+// Kiểm chứng: đối chiếu truy vấn SQL với phép duyệt bằng JavaScript.
+export { bfsTraverse, diffTraversals, verify } from './verify.js';
+export type { PlainEdge, Reach, VerifyMismatch, VerifyResult } from './verify.js';
