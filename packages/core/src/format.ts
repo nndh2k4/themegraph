@@ -1,26 +1,49 @@
-import { VERSION } from "@themegraph/core";
-import type {
-  AnalyzeResult,
-  CleanResult,
-  ContextLink,
-  ContextResult,
-  DeadCodeResult,
-  DeadFile,
-  FlowNode,
-  ImpactResult,
-  ListedTheme,
-  Reached,
-  RenderFlowResult,
-  StatusResult,
-  VerifyResult,
-} from "@themegraph/core";
+import type { AnalyzeResult } from "./analyze.js";
+import type { CleanResult } from "./clean.js";
+import type { ContextLink, ContextResult } from "./context.js";
+import type { DeadCodeResult, DeadFile } from "./dead-code.js";
+import type { ImpactResult } from "./impact.js";
+import type { ListedTheme } from "./registry.js";
+import type { FlowNode, RenderFlowResult } from "./render-flow.js";
+import type { SearchResult } from "./search.js";
+import type { StatusResult } from "./status.js";
+import type { Reached } from "./traverse.js";
+import type { VerifyResult } from "./verify.js";
+import { VERSION } from "./version.js";
 
 /**
- * Các hàm trong file này đổi kết quả của lõi thành những dòng chữ cho người
- * đọc. Chúng không in gì ra: mỗi hàm trả về một mảng dòng, run.ts quyết định
- * gửi đi đâu. Nhờ vậy lõi không biết gì về cách trình bày, và cờ --json chỉ
- * việc bỏ qua cả file này.
+ * Các hàm trong file này đổi kết quả của một truy vấn thành những dòng chữ cho
+ * người (hoặc agent) đọc. Chúng không in gì ra và không truy vấn gì thêm: mỗi
+ * hàm nhận một kết quả, trả về một mảng dòng, lớp vỏ quyết định gửi đi đâu.
+ *
+ * File này nằm ở lõi vì hai lớp vỏ cùng dùng nó: CLI in các dòng ra màn hình,
+ * MCP server gửi chúng cho agent. Đặt ở một lớp vỏ thì lớp kia phải chép lại.
+ * Các hàm truy vấn không gọi tới file này, và cờ --json bỏ qua nó hoàn toàn.
  */
+
+/** Tuỳ chọn chung của các hàm trình bày. */
+export interface FormatOptions {
+  /**
+   * Số dòng tối đa của MỖI danh sách trong kết quả. Phần bị cắt được thay
+   * bằng một dòng đếm. Không nêu thì in hết.
+   *
+   * Sinh ra cho agent: đầu ra của một tool có giới hạn kích thước, và một
+   * danh sách 500 dòng chiếm chỗ của những thứ đáng đọc hơn.
+   */
+  limit?: number;
+}
+
+/**
+ * Cắt một danh sách các dòng theo limit, thêm một dòng cho biết còn bao nhiêu.
+ * `what` là tên của thứ bị cắt, ví dụ "file".
+ */
+function capped(lines: readonly string[], options: FormatOptions, what: string): string[] {
+  const { limit } = options;
+  if (limit === undefined || lines.length <= limit) return [...lines];
+
+  const hidden = lines.length - Math.max(0, limit);
+  return [...lines.slice(0, Math.max(0, limit)), `  ... và ${hidden} ${what} nữa (tăng limit để xem hết)`];
+}
 
 /** Nhãn gắn sau một quan hệ chỉ xảy ra trong một điều kiện nào đó. */
 const CONDITIONAL = "[có điều kiện]";
@@ -111,7 +134,7 @@ export function formatAnalyze(result: AnalyzeResult): string[] {
 
 // ---- impact -----------------------------------------------------------------
 
-export function formatImpact(result: ImpactResult): string[] {
+export function formatImpact(result: ImpactResult, options: FormatOptions = {}): string[] {
   const { target, affected, pages } = result;
 
   if (affected.length === 0) {
@@ -131,9 +154,14 @@ export function formatImpact(result: ImpactResult): string[] {
   }
 
   if (files.length > 0) {
+    // Danh sách trang ở trên không bao giờ bị cắt: nó chính là câu trả lời.
     lines.push("", `File (${files.length}), gần nhất trước:`);
     lines.push(
-      ...table(files.map((node) => [String(node.depth), node.id, node.kind, node.certain ? "" : CONDITIONAL])),
+      ...capped(
+        table(files.map((node) => [String(node.depth), node.id, node.kind, node.certain ? "" : CONDITIONAL])),
+        options,
+        "file",
+      ),
     );
   }
 
@@ -161,23 +189,39 @@ function drawTree(node: FlowNode, parents: ReadonlySet<string>, lines: string[])
   if (node.count > 1) notes.push(`×${node.count}`);
   if (node.conditional) notes.push(CONDITIONAL);
   if (node.repeated && parents.has(node.id)) notes.push("(các file con: xem ở chỗ khác trong cây)");
+  if (node.hidden > 0) notes.push(`(${node.hidden} file con chưa mở)`);
 
   lines.push(["  ".repeat(node.depth) + node.id, ...notes].join("  "));
 
   for (const child of node.children) drawTree(child, parents, lines);
 }
 
-export function formatRenderFlow(result: RenderFlowResult): string[] {
+/** Có node nào trong cây bị cắt các con đi không. */
+function hasHidden(node: FlowNode): boolean {
+  return node.hidden > 0 || node.children.some(hasHidden);
+}
+
+export function formatRenderFlow(result: RenderFlowResult, options: FormatOptions = {}): string[] {
   const { root, files, tree } = result;
 
   if (files.length === 0) {
     return [`${root.id} (${root.kind}) không gọi tới file nào.`];
   }
 
-  const maxDepth = Math.max(...files.map((node) => node.depth));
-  const lines = [`${root.id} (${root.kind}) kéo theo ${files.length} file, sâu nhất ${maxDepth} tầng.`, ""];
+  const deepest = Math.max(...files.map((node) => node.depth));
+  const lines = [`${root.id} (${root.kind}) kéo theo ${files.length} file, sâu nhất ${deepest} tầng.`];
 
-  drawTree(tree, collectParents(tree, new Set()), lines);
+  // Chỉ nói về giới hạn khi nó thật sự giấu đi thứ gì.
+  if (result.maxDepth !== null && hasHidden(tree)) {
+    lines.push(
+      `Cây dưới đây dừng ở tầng ${result.maxDepth}. Hỏi tiếp từ một file trong cây, hoặc tăng độ sâu, để xem phần bên dưới.`,
+    );
+  }
+  lines.push("");
+
+  const drawn: string[] = [];
+  drawTree(tree, collectParents(tree, new Set()), drawn);
+  lines.push(...capped(drawn, options, "dòng"));
   return lines;
 }
 
@@ -190,7 +234,7 @@ function linkNotes(link: ContextLink): string {
     .join("  ");
 }
 
-export function formatContext(result: ContextResult): string[] {
+export function formatContext(result: ContextResult, options: FormatOptions = {}): string[] {
   const { node, usedBy, uses, translations, settings, broken, pages } = result;
   const lines = [`${node.id} (${node.kind})`];
 
@@ -206,32 +250,47 @@ export function formatContext(result: ContextResult): string[] {
   lines.push("", `Được gọi bởi (${usedBy.length}):`);
   // Số dòng ở đây là dòng trong file GỌI, nên viết liền sau tên file đó.
   lines.push(
-    ...table(
-      usedBy.map((link) => [link.lines.length > 0 ? `${link.id}:${link.lines.join(",")}` : link.id, linkNotes(link)]),
+    ...capped(
+      table(
+        usedBy.map((link) => [
+          link.lines.length > 0 ? `${link.id}:${link.lines.join(",")}` : link.id,
+          linkNotes(link),
+        ]),
+      ),
+      options,
+      "file",
     ),
   );
 
   lines.push("", `Gọi tới (${uses.length}):`);
   // Còn ở đây là dòng trong chính file đang hỏi.
   lines.push(
-    ...table(
-      uses.map((link) => [
-        link.id,
-        link.lines.length > 0 ? `dòng ${link.lines.join(", ")}` : "",
-        linkNotes(link),
-      ]),
+    ...capped(
+      table(
+        uses.map((link) => [
+          link.id,
+          link.lines.length > 0 ? `dòng ${link.lines.join(", ")}` : "",
+          linkNotes(link),
+        ]),
+      ),
+      options,
+      "file",
     ),
   );
 
   if (translations.length > 0) {
     lines.push("", `Khoá dịch (${translations.length}):`);
     lines.push(
-      ...table(
-        translations.map((link) => [
-          translationKey(link.id),
-          `dòng ${link.lines.join(", ")}`,
-          link.conditional ? CONDITIONAL : "",
-        ]),
+      ...capped(
+        table(
+          translations.map((link) => [
+            translationKey(link.id),
+            `dòng ${link.lines.join(", ")}`,
+            link.conditional ? CONDITIONAL : "",
+          ]),
+        ),
+        options,
+        "khoá dịch",
       ),
     );
   }
@@ -239,12 +298,16 @@ export function formatContext(result: ContextResult): string[] {
   if (settings.length > 0) {
     lines.push("", `Setting được đọc (${settings.length}):`);
     lines.push(
-      ...table(
-        settings.map((link) => [
-          settingName(link.id),
-          `dòng ${link.lines.join(", ")}`,
-          link.conditional ? CONDITIONAL : "",
-        ]),
+      ...capped(
+        table(
+          settings.map((link) => [
+            settingName(link.id),
+            `dòng ${link.lines.join(", ")}`,
+            link.conditional ? CONDITIONAL : "",
+          ]),
+        ),
+        options,
+        "setting",
       ),
     );
   }
@@ -271,42 +334,57 @@ const REVIEW_NOTES: Record<string, string> = {
   layout: "layout: có thể được chọn bằng {% layout %} với tên là biến.",
 };
 
-function deadRows(files: readonly DeadFile[]): string[] {
-  return table(
-    files.map((entry) => [
-      entry.id,
-      entry.kind,
-      entry.usedBy.length > 0 ? `chỉ được gọi bởi ${entry.usedBy.join(", ")}` : "",
-    ]),
+function deadRows(files: readonly DeadFile[], options: FormatOptions): string[] {
+  return capped(
+    table(
+      files.map((entry) => [
+        entry.id,
+        entry.kind,
+        entry.usedBy.length > 0 ? `chỉ được gọi bởi ${entry.usedBy.join(", ")}` : "",
+      ]),
+    ),
+    options,
+    "file",
   );
 }
 
 /** Mục khoá dịch không thấy dùng; rỗng khi không có khoá nào. */
-function unusedKeyLines(keys: readonly string[]): string[] {
+function unusedKeyLines(keys: readonly string[], options: FormatOptions): string[] {
   if (keys.length === 0) return [];
 
   return [
     "",
     `Khoá dịch không file nào gọi bằng tên viết sẵn (${keys.length}), cần xem lại:`,
-    ...keys.map((key) => `  ${key}`),
+    ...capped(
+      keys.map((key) => `  ${key}`),
+      options,
+      "khoá dịch",
+    ),
     "  Khoá vẫn có thể được gọi bằng tên ghép lúc chạy, ví dụ 'products.' | append: handle | t.",
   ];
 }
 
 /** Mục setting không thấy đọc; rỗng khi không có setting nào. */
-function unusedSettingLines(settings: readonly string[]): string[] {
+function unusedSettingLines(settings: readonly string[], options: FormatOptions): string[] {
   if (settings.length === 0) return [];
 
   return [
     "",
     `Setting không file nào đọc bằng tên viết sẵn (${settings.length}), cần xem lại:`,
-    ...settings.map((setting) => `  ${setting}`),
+    ...capped(
+      settings.map((setting) => `  ${setting}`),
+      options,
+      "setting",
+    ),
     "  Setting vẫn có thể được đọc bằng tên là biến (section.settings[ten]), hoặc do chính Shopify đọc.",
   ];
 }
 
-export function formatDeadCode(result: DeadCodeResult): string[] {
-  const extras = [...unusedKeyLines(result.unusedTranslationKeys), ...unusedSettingLines(result.unusedSettings)];
+export function formatDeadCode(result: DeadCodeResult, options: FormatOptions = {}): string[] {
+  const extras = [
+    ...unusedKeyLines(result.unusedTranslationKeys, options),
+    ...unusedSettingLines(result.unusedSettings, options),
+  ];
 
   if (result.files.length === 0) {
     return ["Không tìm thấy file nào không được dùng.", ...extras];
@@ -320,11 +398,11 @@ export function formatDeadCode(result: DeadCodeResult): string[] {
   ];
 
   if (certain.length > 0) {
-    lines.push("", `Chắc chắn không dùng (${certain.length}):`, ...deadRows(certain));
+    lines.push("", `Chắc chắn không dùng (${certain.length}):`, ...deadRows(certain, options));
   }
 
   if (review.length > 0) {
-    lines.push("", `Cần xem lại trước khi xoá (${review.length}):`, ...deadRows(review));
+    lines.push("", `Cần xem lại trước khi xoá (${review.length}):`, ...deadRows(review, options));
 
     // Chỉ in ghi chú cho những loại file thật sự có mặt trong danh sách.
     const kinds = new Set(review.map((entry) => entry.kind));
@@ -337,6 +415,23 @@ export function formatDeadCode(result: DeadCodeResult): string[] {
 
   lines.push(...extras);
   return lines;
+}
+
+// ---- search -------------------------------------------------------------------
+
+export function formatSearch(result: SearchResult): string[] {
+  const { query, hits, total } = result;
+  const about = query.trim() === "" ? "" : ` khớp "${query}"`;
+
+  if (total === 0) {
+    return [`Không có node nào${about}.`];
+  }
+
+  // Giới hạn của search do chính truy vấn áp (tham số limit), nên ở đây chỉ
+  // việc nói rõ đang hiện bao nhiêu trên tổng số.
+  const count = hits.length < total ? `${hits.length} trên ${total}` : String(total);
+
+  return [`Node${about} (${count}), sát nhất trước:`, ...table(hits.map((hit) => [hit.id, hit.kind]))];
 }
 
 // ---- verify -------------------------------------------------------------------

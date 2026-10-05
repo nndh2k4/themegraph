@@ -8,18 +8,6 @@ import {
   deadCode,
   findRegisteredTheme,
   findThemeRoot,
-  impact,
-  listThemes,
-  openGraph,
-  registryPath,
-  renderFlow,
-  themeStatus,
-  verify,
-  VERSION,
-} from "@themegraph/core";
-import type { GraphHandle } from "@themegraph/core";
-
-import {
   formatAnalyze,
   formatClean,
   formatContext,
@@ -27,9 +15,21 @@ import {
   formatImpact,
   formatList,
   formatRenderFlow,
+  formatSearch,
   formatStatus,
   formatVerify,
-} from "./format.js";
+  impact,
+  listThemes,
+  NODE_KINDS,
+  openGraph,
+  registryPath,
+  renderFlow,
+  search,
+  themeStatus,
+  verify,
+  VERSION,
+} from "@themegraph/core";
+import type { FormatOptions, GraphHandle, NodeKind } from "@themegraph/core";
 
 /**
  * Nơi lệnh in kết quả ra. Tách thành tham số để test gom được output mà không
@@ -55,8 +55,11 @@ Cách dùng:
   themegraph clean                 Xoá dữ liệu ThemeGraph của theme này
                                    (--all: của mọi theme đã phân tích)
 
+  themegraph search [từ-khoá]      Tìm file, trang, khoá dịch, setting theo tên
+                                   (--kind <loại>: chỉ lấy một loại node, lặp lại được)
   themegraph impact <file>         Sửa file này thì file nào, trang nào bị ảnh hưởng
   themegraph render-flow <trang>   Trang này render những file nào, lồng nhau ra sao
+                                   (--depth <n>: chỉ vẽ cây tới tầng n)
   themegraph context <file>        File này là gì, ai gọi nó, nó gọi ai
   themegraph dead-code             File nào không còn được dùng
   themegraph verify                Đối chiếu truy vấn SQL với phép duyệt bằng JavaScript
@@ -65,6 +68,7 @@ Trừ analyze và list, mọi lệnh chạy trên theme chứa thư mục đang 
 
 Tuỳ chọn:
   -t, --theme <thư-mục>            Dùng theme ở thư mục này thay vì thư mục đang đứng
+      --limit <n>                  Mỗi danh sách chỉ in n dòng đầu
       --json                       In kết quả dạng JSON
   -v, --version                    In phiên bản
   -h, --help                       In hướng dẫn này`;
@@ -74,18 +78,23 @@ interface Flags {
   json: boolean;
   theme: string | undefined;
   all: boolean;
+  limit: number | undefined;
+  depth: number | undefined;
+  kinds: NodeKind[];
 }
 
 /**
  * In kết quả của một lệnh: nguyên dạng JSON nếu có cờ --json, còn không thì
  * qua hàm trình bày của lệnh đó.
  */
-function print<T>(result: T, format: (result: T) => string[], flags: Flags, io: Io): void {
+function print<T>(result: T, format: (result: T, options: FormatOptions) => string[], flags: Flags, io: Io): void {
   if (flags.json) {
     io.stdout(JSON.stringify(result, null, 2));
     return;
   }
-  for (const line of format(result)) io.stdout(line);
+  // Không có --limit thì limit là undefined, tức in hết.
+  const options: FormatOptions = flags.limit === undefined ? {} : { limit: flags.limit };
+  for (const line of format(result, options)) io.stdout(line);
 }
 
 /** Báo sai cú pháp và trả mã thoát tương ứng. */
@@ -200,7 +209,7 @@ function runNamedQuery<T>(
   flags: Flags,
   io: Io,
   query: (graph: GraphHandle, name: string, options: { baseDir: string }) => T,
-  format: (result: T) => string[],
+  format: (result: T, options: FormatOptions) => string[],
 ): number {
   const [name, ...extra] = positionals;
 
@@ -221,7 +230,7 @@ function runBareQuery<T>(
   flags: Flags,
   io: Io,
   query: (graph: GraphHandle) => T,
-  format: (result: T) => string[],
+  format: (result: T, options: FormatOptions) => string[],
   exitCodeOf: (result: T) => number = () => EXIT_OK,
 ): number {
   if (positionals.length > 0) {
@@ -233,6 +242,35 @@ function runBareQuery<T>(
     print(result, format, flags, io);
     return exitCodeOf(result);
   });
+}
+
+/**
+ * Lệnh search: tìm node theo tên. Từ khoá có thể gồm nhiều từ; không có từ
+ * khoá thì liệt kê, thường đi kèm --kind.
+ */
+function runSearch(positionals: string[], flags: Flags, io: Io): number {
+  return withGraph(flags, (graph) => {
+    const result = search(graph, positionals.join(" "), {
+      kinds: flags.kinds,
+      // Ở lệnh này --limit là giới hạn của chính truy vấn, không phải của
+      // phần trình bày: lõi cần nó để biết cắt sau khi đã xếp hạng.
+      ...(flags.limit === undefined ? {} : { limit: flags.limit }),
+    });
+    print(result, formatSearch, flags, io);
+    return EXIT_OK;
+  });
+}
+
+/**
+ * Đọc một cờ nhận số nguyên không âm. Trả về undefined khi cờ vắng mặt, và
+ * null khi giá trị không hợp lệ.
+ */
+function parseCount(value: string | undefined, min: number): number | undefined | null {
+  if (value === undefined) return undefined;
+  // Chỉ nhận chuỗi toàn chữ số: Number() còn hiểu cả "1e3", " 5 " và "".
+  if (!/^\d+$/.test(value)) return null;
+  const parsed = Number(value);
+  return parsed >= min ? parsed : null;
 }
 
 /** Chọn và chạy lệnh con. Lỗi ném ra từ lõi được bắt ở run(). */
@@ -248,8 +286,19 @@ async function dispatch(command: string, rest: string[], flags: Flags, io: Io): 
       return runClean(rest, flags, io);
     case "impact":
       return runNamedQuery(command, "đường dẫn của một file", rest, flags, io, impact, formatImpact);
+    case "search":
+      return runSearch(rest, flags, io);
     case "render-flow":
-      return runNamedQuery(command, "tên một loại trang", rest, flags, io, renderFlow, formatRenderFlow);
+      return runNamedQuery(
+        command,
+        "tên một loại trang",
+        rest,
+        flags,
+        io,
+        (graph, name, options) =>
+          renderFlow(graph, name, flags.depth === undefined ? options : { ...options, maxDepth: flags.depth }),
+        formatRenderFlow,
+      );
     case "context":
       return runNamedQuery(command, "đường dẫn của một file", rest, flags, io, context, formatContext);
     case "dead-code":
@@ -282,6 +331,9 @@ export async function run(argv: string[], io: Io): Promise<number> {
         json: { type: "boolean" },
         theme: { type: "string", short: "t" },
         all: { type: "boolean" },
+        limit: { type: "string" },
+        depth: { type: "string" },
+        kind: { type: "string", multiple: true },
       },
       allowPositionals: true,
     });
@@ -302,10 +354,26 @@ export async function run(argv: string[], io: Io): Promise<number> {
     return EXIT_OK;
   }
 
+  const limit = parseCount(parsed.values.limit, 0);
+  if (limit === null) return usageError("--limit cần một số nguyên từ 0 trở lên.", io);
+
+  const depth = parseCount(parsed.values.depth, 1);
+  if (depth === null) return usageError("--depth cần một số nguyên từ 1 trở lên.", io);
+
+  const kinds = parsed.values.kind ?? [];
+  const known: readonly string[] = NODE_KINDS;
+  const unknownKind = kinds.find((kind) => !known.includes(kind));
+  if (unknownKind !== undefined) {
+    return usageError(`Không có loại node "${unknownKind}". Các loại: ${NODE_KINDS.join(", ")}.`, io);
+  }
+
   const flags: Flags = {
     json: parsed.values.json ?? false,
     theme: parsed.values.theme,
     all: parsed.values.all ?? false,
+    limit,
+    depth,
+    kinds: kinds as NodeKind[],
   };
 
   try {

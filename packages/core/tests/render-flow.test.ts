@@ -183,3 +183,80 @@ describe('renderFlow — cây', () => {
     expect(draw(tree)).toEqual(['snippets/a.liquid', '  snippets/b.liquid', '    snippets/a.liquid ? ^']);
   });
 });
+
+describe('renderFlow — giới hạn độ sâu', () => {
+  /** Như draw(), thêm "+n" sau node có n file con bị giấu. */
+  function drawCut(node: FlowNode, lines: string[] = []): string[] {
+    const marks = (node.repeated ? ' ^' : '') + (node.hidden > 0 ? ` +${node.hidden}` : '');
+    lines.push(`${'  '.repeat(node.depth)}${node.id}${marks}`);
+    for (const child of node.children) drawCut(child, lines);
+    return lines;
+  }
+
+  it('không nêu maxDepth thì cây đi tới hết và không node nào giấu con', () => {
+    const result = renderFlow(graph, 'page:product');
+
+    expect(result.maxDepth).toBeNull();
+    expect(flatten(result.tree).every((node) => node.hidden === 0)).toBe(true);
+  });
+
+  it('dừng ở tầng maxDepth và đếm số file con bị giấu của từng node', () => {
+    const result = renderFlow(graph, 'page:product', { maxDepth: 2 });
+
+    expect(result.maxDepth).toBe(2);
+    // theme.liquid gọi base.css và header-group; main-product gọi card và
+    // _used (lời gọi tới 'da-xoa' hỏng nên không thành cạnh); promo không gọi gì.
+    expect(drawCut(result.tree)).toEqual([
+      'page:product',
+      '  templates/product.json',
+      '    layout/theme.liquid +2',
+      '    sections/main-product.liquid +2',
+      '  templates/product.alt.json',
+      // Lần xuất hiện thứ hai của layout là lặp lại: không đếm con ở đây.
+      '    layout/theme.liquid ^',
+      '    sections/promo.liquid',
+    ]);
+  });
+
+  it('maxDepth 1 chỉ để lại các con trực tiếp của gốc', () => {
+    expect(drawCut(renderFlow(graph, 'page:product', { maxDepth: 1 }).tree)).toEqual([
+      'page:product',
+      '  templates/product.json +2',
+      '  templates/product.alt.json +2',
+    ]);
+  });
+
+  it('danh sách files vẫn đầy đủ dù cây bị cắt', () => {
+    const full = renderFlow(graph, 'page:product');
+    const cut = renderFlow(graph, 'page:product', { maxDepth: 1 });
+
+    expect(cut.files).toEqual(full.files);
+  });
+
+  it('maxDepth bằng hoặc lớn hơn độ sâu của cây thì không giấu gì', () => {
+    const full = renderFlow(graph, 'page:product');
+    // Node sâu nhất (snippets/menu.liquid) ở tầng 5 và không có con nào chưa
+    // được mở, nên cắt ở tầng 6 cho cùng một cây.
+    const cut = renderFlow(graph, 'page:product', { maxDepth: 6 });
+
+    expect(cut.tree).toEqual(full.tree);
+    expect(cut.maxDepth).toBe(6);
+  });
+
+  it('node lá ở đúng tầng bị cắt không bị coi là giấu con', () => {
+    // promo ở tầng 2 và không gọi file nào.
+    const promo = flatten(renderFlow(graph, 'page:product', { maxDepth: 2 }).tree).find(
+      (node) => node.id === 'sections/promo.liquid',
+    );
+
+    expect(promo?.hidden).toBe(0);
+    expect(promo?.repeated).toBe(false);
+  });
+
+  it('từ chối maxDepth không phải số nguyên từ 1 trở lên', () => {
+    for (const bad of [0, -1, 1.5, Number.NaN]) {
+      expect(() => renderFlow(graph, 'page:product', { maxDepth: bad })).toThrow(RangeError);
+    }
+    expect(() => renderFlow(graph, 'page:product', { maxDepth: 0 })).toThrow(/từ 1 trở lên/);
+  });
+});

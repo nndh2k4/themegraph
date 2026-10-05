@@ -339,6 +339,266 @@ describe('themegraph render-flow', () => {
     expect(result.code).toBe(2);
     expect(result.stderr).toContain('tên một loại trang');
   });
+
+  it('--depth cắt cây ở một tầng, ghi số file con chưa mở và nói rõ cây bị cắt', async () => {
+    const result = await runCli(['render-flow', 'index', '-t', themeRoot, '--depth', '2']);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout.split('\n')).toEqual([
+      // Câu tóm tắt vẫn tính trên cả cây.
+      'page:index (page_type) kéo theo 7 file, sâu nhất 3 tầng.',
+      'Cây dưới đây dừng ở tầng 2. Hỏi tiếp từ một file trong cây, hoặc tăng độ sâu, để xem phần bên dưới.',
+      '',
+      'page:index',
+      '  templates/index.json',
+      '    blocks/text.liquid  (1 file con chưa mở)',
+      '    layout/theme.liquid  (2 file con chưa mở)',
+      '    sections/hero.liquid  (2 file con chưa mở)',
+    ]);
+  });
+
+  it('--depth không giấu gì thì không có dòng báo cây bị cắt', async () => {
+    const full = await runCli(['render-flow', 'index', '-t', themeRoot]);
+    const deep = await runCli(['render-flow', 'index', '-t', themeRoot, '--depth', '9']);
+
+    expect(deep.stdout).toBe(full.stdout);
+    expect(deep.stdout).not.toContain('dừng ở tầng');
+  });
+
+  it('--limit cắt số dòng của cây và đếm phần còn lại', async () => {
+    const result = await runCli(['render-flow', 'index', '-t', themeRoot, '--limit', '3']);
+
+    expect(result.stdout.split('\n')).toEqual([
+      'page:index (page_type) kéo theo 7 file, sâu nhất 3 tầng.',
+      '',
+      'page:index',
+      '  templates/index.json',
+      '    blocks/text.liquid',
+      // Cây đầy đủ có 11 dòng.
+      '  ... và 8 dòng nữa (tăng limit để xem hết)',
+    ]);
+  });
+
+  it('--json với --depth ghi maxDepth và số con bị giấu', async () => {
+    const result = await runCli(['render-flow', 'index', '-t', themeRoot, '--depth', '1', '--json']);
+    const json = JSON.parse(result.stdout) as {
+      maxDepth: number | null;
+      files: unknown[];
+      tree: { children: { id: string; hidden: number; children: unknown[] }[] };
+    };
+
+    expect(json.maxDepth).toBe(1);
+    expect(json.files).toHaveLength(7);
+    expect(json.tree.children).toEqual([expect.objectContaining({ id: 'templates/index.json', hidden: 3, children: [] })]);
+  });
+
+  it('trả mã 2 khi --depth không phải số nguyên từ 1 trở lên', async () => {
+    for (const bad of ['0', '1.5', 'abc', '-1', '']) {
+      const result = await runCli(['render-flow', 'index', '-t', themeRoot, `--depth=${bad}`]);
+
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain('--depth cần một số nguyên từ 1 trở lên');
+    }
+  });
+});
+
+describe('themegraph search', () => {
+  beforeEach(async () => {
+    await runCli(['analyze', themeRoot]);
+  });
+
+  const search = (...args: string[]) => runCli(['search', ...args, '-t', themeRoot]);
+
+  it('in các node khớp, sát nhất trước, kèm loại', async () => {
+    const result = await search('card');
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout.split('\n')).toEqual([
+      'Node khớp "card" (4), sát nhất trước:',
+      '  snippets/card.liquid                            snippet',
+      '  page:gift_card                                  page_type',
+      '  templates/gift_card.liquid                      template',
+      '  setting:sections/hero.liquid#section.show_card  setting',
+    ]);
+  });
+
+  it('nhận nhiều từ, viết rời hay trong một tham số đều được', async () => {
+    const separate = await search('gift', 'templates');
+    const joined = await search('gift templates');
+
+    expect(separate.stdout.split('\n')).toEqual([
+      'Node khớp "gift templates" (1), sát nhất trước:',
+      '  templates/gift_card.liquid  template',
+    ]);
+    expect(joined.stdout).toBe(separate.stdout);
+  });
+
+  it('--kind lọc theo loại node, lặp lại được; không có từ khoá thì liệt kê', async () => {
+    const result = await search('--kind', 'section', '--kind', 'block');
+
+    expect(result.stdout.split('\n')).toEqual([
+      'Node (2), sát nhất trước:',
+      '  blocks/text.liquid    block',
+      '  sections/hero.liquid  section',
+    ]);
+  });
+
+  it('--limit cắt kết quả và nói rõ đang hiện bao nhiêu trên tổng số', async () => {
+    const result = await search('card', '--limit', '2');
+
+    expect(result.stdout.split('\n')).toEqual([
+      'Node khớp "card" (2 trên 4), sát nhất trước:',
+      '  snippets/card.liquid  snippet',
+      '  page:gift_card        page_type',
+    ]);
+  });
+
+  it('không có --limit thì hiện 20 kết quả đầu', async () => {
+    const result = await search();
+
+    // Fixture có 22 node.
+    expect(result.stdout.split('\n')[0]).toBe('Node (20 trên 22), sát nhất trước:');
+    expect(result.stdout.split('\n')).toHaveLength(21);
+  });
+
+  it('nói rõ khi không có gì khớp, và vẫn trả mã 0', async () => {
+    const result = await search('khong-co');
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toBe('Không có node nào khớp "khong-co".');
+
+    const empty = await search('--kind', 'locale', 'khong-co');
+    expect(empty.stdout).toBe('Không có node nào khớp "khong-co".');
+  });
+
+  it('in JSON với --json', async () => {
+    const result = await search('card', '--json', '--limit', '1');
+
+    expect(JSON.parse(result.stdout)).toEqual({
+      query: 'card',
+      hits: [{ id: 'snippets/card.liquid', kind: 'snippet', match: 'exact' }],
+      total: 4,
+    });
+  });
+
+  it('trả mã 2 khi --kind không phải một loại node, và liệt kê các loại', async () => {
+    const result = await search('card', '--kind', 'snippets');
+
+    expect(result.code).toBe(2);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('Không có loại node "snippets"');
+    expect(result.stderr).toContain('snippet, asset');
+  });
+
+  it('trả mã 2 khi --limit không phải số nguyên không âm', async () => {
+    for (const bad of ['x', '1.5', '-2', '1e3', '']) {
+      const result = await search('card', `--limit=${bad}`);
+
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain('--limit cần một số nguyên từ 0 trở lên');
+    }
+  });
+
+  it('--limit 0 hợp lệ: không hiện node nào nhưng vẫn đếm', async () => {
+    const result = await search('card', '--limit', '0');
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toBe('Node khớp "card" (0 trên 4), sát nhất trước:');
+  });
+});
+
+describe('themegraph — --limit ở các lệnh khác', () => {
+  beforeEach(async () => {
+    await runCli(['analyze', themeRoot]);
+  });
+
+  it('impact: cắt danh sách file, giữ nguyên danh sách trang', async () => {
+    const result = await runCli(['impact', 'snippets/card.liquid', '-t', themeRoot, '--limit', '2']);
+
+    expect(result.stdout.split('\n')).toEqual([
+      'Sửa snippets/card.liquid (snippet) ảnh hưởng 8 file và 4 trên 4 trang.',
+      '',
+      'Trang (4):',
+      '  gift_card        cách 2 tầng',
+      '  index            cách 3 tầng',
+      '  product          cách 3 tầng  [có điều kiện]',
+      '  customers/login  cách 5 tầng  [có điều kiện]',
+      '',
+      'File (8), gần nhất trước:',
+      '  1  blocks/text.liquid                block',
+      '  1  sections/hero.liquid              section        [có điều kiện]',
+      '  ... và 6 file nữa (tăng limit để xem hết)',
+    ]);
+  });
+
+  it('impact: limit bằng đúng số file thì không có dòng đếm', async () => {
+    const full = await runCli(['impact', 'snippets/card.liquid', '-t', themeRoot]);
+    const exact = await runCli(['impact', 'snippets/card.liquid', '-t', themeRoot, '--limit', '8']);
+
+    expect(exact.stdout).toBe(full.stdout);
+  });
+
+  it('context: cắt riêng từng mục', async () => {
+    const result = await runCli(['context', 'sections/hero.liquid', '-t', themeRoot, '--limit', '1']);
+    const lines = result.stdout.split('\n');
+
+    expect(lines).toContain('Được gọi bởi (3):');
+    expect(lines).toContain('  ... và 2 file nữa (tăng limit để xem hết)');
+    expect(lines).toContain('Gọi tới (2):');
+    expect(lines).toContain('  ... và 1 file nữa (tăng limit để xem hết)');
+    // Mục chỉ có một dòng thì không bị cắt.
+    expect(lines).toContain('Khoá dịch (1):');
+    expect(result.stdout).not.toContain('khoá dịch nữa');
+    expect(result.stdout).not.toContain('setting nữa');
+  });
+
+  it('context: cắt cả mục khoá dịch và mục setting', async () => {
+    await writeFile(
+      path.join(themeRoot, 'snippets', 'many.liquid'),
+      "{{ 'general.title' | t }}{{ 'cart.items' | t }}{{ settings.accent }}{{ settings.accent_2 }}",
+    );
+    await writeFile(
+      path.join(themeRoot, 'config', 'settings_schema.json'),
+      JSON.stringify([{ name: 'x', settings: [{ type: 'color', id: 'accent' }, { type: 'color', id: 'accent_2' }] }]),
+    );
+    await runCli(['analyze', themeRoot]);
+
+    const result = await runCli(['context', 'snippets/many.liquid', '-t', themeRoot, '--limit', '1']);
+
+    expect(result.stdout).toContain('Khoá dịch (2):');
+    expect(result.stdout).toContain('  ... và 1 khoá dịch nữa (tăng limit để xem hết)');
+    expect(result.stdout).toContain('Setting được đọc (2):');
+    expect(result.stdout).toContain('  ... và 1 setting nữa (tăng limit để xem hết)');
+  });
+
+  it('dead-code: cắt riêng từng mục', async () => {
+    for (const name of ['old-a', 'old-b', 'old-c']) {
+      await writeFile(path.join(themeRoot, 'snippets', `${name}.liquid`), '<p>cu</p>');
+      await writeFile(path.join(themeRoot, 'sections', `${name}.liquid`), '<p>cu</p>');
+    }
+    await writeFile(
+      path.join(themeRoot, 'locales', 'en.default.json'),
+      JSON.stringify({ general: { title: 'a' }, cart: { items: 'b' }, unused: { a: '1', b: '2', c: '3' } }),
+    );
+    await writeFile(
+      path.join(themeRoot, 'config', 'settings_schema.json'),
+      JSON.stringify([
+        { name: 'x', settings: ['accent', 'u1', 'u2', 'u3'].map((id) => ({ type: 'color', id })) },
+      ]),
+    );
+    await runCli(['analyze', themeRoot]);
+
+    const result = await runCli(['dead-code', '-t', themeRoot, '--limit', '1']);
+    const lines = result.stdout.split('\n');
+
+    expect(lines).toContain('Chắc chắn không dùng (3):');
+    expect(lines).toContain('Cần xem lại trước khi xoá (3):');
+    // Hai mục file, mỗi mục giấu 2.
+    expect(lines.filter((line) => line === '  ... và 2 file nữa (tăng limit để xem hết)')).toHaveLength(2);
+    expect(lines).toContain('  ... và 2 khoá dịch nữa (tăng limit để xem hết)');
+    expect(lines).toContain('  ... và 2 setting nữa (tăng limit để xem hết)');
+  });
 });
 
 describe('themegraph context', () => {

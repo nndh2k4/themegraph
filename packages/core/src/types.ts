@@ -161,6 +161,29 @@ export type Resolution =
 export type NodeKind = FileKind | "page_type" | "translation_key" | "setting";
 
 /**
+ * Mọi loại node, ở dạng danh sách dùng được lúc chạy: để kiểm tra giá trị
+ * người dùng gõ vào (cờ --kind của CLI, tham số kind của MCP).
+ *
+ * `satisfies` bắt lỗi khi danh sách có tên không phải NodeKind; chiều ngược
+ * lại (thêm NodeKind mới mà quên ở đây) do test của types giữ.
+ */
+export const NODE_KINDS = [
+  "page_type",
+  "layout",
+  "template",
+  "section",
+  "section_group",
+  "block",
+  "snippet",
+  "asset",
+  "locale",
+  "locale_schema",
+  "config",
+  "translation_key",
+  "setting",
+] as const satisfies readonly NodeKind[];
+
+/**
  * Một node của đồ thị.
  *
  * - Node file: `id` chính là ThemeFile.path (ví dụ 'snippets/card.liquid')

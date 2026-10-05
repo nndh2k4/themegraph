@@ -45,7 +45,11 @@ export type { ImpactResult } from './impact.js';
 
 // Truy vấn: trang này render những file nào.
 export { renderFlow } from './render-flow.js';
-export type { FlowNode, RenderFlowResult } from './render-flow.js';
+export type { FlowNode, RenderFlowOptions, RenderFlowResult } from './render-flow.js';
+
+// Truy vấn: trong theme có node nào tên như thế này.
+export { DEFAULT_SEARCH_LIMIT, search } from './search.js';
+export type { SearchHit, SearchMatch, SearchOptions, SearchResult } from './search.js';
 
 // Truy vấn: file này là gì, ai gọi nó, nó gọi ai.
 export { context } from './context.js';
@@ -68,6 +72,21 @@ export { themeStatus } from './status.js';
 export type { StatusResult } from './status.js';
 export { cleanAllThemes, cleanTheme } from './clean.js';
 export type { CleanResult } from './clean.js';
+
+// Trình bày kết quả thành các dòng chữ; CLI và MCP server dùng chung.
+export {
+  formatAnalyze,
+  formatClean,
+  formatContext,
+  formatDeadCode,
+  formatImpact,
+  formatList,
+  formatRenderFlow,
+  formatSearch,
+  formatStatus,
+  formatVerify,
+} from './format.js';
+export type { FormatOptions } from './format.js';
 
 // Hash nội dung file, dùng chung cho analyze và status.
 export { hashContent } from './hash.js';

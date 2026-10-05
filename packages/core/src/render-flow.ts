@@ -19,7 +19,20 @@ export interface FlowNode {
   // true: node này đã được liệt kê đầy đủ (cùng các con của nó) ở một chỗ
   // khác trong cây, nên ở đây không mở ra nữa và `children` rỗng.
   repeated: boolean;
+  // Số file con trực tiếp của node này KHÔNG được đưa vào cây vì cây bị cắt ở
+  // maxDepth. Bằng 0 khi không giới hạn độ sâu, và với mọi node chưa chạm
+  // tầng bị cắt.
+  hidden: number;
   children: FlowNode[];
+}
+
+export interface RenderFlowOptions extends FindNodeOptions {
+  /**
+   * Tầng sâu nhất của cây (gốc là tầng 0). Node ở đúng tầng này vẫn hiện,
+   * nhưng không được mở ra; số con bị giấu ghi ở `hidden`. Không nêu thì cây
+   * đi tới hết. Chỉ ảnh hưởng `tree`: danh sách `files` luôn đầy đủ.
+   */
+  maxDepth?: number;
 }
 
 /** Kết quả của renderFlow(): một trang (hoặc một file) kéo theo những gì. */
@@ -30,6 +43,8 @@ export interface RenderFlowResult {
   files: Reached[];
   // Cùng các node đó, xếp thành cây theo quan hệ "cha gọi con".
   tree: FlowNode;
+  // Giới hạn độ sâu đã áp lên `tree`; null khi cây không bị giới hạn.
+  maxDepth: number | null;
 }
 
 /**
@@ -49,9 +64,19 @@ export interface RenderFlowResult {
  * vị trí ứng với độ sâu nhỏ nhất của nó; ở các chỗ khác nó hiện ra với
  * `repeated: true` và không có con.
  *
- * `name` được hiểu theo findNode(). Ném NodeNotFoundError nếu không có node.
+ * Trên theme lớn cây của một trang dài hàng nghìn dòng; `maxDepth` cắt cây ở
+ * một tầng để người (hoặc agent) đọc phần trên trước rồi hỏi tiếp từ một node
+ * ở dưới.
+ *
+ * `name` được hiểu theo findNode(). Ném NodeNotFoundError nếu không có node,
+ * RangeError nếu maxDepth không phải số nguyên từ 1 trở lên.
  */
-export function renderFlow(graph: GraphHandle, name: string, options: FindNodeOptions = {}): RenderFlowResult {
+export function renderFlow(graph: GraphHandle, name: string, options: RenderFlowOptions = {}): RenderFlowResult {
+  const { maxDepth } = options;
+  if (maxDepth !== undefined && (!Number.isInteger(maxDepth) || maxDepth < 1)) {
+    throw new RangeError(`Độ sâu tối đa phải là số nguyên từ 1 trở lên, nhận được: ${String(maxDepth)}.`);
+  }
+
   const root = findNode(graph, name, options);
 
   const reached = traverse(graph, root.id, "forward", { edgeTypes: FILE_EDGE_TYPES });
@@ -85,6 +110,7 @@ export function renderFlow(graph: GraphHandle, name: string, options: FindNodeOp
         conditional: row.conditional === 1,
         count: Number(row.count),
         repeated: true,
+        hidden: 0,
         children: [],
       };
 
@@ -94,7 +120,14 @@ export function renderFlow(graph: GraphHandle, name: string, options: FindNodeOp
       if (depthOf.get(childId) === depth + 1 && !expanded.has(childId)) {
         expanded.add(childId);
         child.repeated = false;
-        child.children = childrenOf(childId, depth + 1);
+
+        if (depth + 1 === maxDepth) {
+          // Đây là chỗ đáng lẽ mở node ra, nhưng các con của nó nằm dưới tầng
+          // bị cắt. Chỉ đếm chúng, để người đọc biết ở đây còn gì.
+          child.hidden = outgoing.all(childId).length;
+        } else {
+          child.children = childrenOf(childId, depth + 1);
+        }
       }
 
       return child;
@@ -111,7 +144,9 @@ export function renderFlow(graph: GraphHandle, name: string, options: FindNodeOp
       conditional: false,
       count: 0,
       repeated: false,
+      hidden: 0,
       children: childrenOf(root.id, 0),
     },
+    maxDepth: maxDepth ?? null,
   };
 }
