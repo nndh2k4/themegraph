@@ -7,5 +7,8 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@shopify/liquid-html-parser": "^2.10.2"
   }
 }
