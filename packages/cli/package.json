@@ -1,0 +1,20 @@
+{
+  "name": "themegraph",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Đồ thị tri thức cho Shopify Liquid theme",
+  "type": "module",
+  "bin": {
+    "themegraph": "./dist/cli.js"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@themegraph/core": "workspace:*"
+  }
+}
