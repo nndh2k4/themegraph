@@ -1,11 +1,11 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { extractRefs } from "./extract.js";
+import { extractFile } from "./extract.js";
 import { buildGraph } from "./graph.js";
 import { scanThemeDir } from "./scanner.js";
 import { graphDbPath, saveGraph } from "./store.js";
-import type { RawRef, ResolvedRef } from "./types.js";
+import type { FileSchema, RawRef, ResolvedRef } from "./types.js";
 
 /** Một file không phân tích được, kèm lý do. */
 export interface AnalyzeError {
@@ -71,6 +71,7 @@ export async function analyze(themeRoot: string): Promise<AnalyzeResult> {
 
   // Bước 2 và 3: đọc nội dung và trích quan hệ thô.
   const rawRefs: RawRef[] = [];
+  const schemas: FileSchema[] = [];
   const errors: AnalyzeError[] = [];
 
   for (const file of files) {
@@ -80,7 +81,12 @@ export async function analyze(themeRoot: string): Promise<AnalyzeResult> {
 
     try {
       const content = await readFile(path.join(root, file.path), "utf8");
-      rawRefs.push(...extractRefs(file, content));
+      const extraction = extractFile(file, content);
+
+      rawRefs.push(...extraction.refs);
+      if (extraction.schema !== null) {
+        schemas.push({ file: file.path, ...extraction.schema });
+      }
     } catch (error) {
       // File hỏng vẫn là một node của đồ thị (nó tồn tại và có thể được file
       // khác gọi); chỉ là không biết nó gọi những gì.
@@ -92,7 +98,7 @@ export async function analyze(themeRoot: string): Promise<AnalyzeResult> {
   }
 
   // Bước 4: dựng đồ thị (phân giải tên thô thành file, gộp cạnh, thêm loại trang).
-  const graph = buildGraph(files, rawRefs);
+  const graph = buildGraph(files, rawRefs, schemas);
 
   // Bước 5: ghi xuống đĩa.
   saveGraph(root, graph);

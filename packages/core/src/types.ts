@@ -72,6 +72,30 @@ export interface RawRef {
 }
 
 /**
+ * Những dữ kiện đọc từ khối {% schema %} của một section hoặc block mà đồ thị
+ * cần giữ lại. Chúng không phải quan hệ giữa hai file, nên không thành cạnh.
+ */
+export interface SchemaInfo {
+  // Số mục trong "presets". Section có preset thì merchant thêm được vào bất
+  // kỳ template JSON nào từ theme editor, dù hiện chưa template nào dùng nó.
+  presets: number;
+  // true khi "blocks" có mục { "type": "@theme" }: file này nhận MỌI theme
+  // block công khai (file trong blocks/ có tên không bắt đầu bằng "_").
+  acceptsThemeBlocks: boolean;
+}
+
+/** Mọi thứ tầng parse rút ra được từ một file. */
+export interface Extraction {
+  refs: RawRef[];
+  schema: SchemaInfo | null; // null khi file không có khối {% schema %}
+}
+
+/** Dữ kiện schema của một file cụ thể, dạng lưu trong đồ thị. */
+export interface FileSchema extends SchemaInfo {
+  file: string; // cùng định dạng với ThemeFile.path
+}
+
+/**
  * Kết quả của việc đổi một tham chiếu thô thành file thật trong theme.
  *
  * - resolved: tìm thấy file đích, `path` cùng định dạng với ThemeFile.path
@@ -147,4 +171,5 @@ export interface ThemeGraph {
   nodes: GraphNode[];
   edges: GraphEdge[];
   refs: ResolvedRef[];
+  schemas: FileSchema[];
 }

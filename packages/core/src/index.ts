@@ -6,9 +6,9 @@ export * from './types.js';
 export { scanThemeDir } from './scanner.js';
 
 // Tầng parse: một file + nội dung -> danh sách quan hệ thô.
-export { extractRefs } from './extract.js';
+export { extractFile, extractRefs } from './extract.js';
 export { extractJsonRefs } from './extract-json.js';
-export { extractLiquidRefs } from './extract-liquid.js';
+export { extractLiquid, extractLiquidRefs } from './extract-liquid.js';
 
 // Resolver: quan hệ thô -> file thật trong theme.
 export { resolveRef } from './resolver.js';

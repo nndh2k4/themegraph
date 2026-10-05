@@ -1,8 +1,9 @@
 import { NodeTypes, toLiquidAST, walk } from "@shopify/liquid-html-parser";
 import type { LiquidHtmlNode } from "@shopify/liquid-html-parser";
 
-import { collectSchemaBlockTypes } from "./extract-schema.js";
-import type { RawRef, RefKind, RefSource, ThemeFile } from "./types.js";
+import { parseSchema } from "./extract-schema.js";
+import type { ParsedSchema } from "./extract-schema.js";
+import type { Extraction, RawRef, RefKind, RefSource, SchemaInfo, ThemeFile } from "./types.js";
 
 /**
  * Các filter biến tên file thành đường dẫn hoặc nội dung của một file trong
@@ -40,18 +41,25 @@ function lineAt(content: string, offset: number): number {
 }
 
 /**
- * Trích quan hệ thô từ một file Liquid.
+ * Trích quan hệ thô từ một file Liquid. Là extractLiquid() chỉ lấy phần refs.
+ */
+export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
+  return extractLiquid(file, content).refs;
+}
+
+/**
+ * Phân tích một file Liquid: các quan hệ thô và dữ kiện của {% schema %}.
  *
  * Nhận nội dung file dưới dạng chuỗi thay vì tự đọc đĩa, giống extractJsonRefs.
  *
- * Hiện trích: {% render %}, {% include %}, {% section %}, {% sections %},
+ * Quan hệ được trích: {% render %}, {% include %}, {% section %}, {% sections %},
  * {% content_for 'block' %}, các theme block nhắc trong {% schema %},
  * và file asset đi qua filter asset_url / asset_img_url / inline_asset_content.
  */
-export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
+export function extractLiquid(file: ThemeFile, content: string): Extraction {
   // Chỉ file .liquid mới chứa mã Liquid. Asset (.css, .js) có thể chứa chuỗi
   // trông giống tag nhưng Shopify không chạy Liquid trong đó.
-  if (file.ext !== "liquid") return [];
+  if (file.ext !== "liquid") return { refs: [], schema: null };
 
   let ast;
   try {
@@ -68,6 +76,9 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
   }
 
   const refs: RawRef[] = [];
+
+  // Dữ kiện của khối {% schema %}; vẫn là null nếu file không có khối nào.
+  let schema: SchemaInfo | null = null;
 
   // LƯỢT 1: ghi lại nút cha của từng nút.
   //
@@ -120,9 +131,9 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
     // {% schema %} là "raw tag": parser không phân tích phần thân mà giữ
     // nguyên dạng chuỗi trong body.value. Phần thân đó là JSON.
     if (node.type === NodeTypes.LiquidRawTag && node.name === "schema") {
-      let blockTypes: string[];
+      let parsed: ParsedSchema;
       try {
-        blockTypes = collectSchemaBlockTypes(node.body.value);
+        parsed = parseSchema(node.body.value);
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
         throw new Error(
@@ -133,9 +144,11 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
 
       // conditional = true: schema chỉ nói file này NHẬN ĐƯỢC các block đó.
       // Block có thật sự được render hay không tuỳ cấu hình trong JSON template.
-      for (const blockType of blockTypes) {
+      for (const blockType of parsed.blockTypes) {
         addRef("block", blockType, node, "schema", true);
       }
+
+      schema = { presets: parsed.presets, acceptsThemeBlocks: parsed.acceptsThemeBlocks };
       return;
     }
 
@@ -233,5 +246,5 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
     }
   });
 
-  return refs;
+  return { refs, schema };
 }

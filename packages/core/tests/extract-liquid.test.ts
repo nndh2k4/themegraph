@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { extractLiquidRefs } from '../src/extract-liquid.js';
+import { extractLiquid, extractLiquidRefs } from '../src/extract-liquid.js';
 import type { ThemeFile } from '../src/types.js';
 
 const SECTION: ThemeFile = { path: 'sections/hero.liquid', kind: 'section', ext: 'liquid' };
@@ -399,5 +399,56 @@ describe('extractLiquidRefs — layout', () => {
 
   it('bỏ qua {% layout %} có tên là biến', () => {
     expect(brief('{% layout chosen_layout %}')).toEqual([]);
+  });
+});
+
+describe('extractLiquid — dữ kiện schema', () => {
+  const schemaOf = (schema: unknown) =>
+    extractLiquid(SECTION, `<div></div>\n{% schema %}${JSON.stringify(schema)}{% endschema %}`).schema;
+
+  it('trả schema null cho file không có khối {% schema %}', () => {
+    expect(extractLiquid(SECTION, "{% render 'card' %}").schema).toBeNull();
+  });
+
+  it('trả schema null cho file không phải Liquid', () => {
+    const css: ThemeFile = { path: 'assets/base.css', kind: 'asset', ext: 'css' };
+
+    expect(extractLiquid(css, '{% schema %}{ "presets": [{}] }{% endschema %}')).toEqual({ refs: [], schema: null });
+  });
+
+  it('đếm số preset', () => {
+    expect(schemaOf({ name: 'Hero' })?.presets).toBe(0);
+    expect(schemaOf({ name: 'Hero', presets: [] })?.presets).toBe(0);
+    expect(schemaOf({ name: 'Hero', presets: [{ name: 'A' }, { name: 'B' }] })?.presets).toBe(2);
+  });
+
+  it('coi presets không phải mảng là không có preset', () => {
+    expect(schemaOf({ name: 'Hero', presets: { name: 'A' } })?.presets).toBe(0);
+  });
+
+  it('nhận ra schema chấp nhận mọi theme block qua mục @theme', () => {
+    expect(schemaOf({ blocks: [{ type: '@theme' }, { type: '@app' }] })?.acceptsThemeBlocks).toBe(true);
+    expect(schemaOf({ blocks: [{ type: '@app' }, { type: '_text' }] })?.acceptsThemeBlocks).toBe(false);
+    expect(schemaOf({ name: 'Hero' })?.acceptsThemeBlocks).toBe(false);
+  });
+
+  it('không coi @theme nằm trong presets là chấp nhận mọi theme block', () => {
+    const schema = { blocks: [{ type: '_text' }], presets: [{ name: 'A', blocks: [{ type: '@theme' }] }] };
+
+    expect(schemaOf(schema)?.acceptsThemeBlocks).toBe(false);
+  });
+
+  it('trả dữ kiện rỗng khi thân schema là JSON nhưng không phải object', () => {
+    expect(extractLiquid(SECTION, '{% schema %}[]{% endschema %}')).toEqual({
+      refs: [],
+      schema: { presets: 0, acceptsThemeBlocks: false },
+    });
+  });
+
+  it('trả cùng danh sách ref với extractLiquidRefs', () => {
+    const content = "{% render 'card' %}\n{% schema %}{ \"blocks\": [{ \"type\": \"_text\" }] }{% endschema %}";
+
+    expect(extractLiquid(SECTION, content).refs).toEqual(extractLiquidRefs(SECTION, content));
+    expect(extractLiquid(SECTION, content).refs).toHaveLength(2);
   });
 });

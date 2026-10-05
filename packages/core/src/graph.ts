@@ -1,6 +1,7 @@
 import { resolveRef } from "./resolver.js";
 import type {
   EdgeType,
+  FileSchema,
   GraphEdge,
   GraphNode,
   RawRef,
@@ -63,10 +64,17 @@ function pageTypeOf(templatePath: string): { page: string; alternate: boolean } 
 /**
  * Dựng đồ thị của một theme từ danh sách file và danh sách tham chiếu thô.
  *
+ * `schemas` là dữ kiện đọc từ {% schema %} của từng file; đồ thị chỉ giữ lại
+ * và sắp xếp chúng, không suy ra cạnh nào từ đó.
+ *
  * Hàm thuần: không đọc đĩa, không phụ thuộc thứ tự đầu vào. Cùng một tập file
  * và ref luôn cho ra đúng một kết quả, đã sắp xếp.
  */
-export function buildGraph(files: readonly ThemeFile[], rawRefs: readonly RawRef[]): ThemeGraph {
+export function buildGraph(
+  files: readonly ThemeFile[],
+  rawRefs: readonly RawRef[],
+  schemas: readonly FileSchema[] = [],
+): ThemeGraph {
   const knownPaths = new Set(files.map((file) => file.path));
 
   // ---- Node -------------------------------------------------------------
@@ -197,5 +205,10 @@ export function buildGraph(files: readonly ThemeFile[], rawRefs: readonly RawRef
         // phụ thuộc thứ tự đầu vào. false đứng trước true.
         Number(a.conditional) - Number(b.conditional),
     ),
+    // Chỉ giữ schema của file có trong theme: bảng schemas tham chiếu tới
+    // bảng nodes, nên một dòng mồ côi sẽ bị database từ chối.
+    schemas: schemas
+      .filter((schema) => knownPaths.has(schema.file))
+      .sort((a, b) => compareText(a.file, b.file)),
   };
 }

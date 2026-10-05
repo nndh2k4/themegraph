@@ -62,7 +62,11 @@ function sampleGraph(): ThemeGraph {
     ref('snippets/card.liquid', 'render', 'da-xoa', { line: 40 }),
     ref('layout/theme.liquid', 'asset', 'base.css', { line: 2 }),
   ];
-  return buildGraph(files, refs);
+  const schemas = [
+    { file: 'sections/main-product.liquid', presets: 2, acceptsThemeBlocks: true },
+    { file: 'sections/grid.liquid', presets: 0, acceptsThemeBlocks: false },
+  ];
+  return buildGraph(files, refs, schemas);
 }
 
 let themeRoot: string;
@@ -197,6 +201,31 @@ describe('saveGraph — nội dung', () => {
     ]);
   });
 
+  it('ghi dữ kiện schema của từng file vào bảng schemas', () => {
+    saveGraph(themeRoot, sampleGraph());
+
+    const rows = withDb((db) =>
+      db
+        .prepare('SELECT file, presets, accepts_theme_blocks FROM schemas ORDER BY file')
+        .all()
+        .map((r) => ({ ...r })),
+    );
+
+    expect(rows).toEqual([
+      { file: 'sections/grid.liquid', presets: 0, accepts_theme_blocks: 0 },
+      { file: 'sections/main-product.liquid', presets: 2, accepts_theme_blocks: 1 },
+    ]);
+  });
+
+  it('database từ chối schema của file không phải node', () => {
+    const graph = sampleGraph();
+    graph.schemas.push({ file: 'sections/khong-co.liquid', presets: 1, acceptsThemeBlocks: false });
+
+    expect(() => saveGraph(themeRoot, graph)).toThrow(/FOREIGN KEY/);
+    // Ghi thất bại thì không được để lại graph.db dở dang hay file tạm.
+    expect(existsSync(graphDbPath(themeRoot))).toBe(false);
+  });
+
   it('ghi phiên bản lược đồ và thời điểm phân tích vào bảng meta', () => {
     saveGraph(themeRoot, sampleGraph(), { analyzedAt: new Date('2026-10-05T08:00:00.000Z') });
 
@@ -227,6 +256,7 @@ describe('saveGraph — nội dung', () => {
         nodes: db.prepare('SELECT * FROM nodes ORDER BY id').all(),
         edges: db.prepare('SELECT * FROM edges ORDER BY src, dst, type').all(),
         refs: db.prepare('SELECT * FROM refs ORDER BY id').all(),
+        schemas: db.prepare('SELECT * FROM schemas ORDER BY file').all(),
       }));
 
     saveGraph(themeRoot, sampleGraph());

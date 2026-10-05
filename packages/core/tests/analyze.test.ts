@@ -81,6 +81,16 @@ describe('analyze', () => {
     expect(query('SELECT count(*) AS n FROM nodes')).toEqual([{ n: 17 }]);
   });
 
+  it('ghi dữ kiện schema của section và block vào database', async () => {
+    await analyze(themeRoot);
+
+    // hero có một preset; "blocks" của nó liệt kê text và @app, không có @theme.
+    expect(query('SELECT file, presets, accepts_theme_blocks FROM schemas ORDER BY file')).toEqual([
+      { file: 'blocks/text.liquid', presets: 0, accepts_theme_blocks: 0 },
+      { file: 'sections/hero.liquid', presets: 1, accepts_theme_blocks: 0 },
+    ]);
+  });
+
   it('liệt kê các tham chiếu hỏng kèm file và dòng', async () => {
     const result = await analyze(themeRoot);
 
@@ -164,6 +174,7 @@ describe('analyze', () => {
       nodes: query('SELECT * FROM nodes ORDER BY id'),
       edges: query('SELECT * FROM edges ORDER BY src, dst, type'),
       refs: query('SELECT * FROM refs ORDER BY id'),
+      schemas: query('SELECT * FROM schemas ORDER BY file'),
     });
 
     const first = await analyze(themeRoot);

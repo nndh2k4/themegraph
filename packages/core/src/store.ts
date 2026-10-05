@@ -9,7 +9,7 @@ import { VERSION } from "./version.js";
  * Phiên bản của lược đồ bảng bên dưới. Tăng số này mỗi khi đổi cấu trúc bảng,
  * để công cụ đọc biết một graph.db cũ có còn dùng được hay phải analyze lại.
  */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /** Thư mục công cụ ghi dữ liệu vào, nằm ngay trong thư mục theme. */
 const DATA_DIR = ".themegraph";
@@ -25,6 +25,10 @@ const DATA_DIR = ".themegraph";
  *
  * edges_by_dst: index cho chiều ngược lại, "ai trỏ tới node này" (đi NGƯỢC).
  * Không có nó, mỗi bước của truy vấn ngược phải đọc toàn bộ bảng edges.
+ *
+ * schemas: dữ kiện đọc từ {% schema %} của section và block. Để ở bảng riêng
+ * thay vì thêm cột vào nodes, vì phần lớn node (snippet, asset, loại trang...)
+ * không có schema.
  */
 const SCHEMA_SQL = `
 CREATE TABLE meta (
@@ -63,6 +67,12 @@ CREATE TABLE refs (
 
 CREATE INDEX refs_by_src ON refs (src);
 CREATE INDEX refs_by_target ON refs (target);
+
+CREATE TABLE schemas (
+  file                 TEXT    PRIMARY KEY REFERENCES nodes (id),
+  presets              INTEGER NOT NULL CHECK (presets >= 0),
+  accepts_theme_blocks INTEGER NOT NULL CHECK (accepts_theme_blocks IN (0, 1))
+) STRICT, WITHOUT ROWID;
 `;
 
 /** Đường dẫn tới graph.db của một theme. */
@@ -113,6 +123,9 @@ export function saveGraph(themeRoot: string, graph: ThemeGraph, options: SaveGra
       `INSERT INTO refs (src, name, kind, source, conditional, line, status, target)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     );
+    const insertSchema = db.prepare(
+      "INSERT INTO schemas (file, presets, accepts_theme_blocks) VALUES (?, ?, ?)",
+    );
 
     // Một transaction cho toàn bộ: nhanh hơn nhiều so với để mỗi INSERT tự
     // commit, và nếu có lỗi giữa chừng thì không dòng nào được ghi.
@@ -149,6 +162,10 @@ export function saveGraph(themeRoot: string, graph: ThemeGraph, options: SaveGra
           ref.status,
           ref.target,
         );
+      }
+
+      for (const schema of graph.schemas) {
+        insertSchema.run(schema.file, schema.presets, schema.acceptsThemeBlocks ? 1 : 0);
       }
 
       db.exec("COMMIT");

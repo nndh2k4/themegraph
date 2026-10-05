@@ -253,3 +253,30 @@ describe('buildGraph — bất biến', () => {
     expect(edgeKeys(graph)).toContain('snippets/card.liquid -RENDERS-> snippets/card.liquid');
   });
 });
+
+describe('buildGraph — schemas', () => {
+  const hero = { file: 'sections/main-product.liquid', presets: 2, acceptsThemeBlocks: true };
+  const text = { file: 'blocks/_text.liquid', presets: 0, acceptsThemeBlocks: false };
+
+  it('trả mảng schemas rỗng khi không được đưa schema nào', () => {
+    expect(buildGraph(FILES, []).schemas).toEqual([]);
+  });
+
+  it('giữ nguyên dữ kiện schema và xếp theo tên file', () => {
+    expect(buildGraph(FILES, [], [hero, text]).schemas).toEqual([text, hero]);
+    expect(buildGraph(FILES, [], [text, hero]).schemas).toEqual([text, hero]);
+  });
+
+  it('bỏ schema của file không có trong theme', () => {
+    const stray = { file: 'sections/khong-co.liquid', presets: 1, acceptsThemeBlocks: false };
+
+    expect(buildGraph(FILES, [], [hero, stray]).schemas).toEqual([hero]);
+  });
+
+  it('không sửa mảng schemas được đưa vào', () => {
+    const input = [hero, text];
+    buildGraph(FILES, [], input);
+
+    expect(input).toEqual([hero, text]);
+  });
+});

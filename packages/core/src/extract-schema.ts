@@ -19,21 +19,29 @@ function toBlockList(blocks: unknown): unknown[] {
   return [];
 }
 
+/** Kết quả đọc một khối {% schema %}. */
+export interface ParsedSchema {
+  blockTypes: string[]; // tên các theme block (file trong blocks/) được nhắc tới
+  presets: number; // số mục trong "presets"
+  acceptsThemeBlocks: boolean; // "blocks" có mục "@theme" hay không
+}
+
 /**
- * Đọc phần thân JSON của một khối {% schema %} và trả về tên các theme block
- * (file trong blocks/) mà schema nhắc tới.
+ * Đọc phần thân JSON của một khối {% schema %}: tên các theme block (file
+ * trong blocks/) mà schema nhắc tới, số preset, và schema có nhận mọi theme
+ * block hay không.
  *
  * Schema nhắc tới theme block ở ba chỗ:
  *   1. "blocks":  danh sách block mà section/block này chấp nhận
  *   2. "presets": cấu hình mẫu khi merchant thêm section trong theme editor
  *   3. "default": cấu hình mặc định khi section được gọi tĩnh bằng {% section %}
  *
- * Kết quả không trùng lặp, giữ thứ tự xuất hiện đầu tiên.
+ * blockTypes không trùng lặp, giữ thứ tự xuất hiện đầu tiên.
  * Ném lỗi của JSON.parse nếu thân schema không phải JSON hợp lệ.
  */
-export function collectSchemaBlockTypes(schemaBody: string): string[] {
+export function parseSchema(schemaBody: string): ParsedSchema {
   const schema: unknown = JSON.parse(schemaBody);
-  if (!isObject(schema)) return [];
+  if (!isObject(schema)) return { blockTypes: [], presets: 0, acceptsThemeBlocks: false };
 
   // Block CỤC BỘ: khai báo ngay trong schema, nhận ra nhờ có "name" (Shopify
   // bắt buộc block cục bộ phải có name; mục tham chiếu theme block thì chỉ có type).
@@ -90,5 +98,11 @@ export function collectSchemaBlockTypes(schemaBody: string): string[] {
     collectNested(schema.default.blocks);
   }
 
-  return [...found];
+  return {
+    blockTypes: [...found],
+    presets: Array.isArray(schema.presets) ? schema.presets.length : 0,
+    // Chỉ xét "blocks" ở tầng ngoài cùng: đó là nơi schema khai nó nhận gì.
+    // "@theme" nằm trong presets không có nghĩa này.
+    acceptsThemeBlocks: declared.some((block) => block.type === "@theme"),
+  };
 }

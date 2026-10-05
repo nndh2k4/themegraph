@@ -36,6 +36,29 @@ describe('extractRefs', () => {
   });
 });
 
+describe('extractFile', () => {
+  it('trả cả ref lẫn dữ kiện schema của file .liquid', () => {
+    const file: ThemeFile = { path: 'sections/hero.liquid', kind: 'section', ext: 'liquid' };
+    const content = "{% render 'price' %}{% schema %}{ \"presets\": [{ \"name\": \"Hero\" }] }{% endschema %}";
+
+    const result = core.extractFile(file, content);
+
+    expect(result.refs.map((r) => r.to)).toEqual(['price']);
+    expect(result.schema).toEqual({ presets: 1, acceptsThemeBlocks: false });
+  });
+
+  it('trả schema null cho file .json và file không chứa quan hệ', () => {
+    const template: ThemeFile = { path: 'templates/index.json', kind: 'template', ext: 'json' };
+    const asset: ThemeFile = { path: 'assets/base.css', kind: 'asset', ext: 'css' };
+
+    const fromJson = core.extractFile(template, JSON.stringify({ sections: { a: { type: 'hero' } } }));
+
+    expect(fromJson.refs.map((r) => r.to)).toEqual(['hero']);
+    expect(fromJson.schema).toBeNull();
+    expect(core.extractFile(asset, 'body {}')).toEqual({ refs: [], schema: null });
+  });
+});
+
 describe('gói @themegraph/core', () => {
   it('xuất các hàm chính ra ngoài qua index', () => {
     expect(typeof core.scanThemeDir).toBe('function');
