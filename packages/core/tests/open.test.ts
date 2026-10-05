@@ -9,7 +9,8 @@ import { findNode, NodeNotFoundError } from '../src/find-node.js';
 import { findThemeRoot, GraphNotReadyError, openGraph } from '../src/open.js';
 import type { GraphHandle } from '../src/open.js';
 import { graphDbPath, SCHEMA_VERSION } from '../src/store.js';
-import { queryGraph, removeTempTheme, saveToTempTheme } from './helpers.js';
+import { buildGraph } from '../src/graph.js';
+import { file, queryGraph, removeTempTheme, saveToTempTheme } from './helpers.js';
 
 let themeRoot: string;
 let opened: GraphHandle[];
@@ -178,6 +179,66 @@ describe('findNode', () => {
 
   it('hiểu tên trang viết không có tiền tố page:', () => {
     expect(findNode(open(), 'product')).toEqual({ id: 'page:product', kind: 'page_type' });
+  });
+
+  it('hiểu tên file không kèm thư mục khi cả theme chỉ có một file tên đó', () => {
+    // Có đuôi hay không, hoa hay thường, đều được.
+    expect(findNode(open(), 'price')).toEqual({ id: 'snippets/price.liquid', kind: 'snippet' });
+    expect(findNode(open(), 'price.liquid')).toEqual({ id: 'snippets/price.liquid', kind: 'snippet' });
+    expect(findNode(open(), 'PRICE')).toEqual({ id: 'snippets/price.liquid', kind: 'snippet' });
+    expect(findNode(open(), 'base.css')).toEqual({ id: 'assets/base.css', kind: 'asset' });
+    // Tên có dấu chấm ở giữa: chỉ bỏ đuôi cuối cùng.
+    expect(findNode(open(), 'product.alt')).toEqual({ id: 'templates/product.alt.json', kind: 'template' });
+  });
+
+  it('tên trang thắng tên file: "cart" là page:cart, không phải sections/cart.liquid', () => {
+    expect(findNode(open(), 'cart')).toEqual({ id: 'page:cart', kind: 'page_type' });
+  });
+
+  it('không đoán khi nhiều file trùng tên: báo lỗi và liệt kê đúng các file đó', async () => {
+    const root = await saveToTempTheme(
+      buildGraph(
+        [file('sections/header.liquid', 'section'), file('snippets/header.liquid', 'snippet'), file('snippets/header-menu.liquid', 'snippet')],
+        [],
+        {},
+      ),
+    );
+    const handle = openGraph(root);
+    try {
+      const error = (() => {
+        try {
+          findNode(handle, 'header');
+        } catch (thrown) {
+          return thrown;
+        }
+        return null;
+      })();
+
+      expect(error).toBeInstanceOf(NodeNotFoundError);
+      // Chỉ hai file tên đúng là "header"; header-menu không nằm trong số đó.
+      expect((error as NodeNotFoundError).suggestions).toEqual(['sections/header.liquid', 'snippets/header.liquid']);
+    } finally {
+      handle.close();
+      await removeTempTheme(root);
+    }
+  });
+
+  it('tên không kèm thư mục chỉ khớp cả tên, không khớp một phần', () => {
+    // "car" là một phần của "card" và "cart": không được tự chọn.
+    expect(() => findNode(open(), 'car')).toThrow(NodeNotFoundError);
+    expect(() => findNode(open(), 'liquid')).toThrow(NodeNotFoundError);
+  });
+
+  it('tên đã kèm thư mục mà sai thì không được hiểu tắt', () => {
+    expect(() => findNode(open(), 'snippets/price')).toThrow(NodeNotFoundError);
+    expect(() => findNode(open(), 'sections/price.liquid')).toThrow(NodeNotFoundError);
+  });
+
+  it('cách hiểu tắt không áp dụng cho khoá dịch và setting', () => {
+    // t:product.price có "tên" là price nếu coi nó như file; không được lẫn.
+    expect(findNode(open(), 'price').kind).toBe('snippet');
+    expect(() => findNode(open(), 'accent')).toThrow(NodeNotFoundError);
+    expect(() => findNode(open(), 'title')).toThrow(NodeNotFoundError);
   });
 
   it('ném NodeNotFoundError kèm gợi ý khi không tìm thấy', () => {

@@ -67,6 +67,10 @@ export type { PlainEdge, Reach, VerifyMismatch, VerifyResult } from './verify.js
 export { findRegisteredTheme, listThemes, readRegistry, registerTheme, registryDir, registryPath, unregisterTheme } from './registry.js';
 export type { ListedTheme, RegistryEntry } from './registry.js';
 
+// Chọn theme để truy vấn khi người gọi không đứng trong một terminal (MCP).
+export { selectTheme, ThemeSelectionError } from './select-theme.js';
+export type { ThemeSelectionReason } from './select-theme.js';
+
 // Tình trạng của đồ thị so với đĩa, và việc xoá dữ liệu đã ghi.
 export { themeStatus } from './status.js';
 export type { StatusResult } from './status.js';
@@ -84,6 +88,7 @@ export {
   formatRenderFlow,
   formatSearch,
   formatStatus,
+  formatThemeNote,
   formatVerify,
 } from './format.js';
 export type { FormatOptions } from './format.js';

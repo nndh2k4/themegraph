@@ -44,6 +44,14 @@ function toPosix(p: string): string {
  *   2. đường dẫn trên đĩa:       C:\themes\dawn\snippets\card.liquid, hoặc
  *                                card.liquid khi đang đứng trong snippets/
  *   3. tên trang thiếu tiền tố:  product -> page:product
+ *   4. tên file không kèm thư mục: card-product hoặc card-product.liquid
+ *                                -> snippets/card-product.liquid, với điều
+ *                                kiện cả theme chỉ có MỘT file tên như vậy
+ *
+ * Cách 4 sinh ra cho agent và cho người gõ nhanh: họ nói "card-product" chứ
+ * không nói "snippets/card-product.liquid". Khi có hai file trùng tên (ví dụ
+ * sections/header.liquid và snippets/header.liquid) thì không đoán: lỗi trả
+ * về liệt kê cả hai để người gọi chọn.
  *
  * Ném NodeNotFoundError (kèm gợi ý) nếu không cách nào ra kết quả.
  */
@@ -69,7 +77,45 @@ export function findNode(graph: GraphHandle, input: string, options: FindNodeOpt
     }
   }
 
+  const sameName = filesNamed(graph, normalized);
+  if (sameName.length === 1 && sameName[0] !== undefined) return sameName[0];
+  if (sameName.length > 1) {
+    throw new NodeNotFoundError(
+      input,
+      sameName.map((node) => node.id),
+    );
+  }
+
   throw new NodeNotFoundError(input, suggest(graph, normalized));
+}
+
+/** Các loại node không phải file; cách hiểu 4 không xét tới chúng. */
+const NON_FILE_KINDS: readonly NodeKind[] = ["page_type", "translation_key", "setting"];
+
+/**
+ * Các node file có tên đúng bằng `name`, không phân biệt hoa thường. "Tên" của
+ * snippets/card.liquid là "card.liquid", hoặc "card" khi bỏ đuôi cuối cùng.
+ *
+ * Chỉ áp dụng cho tên không có dấu "/": một cái tên đã kèm thư mục mà không
+ * trùng id nào thì là gõ sai, không phải gõ tắt.
+ */
+function filesNamed(graph: GraphHandle, name: string): GraphNode[] {
+  if (name === "" || name.includes("/")) return [];
+
+  const wanted = name.toLowerCase();
+
+  // Lọc sơ bằng SQL (id có chứa tên), rồi so chính xác bằng JavaScript.
+  return graph.db
+    .prepare("SELECT id, kind FROM nodes WHERE instr(lower(id), ?) > 0 ORDER BY id")
+    .all(wanted)
+    .map((row) => ({ id: String(row.id), kind: String(row.kind) as NodeKind }))
+    .filter((node) => {
+      if (NON_FILE_KINDS.includes(node.kind)) return false;
+
+      const base = node.id.slice(node.id.lastIndexOf("/") + 1).toLowerCase();
+      const dot = base.lastIndexOf(".");
+      return base === wanted || (dot > 0 && base.slice(0, dot) === wanted);
+    });
 }
 
 /**
