@@ -41,3 +41,7 @@ export type { ImpactResult } from './impact.js';
 // Truy vấn: trang này render những file nào.
 export { renderFlow } from './render-flow.js';
 export type { FlowNode, RenderFlowResult } from './render-flow.js';
+
+// Truy vấn: file này là gì, ai gọi nó, nó gọi ai.
+export { context } from './context.js';
+export type { BrokenRef, ContextLink, ContextResult } from './context.js';
