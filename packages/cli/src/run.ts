@@ -2,12 +2,18 @@ import { parseArgs } from "node:util";
 
 import {
   analyze,
+  cleanAllThemes,
+  cleanTheme,
   context,
   deadCode,
+  findRegisteredTheme,
   findThemeRoot,
   impact,
+  listThemes,
   openGraph,
+  registryPath,
   renderFlow,
+  themeStatus,
   verify,
   VERSION,
 } from "@themegraph/core";
@@ -15,10 +21,13 @@ import type { GraphHandle } from "@themegraph/core";
 
 import {
   formatAnalyze,
+  formatClean,
   formatContext,
   formatDeadCode,
   formatImpact,
+  formatList,
   formatRenderFlow,
+  formatStatus,
   formatVerify,
 } from "./format.js";
 
@@ -41,6 +50,10 @@ const HELP = `ThemeGraph ${VERSION} — đồ thị tri thức cho Shopify Liqui
 Cách dùng:
   themegraph analyze [đường-dẫn]   Phân tích một theme và ghi .themegraph/graph.db
                                    (không có đường dẫn: dùng thư mục đang đứng)
+  themegraph list                  Các theme đã phân tích trên máy này
+  themegraph status                Đồ thị của theme này có còn khớp với các file không
+  themegraph clean                 Xoá dữ liệu ThemeGraph của theme này
+                                   (--all: của mọi theme đã phân tích)
 
   themegraph impact <file>         Sửa file này thì file nào, trang nào bị ảnh hưởng
   themegraph render-flow <trang>   Trang này render những file nào, lồng nhau ra sao
@@ -48,10 +61,10 @@ Cách dùng:
   themegraph dead-code             File nào không còn được dùng
   themegraph verify                Đối chiếu truy vấn SQL với phép duyệt bằng JavaScript
 
-Các lệnh truy vấn chạy trên theme chứa thư mục đang đứng, đã được analyze.
+Trừ analyze và list, mọi lệnh chạy trên theme chứa thư mục đang đứng.
 
 Tuỳ chọn:
-  -t, --theme <thư-mục>            Truy vấn theme ở thư mục này thay vì thư mục đang đứng
+  -t, --theme <thư-mục>            Dùng theme ở thư mục này thay vì thư mục đang đứng
       --json                       In kết quả dạng JSON
   -v, --version                    In phiên bản
   -h, --help                       In hướng dẫn này`;
@@ -60,6 +73,7 @@ Tuỳ chọn:
 interface Flags {
   json: boolean;
   theme: string | undefined;
+  all: boolean;
 }
 
 /**
@@ -91,7 +105,70 @@ async function runAnalyze(positionals: string[], flags: Flags, io: Io): Promise<
   // tuyệt đối là của lõi; ở đây không tự xử lý đường dẫn.
   const themeRoot = positionals[0] ?? flags.theme ?? ".";
 
-  print(await analyze(themeRoot), formatAnalyze, flags, io);
+  const result = await analyze(themeRoot);
+  print(result, formatAnalyze, flags, io);
+
+  // Đồ thị đã ghi xong nên lệnh vẫn thành công; chỉ báo để người dùng biết vì
+  // sao lệnh list không thấy theme này. In ra stderr để không lẫn vào --json.
+  if (!result.registered) {
+    io.stderr(`Cảnh báo: không ghi được theme vào sổ đăng ký ${registryPath()}.`);
+  }
+  return EXIT_OK;
+}
+
+/**
+ * Theme mà một lệnh làm việc trên đó: cờ --theme, rồi tới theme chứa thư mục
+ * đang đứng (tìm ngược lên thư mục cha, như git tìm .git).
+ *
+ * Không tìm thấy theme nào thì trả về chính thư mục đang đứng, để lõi tự báo
+ * "chưa có đồ thị" kèm cách chữa.
+ */
+function themeRootOf(flags: Flags): string {
+  return flags.theme ?? findThemeRoot(process.cwd()) ?? process.cwd();
+}
+
+/** Từ chối tham số thừa của một lệnh không nhận tham số nào. */
+function rejectPositionals(command: string, positionals: string[], io: Io): number | null {
+  return positionals.length > 0 ? usageError(`themegraph ${command} không nhận tham số nào.`, io) : null;
+}
+
+/** Lệnh list: đọc sổ đăng ký toàn cục, không cần đứng trong theme nào. */
+function runList(positionals: string[], flags: Flags, io: Io): number {
+  const rejected = rejectPositionals("list", positionals, io);
+  if (rejected !== null) return rejected;
+
+  print(listThemes(), formatList, flags, io);
+  return EXIT_OK;
+}
+
+/** Lệnh status: đồ thị của theme đang đứng có còn khớp với đĩa không. */
+async function runStatus(positionals: string[], flags: Flags, io: Io): Promise<number> {
+  const rejected = rejectPositionals("status", positionals, io);
+  if (rejected !== null) return rejected;
+
+  print(await themeStatus(themeRootOf(flags)), formatStatus, flags, io);
+  return EXIT_OK;
+}
+
+/** Lệnh clean: xoá dữ liệu của theme đang đứng, hoặc của mọi theme với --all. */
+function runClean(positionals: string[], flags: Flags, io: Io): number {
+  const rejected = rejectPositionals("clean", positionals, io);
+  if (rejected !== null) return rejected;
+
+  if (flags.all && flags.theme !== undefined) {
+    return usageError("themegraph clean nhận --all hoặc --theme, không nhận cả hai.", io);
+  }
+
+  // Khác các lệnh khác ở một chỗ: khi graph.db của theme đã mất thì không còn
+  // gì trên đĩa để nhận ra thư mục theme, nên clean hỏi thêm sổ đăng ký trước
+  // khi chịu lấy thư mục đang đứng. Nhờ vậy đứng trong sections/ của một theme
+  // đã mất graph.db vẫn gỡ được mục của nó khỏi sổ.
+  const cwd = process.cwd();
+  const themeRoot = flags.theme ?? findThemeRoot(cwd) ?? findRegisteredTheme(cwd) ?? cwd;
+
+  const results = flags.all ? cleanAllThemes() : [cleanTheme(themeRoot)];
+
+  print(results, formatClean, flags, io);
   return EXIT_OK;
 }
 
@@ -102,11 +179,7 @@ async function runAnalyze(positionals: string[], flags: Flags, io: Io): Promise<
  * đứng (tìm ngược lên thư mục cha, như git tìm .git).
  */
 function withGraph(flags: Flags, body: (graph: GraphHandle) => number): number {
-  // Không tìm thấy theme nào thì vẫn đưa thư mục đang đứng cho openGraph, để
-  // nó ném lỗi "chưa có đồ thị" kèm cách chữa.
-  const themeRoot = flags.theme ?? findThemeRoot(process.cwd()) ?? process.cwd();
-
-  const graph = openGraph(themeRoot);
+  const graph = openGraph(themeRootOf(flags));
   try {
     return body(graph);
   } finally {
@@ -167,6 +240,12 @@ async function dispatch(command: string, rest: string[], flags: Flags, io: Io): 
   switch (command) {
     case "analyze":
       return runAnalyze(rest, flags, io);
+    case "list":
+      return runList(rest, flags, io);
+    case "status":
+      return runStatus(rest, flags, io);
+    case "clean":
+      return runClean(rest, flags, io);
     case "impact":
       return runNamedQuery(command, "đường dẫn của một file", rest, flags, io, impact, formatImpact);
     case "render-flow":
@@ -202,6 +281,7 @@ export async function run(argv: string[], io: Io): Promise<number> {
         version: { type: "boolean", short: "v" },
         json: { type: "boolean" },
         theme: { type: "string", short: "t" },
+        all: { type: "boolean" },
       },
       allowPositionals: true,
     });
@@ -222,7 +302,11 @@ export async function run(argv: string[], io: Io): Promise<number> {
     return EXIT_OK;
   }
 
-  const flags: Flags = { json: parsed.values.json ?? false, theme: parsed.values.theme };
+  const flags: Flags = {
+    json: parsed.values.json ?? false,
+    theme: parsed.values.theme,
+    all: parsed.values.all ?? false,
+  };
 
   try {
     return await dispatch(command, rest, flags, io);

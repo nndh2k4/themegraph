@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { listThemes, readRegistry, registerTheme, registryDir, registryPath, unregisterTheme } from '../src/registry.js';
+import { findRegisteredTheme, listThemes, readRegistry, registerTheme, registryDir, registryPath, unregisterTheme } from '../src/registry.js';
 import type { RegistryEntry } from '../src/registry.js';
 import { queryGraph, removeTempTheme, saveToTempTheme } from './helpers.js';
 
@@ -200,6 +200,33 @@ describe('unregisterTheme', () => {
     unregisterTheme(themeAt('dawn'));
 
     expect(JSON.parse(await readFile(registryPath(), 'utf8'))).toEqual({ version: 1, themes: [] });
+  });
+});
+
+describe('findRegisteredTheme', () => {
+  it('tìm theme có trong sổ từ chính thư mục của nó và từ thư mục con', () => {
+    registerTheme(entry(themeAt('dawn')));
+
+    expect(findRegisteredTheme(themeAt('dawn'))).toBe(themeAt('dawn'));
+    expect(findRegisteredTheme(path.join(themeAt('dawn'), 'sections', 'nested'))).toBe(themeAt('dawn'));
+  });
+
+  it('trả null khi không thư mục cha nào có trong sổ', () => {
+    registerTheme(entry(themeAt('dawn')));
+
+    expect(findRegisteredTheme(themeAt('purity'))).toBeNull();
+    // Thư mục CHA của một theme không phải là theme đó.
+    expect(findRegisteredTheme(path.dirname(themeAt('dawn')))).toBeNull();
+  });
+
+  it('trả null khi sổ đăng ký trống', () => {
+    expect(findRegisteredTheme(themeAt('dawn'))).toBeNull();
+  });
+
+  it('không nhầm thư mục có tên bắt đầu giống tên theme', () => {
+    registerTheme(entry(themeAt('dawn')));
+
+    expect(findRegisteredTheme(themeAt('dawn-backup'))).toBeNull();
   });
 });
 

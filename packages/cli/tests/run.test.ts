@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, rm, utimes, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -691,6 +691,369 @@ describe('themegraph verify', () => {
   });
 });
 
+describe('themegraph — sổ đăng ký: list, status, clean', () => {
+  let other: string;
+  let previousHome: string | undefined;
+
+  beforeEach(async () => {
+    // Sổ đăng ký trống của riêng từng test, và một theme thứ hai ở chỗ khác.
+    previousHome = process.env.THEMEGRAPH_HOME;
+    process.env.THEMEGRAPH_HOME = path.join(tmp, 'home');
+
+    other = path.join(tmp, 'noi-khac', 'theme-hai');
+    await cp(FIXTURE, other, { recursive: true });
+  });
+
+  afterEach(() => {
+    process.env.THEMEGRAPH_HOME = previousHome;
+  });
+
+  const dataDir = (root: string) => path.join(root, '.themegraph');
+
+  describe('list', () => {
+    it('nói rõ khi chưa có theme nào', async () => {
+      const result = await runCli(['list']);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toBe('Chưa có theme nào được phân tích. Chạy "themegraph analyze" trong thư mục một theme.');
+    });
+
+    it('hiện mọi theme đã phân tích, dù chúng nằm ở những nơi khác nhau', async () => {
+      await runCli(['analyze', themeRoot]);
+      await runCli(['analyze', other]);
+
+      const lines = (await runCli(['list'])).stdout.split('\n');
+
+      expect(lines).toHaveLength(3);
+      expect(lines[0]).toBe('Theme đã phân tích (2):');
+      expect(lines[1]).toMatch(/^ {2}mini-theme {2}22 node {2}22 cạnh {2}\d{4}-\d\d-\d\d \d\d:\d\d {2}/);
+      expect(lines[1]?.endsWith(themeRoot)).toBe(true);
+      expect(lines[2]?.endsWith(other)).toBe(true);
+      expect(lines[2]).toContain('theme-hai');
+    });
+
+    it('in thời điểm phân tích theo giờ của máy, dạng năm-tháng-ngày giờ:phút', async () => {
+      // Dựng thời điểm từ các thành phần giờ địa phương, để test đúng ở mọi múi giờ.
+      const analyzedAt = new Date(2026, 0, 5, 9, 7).toISOString();
+      await mkdir(path.join(tmp, 'home'), { recursive: true });
+      await writeFile(
+        path.join(tmp, 'home', 'registry.json'),
+        JSON.stringify({ version: 1, themes: [{ path: themeRoot, name: 'mini-theme', analyzedAt, nodes: 1, edges: 2 }] }),
+      );
+
+      expect((await runCli(['list'])).stdout).toContain('  mini-theme  1 node  2 cạnh  2026-01-05 09:07  ');
+    });
+
+    it('chạy được từ thư mục không phải theme', async () => {
+      await runCli(['analyze', themeRoot]);
+      const originalCwd = process.cwd();
+      try {
+        process.chdir(os.tmpdir());
+        expect((await runCli(['list'])).stdout).toContain('mini-theme');
+      } finally {
+        process.chdir(originalCwd);
+      }
+    });
+
+    it('đánh dấu theme không còn graph.db và chỉ cách gỡ', async () => {
+      await runCli(['analyze', themeRoot]);
+      await runCli(['analyze', other]);
+      await rm(other, { recursive: true });
+
+      const result = await runCli(['list']);
+      const lines = result.stdout.split('\n');
+
+      expect(lines[1]).not.toContain('không còn graph.db');
+      expect(lines[2]?.endsWith('(không còn graph.db)')).toBe(true);
+      expect(lines.at(-1)).toContain('themegraph clean --theme');
+    });
+
+    it('không in lời chỉ cách gỡ khi mọi theme đều còn', async () => {
+      await runCli(['analyze', themeRoot]);
+
+      expect((await runCli(['list'])).stdout).not.toContain('themegraph clean');
+    });
+
+    it('in JSON với --json', async () => {
+      await runCli(['analyze', themeRoot]);
+
+      const json = JSON.parse((await runCli(['list', '--json'])).stdout) as { path: string; present: boolean }[];
+
+      expect(json.map((t) => [t.path, t.present])).toEqual([[themeRoot, true]]);
+    });
+
+    it('trả mã 2 khi có tham số thừa', async () => {
+      const result = await runCli(['list', 'thua']);
+
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain('list không nhận tham số');
+    });
+  });
+
+  describe('status', () => {
+    it('báo đồ thị còn mới khi đứng trong thư mục con của theme', async () => {
+      await runCli(['analyze', themeRoot]);
+      const originalCwd = process.cwd();
+      let result;
+      try {
+        process.chdir(path.join(themeRoot, 'snippets'));
+        result = await runCli(['status']);
+      } finally {
+        process.chdir(originalCwd);
+      }
+
+      const lines = result.stdout.split('\n');
+
+      expect(result.code).toBe(0);
+      expect(lines[0]).toBe(`Theme      ${themeRoot}`);
+      expect(lines[1]).toBe('Đồ thị     22 node, 22 cạnh');
+      expect(lines[2]).toMatch(/^Phân tích {2}\d{4}-\d\d-\d\d \d\d:\d\d bằng ThemeGraph \d+\.\d+\.\d+$/);
+      expect(lines.slice(3)).toEqual(['', 'Trạng thái: MỚI. Không file nào đổi từ lần phân tích.']);
+    });
+
+    it('chạy đúng trên từng theme khi có hai theme', async () => {
+      await runCli(['analyze', themeRoot]);
+      await runCli(['analyze', other]);
+      await writeFile(path.join(other, 'snippets', 'moi.liquid'), '<p></p>');
+
+      expect((await runCli(['status', '-t', themeRoot])).stdout).toContain('Trạng thái: MỚI');
+      expect((await runCli(['status', '-t', other])).stdout).toContain('Trạng thái: CŨ');
+    });
+
+    it('liệt kê file sửa, thêm và xoá khi đồ thị đã cũ', async () => {
+      await runCli(['analyze', themeRoot]);
+      const later = new Date(Date.now() + 3_600_000);
+      await utimes(path.join(themeRoot, 'sections', 'hero.liquid'), later, later);
+      await writeFile(path.join(themeRoot, 'snippets', 'moi.liquid'), '<p></p>');
+      await rm(path.join(themeRoot, 'snippets', 'card.liquid'));
+
+      const result = await runCli(['status', '-t', themeRoot]);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout.split('\n').slice(4)).toEqual([
+        'Trạng thái: CŨ. 3 file đã đổi từ lần phân tích; chạy "themegraph analyze" để cập nhật.',
+        '  sửa   sections/hero.liquid',
+        '  thêm  snippets/moi.liquid',
+        '  xoá   snippets/card.liquid',
+      ]);
+    });
+
+    it('trở lại MỚI sau khi phân tích lại', async () => {
+      await runCli(['analyze', themeRoot]);
+      await writeFile(path.join(themeRoot, 'snippets', 'moi.liquid'), '<p></p>');
+      await runCli(['analyze', themeRoot]);
+
+      expect((await runCli(['status', '-t', themeRoot])).stdout).toContain('Trạng thái: MỚI');
+    });
+
+    it('in JSON với --json', async () => {
+      await runCli(['analyze', themeRoot]);
+
+      const json = JSON.parse((await runCli(['status', '-t', themeRoot, '--json'])).stdout) as {
+        themeRoot: string;
+        stale: boolean;
+      };
+
+      expect(json).toMatchObject({ themeRoot, stale: false });
+    });
+
+    it('báo cần analyze và trả mã 1 khi theme chưa được phân tích', async () => {
+      const fresh = path.join(tmp, 'chua-phan-tich');
+      await mkdir(fresh);
+
+      const result = await runCli(['status', '-t', fresh]);
+
+      expect(result.code).toBe(1);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toContain('themegraph analyze');
+    });
+
+    it('trả mã 2 khi có tham số thừa', async () => {
+      expect((await runCli(['status', 'thua'])).code).toBe(2);
+    });
+  });
+
+  describe('clean', () => {
+    it('xoá dữ liệu của theme đang đứng và in ra những gì đã xoá', async () => {
+      await runCli(['analyze', themeRoot]);
+      await runCli(['analyze', other]);
+      const originalCwd = process.cwd();
+      let result;
+      try {
+        process.chdir(path.join(themeRoot, 'sections'));
+        result = await runCli(['clean']);
+      } finally {
+        process.chdir(originalCwd);
+      }
+
+      expect(result.code).toBe(0);
+      expect(result.stdout.split('\n')).toEqual([
+        `Đã xoá dữ liệu ThemeGraph của ${themeRoot}:`,
+        `  ${path.join(dataDir(themeRoot), 'graph.db')}`,
+        `  ${path.join(dataDir(themeRoot), '.gitignore')}`,
+        '  mục của theme trong sổ đăng ký',
+      ]);
+      expect(existsSync(dataDir(themeRoot))).toBe(false);
+      // Theme kia không bị đụng tới.
+      expect(existsSync(path.join(dataDir(other), 'graph.db'))).toBe(true);
+      expect((await runCli(['list'])).stdout).not.toContain(themeRoot);
+    });
+
+    it('nhận --theme', async () => {
+      await runCli(['analyze', themeRoot]);
+
+      const result = await runCli(['clean', '--theme', themeRoot]);
+
+      expect(result.stdout).toContain(`Đã xoá dữ liệu ThemeGraph của ${themeRoot}:`);
+      expect(existsSync(dataDir(themeRoot))).toBe(false);
+    });
+
+    it('nói rõ khi không có gì để xoá, và vẫn trả mã 0', async () => {
+      const fresh = path.join(tmp, 'chua-phan-tich');
+      await mkdir(fresh);
+
+      const result = await runCli(['clean', '-t', fresh]);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toBe(`Không có dữ liệu ThemeGraph nào của ${fresh}.`);
+    });
+
+    it('gỡ mục trong sổ đăng ký khi đứng trong thư mục con của theme đã mất graph.db', async () => {
+      await runCli(['analyze', themeRoot]);
+      await rm(dataDir(themeRoot), { recursive: true });
+      const originalCwd = process.cwd();
+      let result;
+      try {
+        process.chdir(path.join(themeRoot, 'sections'));
+        result = await runCli(['clean']);
+      } finally {
+        process.chdir(originalCwd);
+      }
+
+      expect(result.stdout.split('\n')).toEqual([
+        `Đã xoá dữ liệu ThemeGraph của ${themeRoot}:`,
+        '  mục của theme trong sổ đăng ký',
+      ]);
+      expect((await runCli(['list'])).stdout).toContain('Chưa có theme nào');
+    });
+
+    it('tìm ra theme từ thư mục con dù theme không có trong sổ đăng ký', async () => {
+      await runCli(['analyze', themeRoot]);
+      await rm(path.join(tmp, 'home'), { recursive: true });
+      const originalCwd = process.cwd();
+      try {
+        process.chdir(path.join(themeRoot, 'sections'));
+        await runCli(['clean']);
+      } finally {
+        process.chdir(originalCwd);
+      }
+
+      expect(existsSync(dataDir(themeRoot))).toBe(false);
+    });
+
+    it('không in dòng sổ đăng ký khi theme vốn không có trong sổ', async () => {
+      await runCli(['analyze', themeRoot]);
+      await runCli(['clean', '-t', themeRoot]);
+      // Dựng lại thư mục dữ liệu bằng tay, không qua analyze: không có mục trong sổ.
+      await mkdir(dataDir(themeRoot));
+      await writeFile(path.join(dataDir(themeRoot), 'graph.db'), 'x');
+
+      const result = await runCli(['clean', '-t', themeRoot]);
+
+      expect(result.stdout.split('\n')).toEqual([
+        `Đã xoá dữ liệu ThemeGraph của ${themeRoot}:`,
+        `  ${path.join(dataDir(themeRoot), 'graph.db')}`,
+      ]);
+    });
+
+    it('--all xoá dữ liệu của mọi theme trong sổ, kể cả theme đã bị xoá khỏi đĩa', async () => {
+      await runCli(['analyze', themeRoot]);
+      await runCli(['analyze', other]);
+      await rm(other, { recursive: true });
+
+      const result = await runCli(['clean', '--all']);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout.split('\n')).toEqual([
+        `Đã xoá dữ liệu ThemeGraph của ${themeRoot}:`,
+        `  ${path.join(dataDir(themeRoot), 'graph.db')}`,
+        `  ${path.join(dataDir(themeRoot), '.gitignore')}`,
+        '  mục của theme trong sổ đăng ký',
+        `Đã xoá dữ liệu ThemeGraph của ${other}:`,
+        '  mục của theme trong sổ đăng ký',
+      ]);
+      expect((await runCli(['list'])).stdout).toContain('Chưa có theme nào');
+    });
+
+    it('--all nói rõ khi sổ đăng ký trống', async () => {
+      const result = await runCli(['clean', '--all']);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toBe('Sổ đăng ký trống, không có gì để xoá.');
+    });
+
+    it('--all không xoá theme đang đứng nếu nó không có trong sổ', async () => {
+      await runCli(['analyze', themeRoot]);
+      await runCli(['clean', '-t', themeRoot]);
+      await mkdir(dataDir(themeRoot));
+      await writeFile(path.join(dataDir(themeRoot), 'graph.db'), 'x');
+
+      await runCli(['clean', '--all']);
+
+      expect(existsSync(path.join(dataDir(themeRoot), 'graph.db'))).toBe(true);
+    });
+
+    it('từ chối --all đi cùng --theme, và không xoá gì', async () => {
+      await runCli(['analyze', themeRoot]);
+
+      const result = await runCli(['clean', '--all', '-t', themeRoot]);
+
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain('--all hoặc --theme');
+      expect(existsSync(path.join(dataDir(themeRoot), 'graph.db'))).toBe(true);
+    });
+
+    it('in JSON với --json', async () => {
+      await runCli(['analyze', themeRoot]);
+
+      const json = JSON.parse((await runCli(['clean', '-t', themeRoot, '--json'])).stdout) as {
+        themeRoot: string;
+        unregistered: boolean;
+      }[];
+
+      expect(json).toHaveLength(1);
+      expect(json[0]).toMatchObject({ themeRoot, unregistered: true });
+    });
+
+    it('trả mã 2 khi có tham số thừa, và không xoá gì', async () => {
+      await runCli(['analyze', themeRoot]);
+
+      const result = await runCli(['clean', themeRoot]);
+
+      expect(result.code).toBe(2);
+      expect(existsSync(path.join(dataDir(themeRoot), 'graph.db'))).toBe(true);
+    });
+  });
+
+  describe('analyze và sổ đăng ký', () => {
+    it('cảnh báo ra stderr nhưng vẫn thành công khi không ghi được sổ đăng ký', async () => {
+      // Đường dẫn đi xuyên qua một FILE: không tạo được thư mục ở đó.
+      process.env.THEMEGRAPH_HOME = path.join(themeRoot, 'layout', 'theme.liquid', 'home');
+
+      const result = await runCli(['analyze', themeRoot]);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toMatch(/Node\s+22\b/);
+      expect(result.stderr).toContain('Cảnh báo: không ghi được theme vào sổ đăng ký');
+      expect(result.stderr).toContain('registry.json');
+    });
+
+    it('không cảnh báo gì khi ghi được', async () => {
+      expect((await runCli(['analyze', themeRoot])).stderr).toBe('');
+    });
+  });
+});
+
 describe('themegraph — lệnh chung', () => {
   it('in phiên bản với --version', async () => {
     const result = await runCli(['--version']);
@@ -705,11 +1068,12 @@ describe('themegraph — lệnh chung', () => {
 
     expect(help.code).toBe(0);
     expect(help.stdout).toContain('themegraph analyze');
-    for (const command of ['impact', 'render-flow', 'context', 'dead-code', 'verify']) {
+    for (const command of ['list', 'status', 'clean', 'impact', 'render-flow', 'context', 'dead-code', 'verify']) {
       expect(help.stdout).toContain(`themegraph ${command}`);
     }
     expect(help.stdout).toContain('--theme');
     expect(help.stdout).toContain('--json');
+    expect(help.stdout).toContain('--all');
     expect(bare).toEqual(help);
   });
 
@@ -753,6 +1117,35 @@ describe('themegraph — lệnh đã build', () => {
     // Node 22 in cảnh báo "SQLite is an experimental feature" ra stderr mỗi
     // khi nạp node:sqlite; cli.ts phải chặn nó.
     expect(result.stderr).toBe('');
+  });
+
+  it('qua tiến trình thật: hai theme ở hai nơi, list thấy cả hai, status đúng trong từng theme', async () => {
+    const home = path.join(tmp, 'home-that');
+    const other = path.join(tmp, 'noi-khac', 'theme-hai');
+    await cp(FIXTURE, other, { recursive: true });
+
+    const cli = (args: string[], cwd: string) =>
+      spawnSync(process.execPath, [BUILT_BIN, ...args], {
+        cwd,
+        encoding: 'utf8',
+        env: { ...process.env, THEMEGRAPH_HOME: home },
+      });
+
+    expect(cli(['analyze'], themeRoot).status).toBe(0);
+    expect(cli(['analyze'], other).status).toBe(0);
+    await writeFile(path.join(other, 'snippets', 'moi.liquid'), '<p></p>');
+
+    const list = cli(['list'], os.tmpdir());
+    expect(list.stdout).toContain(themeRoot);
+    expect(list.stdout).toContain(other);
+    expect(list.stderr).toBe('');
+
+    expect(cli(['status'], path.join(themeRoot, 'sections')).stdout).toContain('Trạng thái: MỚI');
+    expect(cli(['status'], path.join(other, 'sections')).stdout).toContain('Trạng thái: CŨ');
+
+    expect(cli(['clean', '--all'], os.tmpdir()).status).toBe(0);
+    expect(cli(['list'], os.tmpdir()).stdout).toContain('Chưa có theme nào');
+    expect(existsSync(path.join(themeRoot, '.themegraph'))).toBe(false);
   });
 
   it('trả mã 1 qua tiến trình thật khi verify không đạt', () => {

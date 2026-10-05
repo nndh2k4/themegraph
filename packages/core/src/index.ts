@@ -60,7 +60,7 @@ export { bfsTraverse, diffTraversals, verify } from './verify.js';
 export type { PlainEdge, Reach, VerifyMismatch, VerifyResult } from './verify.js';
 
 // Sổ đăng ký toàn cục: những theme nào đã được phân tích, nằm ở đâu.
-export { listThemes, readRegistry, registerTheme, registryDir, registryPath, unregisterTheme } from './registry.js';
+export { findRegisteredTheme, listThemes, readRegistry, registerTheme, registryDir, registryPath, unregisterTheme } from './registry.js';
 export type { ListedTheme, RegistryEntry } from './registry.js';
 
 // Tình trạng của đồ thị so với đĩa, và việc xoá dữ liệu đã ghi.

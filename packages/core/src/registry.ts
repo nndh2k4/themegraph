@@ -134,6 +134,27 @@ export function unregisterTheme(themeRoot: string): boolean {
   return true;
 }
 
+/**
+ * Tìm theme trong sổ đăng ký chứa `startDir`: chính thư mục đó hoặc một thư
+ * mục cha của nó. Trả về đường dẫn như ghi trong sổ, hoặc null.
+ *
+ * Dùng khi graph.db của theme đã mất nên findThemeRoot() không còn gì để bám
+ * vào, nhưng mục trong sổ vẫn còn: lệnh clean cần biết để gỡ mục đó.
+ */
+export function findRegisteredTheme(startDir: string): string | null {
+  const byKey = new Map(readRegistry().map((entry) => [pathKey(entry.path), entry.path]));
+
+  let dir = path.resolve(startDir);
+  for (;;) {
+    const found = byKey.get(pathKey(dir));
+    if (found !== undefined) return found;
+
+    const parent = path.dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+}
+
 /** Mọi theme trong sổ đăng ký, kèm việc graph.db của nó có còn trên đĩa hay không. */
 export function listThemes(): ListedTheme[] {
   return readRegistry().map((entry) => ({ ...entry, present: existsSync(graphDbPath(entry.path)) }));

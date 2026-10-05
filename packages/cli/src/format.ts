@@ -1,14 +1,17 @@
 import { VERSION } from "@themegraph/core";
 import type {
   AnalyzeResult,
+  CleanResult,
   ContextLink,
   ContextResult,
   DeadCodeResult,
   DeadFile,
   FlowNode,
   ImpactResult,
+  ListedTheme,
   Reached,
   RenderFlowResult,
+  StatusResult,
   VerifyResult,
 } from "@themegraph/core";
 
@@ -371,5 +374,93 @@ export function formatVerify(result: VerifyResult): string[] {
   }
 
   lines.push("", `Kết quả: ${result.ok ? "ĐẠT" : "KHÔNG ĐẠT"} (${result.durationMs} ms)`);
+  return lines;
+}
+
+// ---- list, status, clean --------------------------------------------------------
+
+/** Đổi thời điểm ISO thành "2026-10-05 17:20" theo giờ của máy đang chạy. */
+function formatTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+
+  const two = (value: number): string => String(value).padStart(2, "0");
+  const day = `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())}`;
+  return `${day} ${two(date.getHours())}:${two(date.getMinutes())}`;
+}
+
+export function formatList(themes: readonly ListedTheme[]): string[] {
+  if (themes.length === 0) {
+    return ['Chưa có theme nào được phân tích. Chạy "themegraph analyze" trong thư mục một theme.'];
+  }
+
+  const lines = [
+    `Theme đã phân tích (${themes.length}):`,
+    ...table(
+      themes.map((theme) => [
+        theme.name,
+        `${theme.nodes} node`,
+        `${theme.edges} cạnh`,
+        formatTime(theme.analyzedAt),
+        theme.path,
+        theme.present ? "" : "(không còn graph.db)",
+      ]),
+    ),
+  ];
+
+  if (themes.some((theme) => !theme.present)) {
+    lines.push("", 'Theme không còn graph.db: chạy "themegraph clean --theme <đường dẫn>" để gỡ khỏi danh sách.');
+  }
+  return lines;
+}
+
+export function formatStatus(result: StatusResult): string[] {
+  const lines = [
+    ...table(
+      [
+        ["Theme", result.themeRoot],
+        ["Đồ thị", `${result.nodes} node, ${result.edges} cạnh`],
+        ["Phân tích", `${formatTime(result.analyzedAt)} bằng ThemeGraph ${result.toolVersion}`],
+      ],
+      "",
+    ),
+    "",
+  ];
+
+  if (!result.stale) {
+    lines.push("Trạng thái: MỚI. Không file nào đổi từ lần phân tích.");
+    return lines;
+  }
+
+  const changes = result.modified.length + result.added.length + result.removed.length;
+  lines.push(`Trạng thái: CŨ. ${changes} file đã đổi từ lần phân tích; chạy "themegraph analyze" để cập nhật.`);
+  lines.push(
+    ...table([
+      ...result.modified.map((file) => ["sửa", file]),
+      ...result.added.map((file) => ["thêm", file]),
+      ...result.removed.map((file) => ["xoá", file]),
+    ]),
+  );
+  return lines;
+}
+
+export function formatClean(results: readonly CleanResult[]): string[] {
+  if (results.length === 0) {
+    return ["Sổ đăng ký trống, không có gì để xoá."];
+  }
+
+  const lines: string[] = [];
+  for (const result of results) {
+    const nothing = result.removedFiles.length === 0 && !result.removedDir && !result.unregistered;
+
+    if (nothing) {
+      lines.push(`Không có dữ liệu ThemeGraph nào của ${result.themeRoot}.`);
+      continue;
+    }
+
+    lines.push(`Đã xoá dữ liệu ThemeGraph của ${result.themeRoot}:`);
+    for (const file of result.removedFiles) lines.push(`  ${file}`);
+    if (result.unregistered) lines.push("  mục của theme trong sổ đăng ký");
+  }
   return lines;
 }
