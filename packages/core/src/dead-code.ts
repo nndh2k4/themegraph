@@ -35,8 +35,10 @@ export interface DeadCodeResult {
   files: DeadFile[]; // mức certain trước, rồi review; trong mỗi mức xếp theo id
   certain: number;
   review: number;
-  // Theme có file nào nhận mọi theme block qua "@theme" hay không. Nếu có,
-  // block công khai không bao giờ bị báo, vì merchant thêm được chúng.
+  // Theme có file ĐANG DÙNG nào nhận mọi theme block qua "@theme" hay không.
+  // Nếu có, block công khai không bao giờ bị báo, vì merchant thêm được chúng
+  // vào file đó. Một file nhận "@theme" mà chính nó không ai dùng thì không
+  // tính: không có nó trên trang nào thì cũng không thêm được gì vào nó.
   acceptsThemeBlocks: boolean;
   // Khoá dịch có trong locale mặc định mà không file nào gọi bằng tên viết
   // sẵn. Luôn ở mức cần xem lại: khoá còn có thể được gọi bằng tên ghép lúc
@@ -77,8 +79,11 @@ const REVIEW_ROOT_KINDS: ReadonlySet<NodeKind> = new Set<NodeKind>(["section", "
  *   1. Loại trang. Mọi template đều nằm dưới một loại trang.
  *   2. Section có preset: merchant thêm được vào template từ theme editor,
  *      dù hiện chưa template nào dùng.
- *   3. Theme block công khai (tên không bắt đầu bằng "_"), khi theme có ít
- *      nhất một file nhận "@theme" (tham số ?1 = 1). Lý do như trên.
+ *   3. Theme block công khai (tên không bắt đầu bằng "_"), khi có ít nhất
+ *      một file ĐANG DÙNG nhận "@theme": merchant thêm được block vào file
+ *      đó. Nhánh này tham chiếu chính tập `live`, nên nó chỉ mở ra sau khi
+ *      một file nhận "@theme" đã lọt vào tập, và các block vừa được thêm lại
+ *      có thể kéo theo file khác.
  *
  * Câu SELECT cuối trả về các file thuộc loại có thể là mã chết mà KHÔNG nằm
  * trong tập đang dùng.
@@ -90,8 +95,9 @@ WITH RECURSIVE live(id) AS (
   SELECT s.file FROM schemas s JOIN nodes n ON n.id = s.file
   WHERE n.kind = 'section' AND s.presets > 0
   UNION
-  SELECT id FROM nodes
-  WHERE kind = 'block' AND ?1 = 1 AND substr(id, 1, 8) <> 'blocks/_'
+  SELECT b.id FROM live l
+  JOIN schemas s ON s.file = l.id AND s.accepts_theme_blocks = 1
+  JOIN nodes b ON b.kind = 'block' AND substr(b.id, 1, 8) <> 'blocks/_'
   UNION
   SELECT e.dst FROM edges e JOIN live l ON e.src = l.id
 )
@@ -110,16 +116,26 @@ ORDER BY id`;
  *     nằm ngoài tầm nhìn của đồ thị.
  *   - Mọi thứ nằm DƯỚI một file `review` cũng là `review`: nếu file đó hoá ra
  *     đang được dùng thì những gì nó gọi cũng đang được dùng.
+ *   - Block công khai, khi file nhận "@theme" duy nhất là một file `review`:
+ *     cũng `review`, cùng lý do. Nếu file đó hoá ra đang được dùng thì
+ *     merchant thêm được block vào nó.
  *   - Còn lại là `certain`.
  */
 export function deadCode(graph: GraphHandle): DeadCodeResult {
-  const acceptsThemeBlocks =
-    graph.db.prepare("SELECT 1 AS found FROM schemas WHERE accepts_theme_blocks = 1 LIMIT 1").get() !== undefined;
-
   const unused = graph.db
     .prepare(UNUSED_SQL)
-    .all(acceptsThemeBlocks ? 1 : 0)
+    .all()
     .map((row) => ({ id: String(row.id), kind: String(row.kind) as NodeKind }));
+
+  const unusedIds = new Set(unused.map((node) => node.id));
+
+  // Các file nhận "@theme". File nào không nằm trong `unused` là đang dùng.
+  const acceptors = graph.db
+    .prepare("SELECT s.file FROM schemas s JOIN nodes n ON n.id = s.file WHERE s.accepts_theme_blocks = 1")
+    .all()
+    .map((row) => String(row.file));
+
+  const acceptsThemeBlocks = acceptors.some((id) => !unusedIds.has(id));
 
   // Quan hệ gọi giữa các file không dùng với nhau, theo cả hai chiều. Một
   // file không dùng thì mọi file gọi nó cũng không dùng (nếu một file đang
@@ -146,8 +162,23 @@ export function deadCode(graph: GraphHandle): DeadCodeResult {
   const needsReview = new Set(unused.filter((node) => REVIEW_ROOT_KINDS.has(node.kind)).map((node) => node.id));
   const queue = [...needsReview];
 
+  // Các block công khai không dùng. Chúng không có cạnh nào từ file nhận
+  // "@theme" (quan hệ đó là "merchant thêm được", không phải lời gọi), nên
+  // mức `review` phải được lan sang chúng bằng tay, đúng một lần.
+  const publicBlocks = unused
+    .filter((node) => node.kind === "block" && !node.id.startsWith("blocks/_"))
+    .map((node) => node.id);
+  let publicBlocksReviewed = false;
+
   for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
-    for (const callee of calleesOf.get(id) ?? []) {
+    const callees = [...(calleesOf.get(id) ?? [])];
+
+    if (!publicBlocksReviewed && acceptors.includes(id)) {
+      publicBlocksReviewed = true;
+      callees.push(...publicBlocks);
+    }
+
+    for (const callee of callees) {
       if (needsReview.has(callee)) continue;
       needsReview.add(callee);
       queue.push(callee);

@@ -314,14 +314,95 @@ describe('deadCode — từng quy tắc', () => {
     expect(rows(result)).toEqual([['blocks/_badge.liquid', 'certain', 'unreferenced']]);
   });
 
-  it('@theme mở cửa cho block công khai dù file khai nó là block', async () => {
+  it('@theme mở cửa cho block công khai dù file khai nó là block, miễn block đó đang được dùng', async () => {
+    // hero (có preset) gọi đích danh block riêng tư _group, và _group nhận
+    // "@theme": merchant thêm được text vào _group.
     const result = await withExtra(
-      [file('blocks/group.liquid', 'block'), file('blocks/text.liquid', 'block'), file('blocks/_note.liquid', 'block')],
+      [
+        file('sections/hero.liquid', 'section'),
+        file('blocks/_group.liquid', 'block'),
+        file('blocks/text.liquid', 'block'),
+        file('blocks/_note.liquid', 'block'),
+      ],
+      [ref('sections/hero.liquid', 'block', '_group', { source: 'schema' })],
+      [
+        { file: 'sections/hero.liquid', presets: 1, acceptsThemeBlocks: false },
+        { file: 'blocks/_group.liquid', presets: 0, acceptsThemeBlocks: true },
+      ],
+    );
+
+    expect(result.acceptsThemeBlocks).toBe(true);
+    expect(rows(result)).toEqual([['blocks/_note.liquid', 'certain', 'unreferenced']]);
+  });
+
+  it('file nhận @theme mà chính nó không ai dùng thì không cứu được block công khai', async () => {
+    // Trường hợp thật ở theme Purity: file duy nhất nhận "@theme" là một
+    // block riêng tư không ai gọi. Không có nó trên trang nào thì merchant
+    // cũng không thêm được block nào vào nó.
+    const result = await withExtra(
+      [file('blocks/_slide.liquid', 'block'), file('blocks/text.liquid', 'block'), file('snippets/text-icon.liquid', 'snippet')],
+      [ref('blocks/text.liquid', 'render', 'text-icon')],
+      [{ file: 'blocks/_slide.liquid', presets: 0, acceptsThemeBlocks: true }],
+    );
+
+    expect(result.acceptsThemeBlocks).toBe(false);
+    expect(rows(result)).toEqual([
+      ['blocks/_slide.liquid', 'certain', 'unreferenced'],
+      ['blocks/text.liquid', 'certain', 'unreferenced'],
+      ['snippets/text-icon.liquid', 'certain', 'only_used_by_unused'],
+    ]);
+  });
+
+  it('block công khai nhận @theme mà không ai dùng thì không tự cứu mình', async () => {
+    const result = await withExtra(
+      [file('blocks/group.liquid', 'block'), file('blocks/text.liquid', 'block')],
       [],
       [{ file: 'blocks/group.liquid', presets: 0, acceptsThemeBlocks: true }],
     );
 
-    expect(rows(result)).toEqual([['blocks/_note.liquid', 'certain', 'unreferenced']]);
+    expect(rows(result)).toEqual([
+      ['blocks/group.liquid', 'certain', 'unreferenced'],
+      ['blocks/text.liquid', 'certain', 'unreferenced'],
+    ]);
+  });
+
+  it('file nhận @theme chỉ ở mức cần xem lại thì block công khai cũng cần xem lại', async () => {
+    // Section không preset có thể được JavaScript tải; nếu vậy merchant thêm
+    // được block vào nó. Những gì block đó gọi cũng theo mức ấy.
+    const result = await withExtra(
+      [
+        file('sections/drawer.liquid', 'section'),
+        file('blocks/text.liquid', 'block'),
+        file('blocks/_note.liquid', 'block'),
+        file('snippets/text-icon.liquid', 'snippet'),
+        file('snippets/alone.liquid', 'snippet'),
+      ],
+      [ref('blocks/text.liquid', 'render', 'text-icon')],
+      [{ file: 'sections/drawer.liquid', presets: 0, acceptsThemeBlocks: true }],
+    );
+
+    expect(result.acceptsThemeBlocks).toBe(false);
+    expect(rows(result)).toEqual([
+      // Block riêng tư không được "@theme" mở cửa, nên vẫn chắc chắn.
+      ['blocks/_note.liquid', 'certain', 'unreferenced'],
+      // Một snippet không liên quan gì tới block cũng không bị kéo theo.
+      ['snippets/alone.liquid', 'certain', 'unreferenced'],
+      ['blocks/text.liquid', 'review', 'unreferenced'],
+      ['sections/drawer.liquid', 'review', 'unreferenced'],
+      ['snippets/text-icon.liquid', 'review', 'only_used_by_unused'],
+    ]);
+  });
+
+  it('block công khai được mở cửa lại kéo theo file nhận @theme khác', async () => {
+    // hero (đang dùng) nhận "@theme" -> group công khai được coi là đang dùng
+    // -> group gọi đích danh _inner.
+    const result = await withExtra(
+      [file('sections/hero.liquid', 'section'), file('blocks/group.liquid', 'block'), file('blocks/_inner.liquid', 'block')],
+      [ref('blocks/group.liquid', 'block', '_inner', { source: 'schema' })],
+      [{ file: 'sections/hero.liquid', presets: 1, acceptsThemeBlocks: true }],
+    );
+
+    expect(result.files).toEqual([]);
   });
 
   it('những gì block công khai gọi cũng được coi là đang dùng', async () => {
