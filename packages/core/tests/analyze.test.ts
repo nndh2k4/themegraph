@@ -45,9 +45,9 @@ describe('analyze', () => {
 
     expect(result.stats).toEqual({
       files: 13,
-      nodes: 19,
-      edges: 19,
-      refs: 15,
+      nodes: 22,
+      edges: 22,
+      refs: 18,
       nodesByKind: {
         asset: 1,
         block: 1,
@@ -58,12 +58,20 @@ describe('analyze', () => {
         page_type: 4,
         section: 1,
         section_group: 1,
+        setting: 3,
         snippet: 1,
         template: 4,
         translation_key: 2,
       },
-      edgesByType: { RENDERS: 9, USES_ASSET: 1, USES_LAYOUT: 3, USES_TEMPLATE: 4, USES_TRANSLATION: 2 },
-      refsByStatus: { missing: 2, none: 1, resolved: 12 },
+      edgesByType: {
+        READS_SETTING: 3,
+        RENDERS: 9,
+        USES_ASSET: 1,
+        USES_LAYOUT: 3,
+        USES_TEMPLATE: 4,
+        USES_TRANSLATION: 2,
+      },
+      refsByStatus: { missing: 2, none: 1, resolved: 15 },
     });
   });
 
@@ -79,7 +87,7 @@ describe('analyze', () => {
     // Fixture có sẵn .themegraph/graph.db chứa chữ, không phải SQLite.
     await analyze(themeRoot);
 
-    expect(query('SELECT count(*) AS n FROM nodes')).toEqual([{ n: 19 }]);
+    expect(query('SELECT count(*) AS n FROM nodes')).toEqual([{ n: 22 }]);
   });
 
   it('ghi dữ kiện schema của section và block vào database', async () => {
@@ -134,6 +142,50 @@ describe('analyze', () => {
     expect(result.missing.filter((r) => r.kind === 'translation')).toHaveLength(2);
   });
 
+  it('nối file tới setting nó đọc: toàn cục, của section, của theme block', async () => {
+    await analyze(themeRoot);
+
+    expect(query("SELECT src, dst FROM edges WHERE type = 'READS_SETTING' ORDER BY src")).toEqual([
+      { src: 'blocks/text.liquid', dst: 'setting:blocks/text.liquid#block.text' },
+      { src: 'layout/theme.liquid', dst: 'setting:settings.accent' },
+      { src: 'sections/hero.liquid', dst: 'setting:sections/hero.liquid#section.show_card' },
+    ]);
+  });
+
+  it('báo setting được đọc trực tiếp mà không được khai là tham chiếu hỏng', async () => {
+    await writeFile(
+      path.join(themeRoot, 'sections', 'promo.liquid'),
+      '{{ section.settings.title }}\n{{ settings.acent }}\n{% schema %}{ "name": "Promo", "settings": [{ "type": "text", "id": "heading" }] }{% endschema %}',
+    );
+
+    const result = await analyze(themeRoot);
+
+    expect(result.missing.filter((r) => r.kind === 'setting').map((r) => [r.from, r.line, r.target])).toEqual([
+      ['sections/promo.liquid', 1, 'setting:sections/promo.liquid#section.title'],
+      ['sections/promo.liquid', 2, 'setting:settings.acent'],
+    ]);
+  });
+
+  it('nối section.settings trong snippet tới section đang render nó', async () => {
+    // hero render card; cho card đọc setting của section.
+    await writeFile(path.join(themeRoot, 'snippets', 'card.liquid'), '{{ section.settings.show_card }}');
+
+    await analyze(themeRoot);
+
+    expect(query("SELECT dst FROM edges WHERE src = 'snippets/card.liquid' AND type = 'READS_SETTING'")).toEqual([
+      { dst: 'setting:sections/hero.liquid#section.show_card' },
+    ]);
+  });
+
+  it('ghi unresolved cho lần đọc trong snippet không tìm ra chủ, và không coi là hỏng', async () => {
+    await writeFile(path.join(themeRoot, 'snippets', 'card.liquid'), '{{ section.settings.khong_ai_khai }}');
+
+    const result = await analyze(themeRoot);
+
+    expect(result.stats.refsByStatus.unresolved).toBe(1);
+    expect(result.missing.some((r) => r.kind === 'setting')).toBe(false);
+  });
+
   it('liệt kê file bị bỏ qua', async () => {
     const result = await analyze(themeRoot);
 
@@ -180,8 +232,12 @@ describe('analyze', () => {
       'page:index',
       'sections/footer-group.json',
       'sections/hero.liquid',
+      // Câu SQL này đi qua mọi loại cạnh nên gặp cả setting và khoá dịch mà
+      // các file trên đường đi dùng tới.
+      'setting:blocks/text.liquid#block.text',
+      'setting:sections/hero.liquid#section.show_card',
+      'setting:settings.accent',
       'snippets/card.liquid',
-      // Câu SQL này đi qua mọi loại cạnh nên gặp cả khoá dịch mà hero và card dùng.
       't:cart.items',
       't:general.title',
       'templates/index.json',

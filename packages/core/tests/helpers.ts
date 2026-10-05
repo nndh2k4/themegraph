@@ -45,6 +45,17 @@ export const QUERY_SCHEMAS: FileSchema[] = [
 export const QUERY_KEYS = ['product.price', 'product.title', 'general.unused'];
 
 /**
+ * Setting của đồ thị mẫu: layout đọc accent, main-product đọc title của chính
+ * nó, card đọc section.settings.title (chỉ main-product khai), còn columns của
+ * grid không ai đọc.
+ */
+export const QUERY_SETTINGS = [
+  'setting:settings.accent',
+  'setting:sections/main-product.liquid#section.title',
+  'setting:sections/grid.liquid#section.columns',
+];
+
+/**
  * Đồ thị mẫu cho các test truy vấn. Mỗi phần của nó phục vụ một tình huống:
  *
  *   page:product    -> templates/product.json     -> sections/main-product.liquid -> snippets/card.liquid -> snippets/price.liquid
@@ -124,9 +135,13 @@ export function queryGraph(schemas: FileSchema[] = QUERY_SCHEMAS): ThemeGraph {
     ref('snippets/card.liquid', 'translation', 'product.price', { line: 14 }),
     ref('snippets/card.liquid', 'translation', 'product.price', { line: 31 }),
     ref('sections/main-product.liquid', 'translation', 'product.title', { line: 3, conditional: true }),
+
+    ref('layout/theme.liquid', 'setting', 'settings.accent', { line: 3 }),
+    ref('sections/main-product.liquid', 'setting', 'section.settings.title', { line: 2 }),
+    ref('snippets/card.liquid', 'setting', 'section.settings.title', { line: 6, conditional: true }),
   ];
 
-  return buildGraph(files, refs, { schemas, translationKeys: QUERY_KEYS });
+  return buildGraph(files, refs, { schemas, translationKeys: QUERY_KEYS, settings: QUERY_SETTINGS });
 }
 
 /**

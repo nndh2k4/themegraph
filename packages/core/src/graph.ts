@@ -1,3 +1,5 @@
+import { resolveSettingRef } from "./resolve-setting.js";
+import type { Ancestor } from "./resolve-setting.js";
 import { resolveRef, TRANSLATION_PREFIX } from "./resolver.js";
 import type {
   EdgeType,
@@ -34,6 +36,7 @@ const EDGE_TYPE_OF: Partial<Record<RefKind, EdgeType>> = {
   asset: "USES_ASSET",
   layout: "USES_LAYOUT",
   translation: "USES_TRANSLATION",
+  setting: "READS_SETTING",
 };
 
 /**
@@ -70,6 +73,7 @@ function pageTypeOf(templatePath: string): { page: string; alternate: boolean } 
  *     và sắp xếp chúng, không suy ra cạnh nào từ đó
  *   - translationKeys: các khoá dịch của locale mặc định; mỗi khoá thành một
  *     node, để ref loại translation có đích mà trỏ tới
+ *   - settings: id node của các setting theme định nghĩa
  *
  * Hàm thuần: không đọc đĩa, không phụ thuộc thứ tự đầu vào. Cùng một tập file
  * và ref luôn cho ra đúng một kết quả, đã sắp xếp.
@@ -79,7 +83,7 @@ export function buildGraph(
   rawRefs: readonly RawRef[],
   facts: GraphFacts = {},
 ): ThemeGraph {
-  const { schemas = [], translationKeys = [] } = facts;
+  const { schemas = [], translationKeys = [], settings = [] } = facts;
 
   const filePaths = new Set(files.map((file) => file.path));
 
@@ -97,8 +101,12 @@ export function buildGraph(
     nodes.set(id, { id, kind: "translation_key" });
   }
 
-  // Mọi thứ một ref có thể trỏ tới: file và khoá dịch. Loại trang không có ở
-  // đây vì không ref nào trỏ tới loại trang.
+  for (const id of settings) {
+    nodes.set(id, { id, kind: "setting" });
+  }
+
+  // Mọi thứ một ref có thể trỏ tới: file, khoá dịch và setting. Loại trang
+  // không có ở đây vì không ref nào trỏ tới loại trang.
   const knownPaths = new Set(nodes.keys());
 
   // ---- Cạnh -------------------------------------------------------------
@@ -156,7 +164,20 @@ export function buildGraph(
   // dùng layout) thì không nhận layout mặc định nữa.
   const templatesWithLayoutChoice = new Set<string>();
 
+  // Ref đọc setting phải đợi: muốn biết section.settings.x trong một snippet
+  // là setting của section nào thì phải có đủ cạnh RENDERS trước đã.
+  const settingRefs: RawRef[] = [];
+
+  // Các snippet nhận một tham số tên "settings" từ ít nhất một nơi gọi. Trong
+  // chúng, settings.x là đọc tham số đó, không phải setting toàn cục.
+  const settingsShadowedIn = new Set<string>();
+
   for (const ref of rawRefs) {
+    if (ref.kind === "setting") {
+      settingRefs.push(ref);
+      continue;
+    }
+
     const resolution = resolveRef(ref, knownPaths);
 
     if (ref.kind === "layout" || ref.kind === "no_layout") {
@@ -178,6 +199,8 @@ export function buildGraph(
     // vẫn nằm trong `refs` để tra cứu, nhưng không có node nào để trỏ tới.
     if (resolution.status !== "resolved") continue;
 
+    if (ref.passesSettings === true) settingsShadowedIn.add(resolution.path);
+
     const type = EDGE_TYPE_OF[ref.kind];
     if (type === undefined) continue;
 
@@ -192,6 +215,73 @@ export function buildGraph(
       if (templatesWithLayoutChoice.has(file.path)) continue;
 
       addEdge(file.path, DEFAULT_LAYOUT, "USES_LAYOUT", "convention", false);
+    }
+  }
+
+  // ---- Đọc setting ----------------------------------------------------------
+
+  const kindOf = new Map(files.map((file) => [file.path, file.kind]));
+
+  // "Ai render file này": chiều ngược của các cạnh RENDERS vừa dựng xong.
+  const renderersOf = new Map<string, string[]>();
+  for (const edge of edges.values()) {
+    if (edge.type !== "RENDERS") continue;
+    const list = renderersOf.get(edge.to) ?? [];
+    list.push(edge.from);
+    renderersOf.set(edge.to, list);
+  }
+
+  // Nhiều lần đọc trong cùng một file dùng chung một danh sách tổ tiên.
+  const ancestorsCache = new Map<string, Ancestor[]>();
+
+  /** Mọi file dẫn tới `path` qua một hay nhiều cạnh RENDERS, không kể chính nó. */
+  const ancestorsOf = (path: string): Ancestor[] => {
+    const cached = ancestorsCache.get(path);
+    if (cached !== undefined) return cached;
+
+    // Duyệt ngược theo chiều rộng; `seen` chặn vòng (snippet gọi lẫn nhau).
+    const seen = new Set([path]);
+    const queue = [path];
+    const found: Ancestor[] = [];
+
+    for (let current = queue.shift(); current !== undefined; current = queue.shift()) {
+      for (const renderer of renderersOf.get(current) ?? []) {
+        if (seen.has(renderer)) continue;
+        seen.add(renderer);
+        queue.push(renderer);
+
+        const kind = kindOf.get(renderer);
+        if (kind !== undefined) found.push({ path: renderer, kind });
+      }
+    }
+
+    // Không cần xếp: thứ tự ở đây chỉ quyết định thứ tự các dòng ref, mà
+    // danh sách ref được xếp lại theo đích ở cuối hàm.
+    ancestorsCache.set(path, found);
+    return found;
+  };
+
+  for (const ref of settingRefs) {
+    const shadowed = ref.to.startsWith("settings.") && settingsShadowedIn.has(ref.from);
+
+    const resolution = shadowed
+      ? ({ status: "unresolved" } as const)
+      : resolveSettingRef(ref, kindOf.get(ref.from), ancestorsOf(ref.from), knownPaths);
+
+    if (resolution.status !== "resolved") {
+      refs.push({
+        ...ref,
+        status: resolution.status,
+        target: resolution.status === "missing" ? resolution.expected : null,
+      });
+      continue;
+    }
+
+    // Một lần đọc trong snippet có thể ứng với setting của nhiều section:
+    // ghi một dòng ref và một cạnh cho mỗi đích.
+    for (const target of resolution.targets) {
+      refs.push({ ...ref, status: "resolved", target });
+      addEdge(ref.from, target, "READS_SETTING", ref.source, ref.conditional);
     }
   }
 
@@ -214,6 +304,8 @@ export function buildGraph(
         compareText(a.kind, b.kind) ||
         compareText(a.to, b.to) ||
         compareText(a.source, b.source) ||
+        // Một lần đọc setting có thể thành nhiều dòng, khác nhau ở đích.
+        compareText(a.target ?? "", b.target ?? "") ||
         // Khoá cuối cùng: hai lời gọi có thể giống nhau ở mọi trường trên mà
         // chỉ khác conditional (cùng một block dùng hai lần trong một template
         // JSON, một lần bị tắt). Không so trường này thì thứ tự của chúng sẽ

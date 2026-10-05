@@ -42,6 +42,11 @@ export interface DeadCodeResult {
   // sẵn. Luôn ở mức cần xem lại: khoá còn có thể được gọi bằng tên ghép lúc
   // chạy ('products.' | append: handle | t), thứ đồ thị không thấy.
   unusedTranslationKeys: string[];
+  // Setting có trong schema mà không file nào đọc bằng tên viết sẵn, ghi ở
+  // dạng id không có tiền tố 'setting:'. Cũng luôn ở mức cần xem lại: setting
+  // còn có thể được đọc bằng section.settings[ten_bien], và vài setting toàn
+  // cục do chính Shopify đọc (ví dụ các setting của trang thanh toán).
+  unusedSettings: string[];
 }
 
 /**
@@ -177,5 +182,22 @@ export function deadCode(graph: GraphHandle): DeadCodeResult {
     .all()
     .map((row) => String(row.key));
 
-  return { files, certain: files.length - review, review, acceptsThemeBlocks, unusedTranslationKeys };
+  // 'setting:' dài 8 ký tự; substr đếm từ 1 nên phần còn lại bắt đầu ở 9.
+  const unusedSettings = graph.db
+    .prepare(
+      `SELECT substr(id, 9) AS name FROM nodes
+       WHERE kind = 'setting' AND id NOT IN (SELECT dst FROM edges)
+       ORDER BY id`,
+    )
+    .all()
+    .map((row) => String(row.name));
+
+  return {
+    files,
+    certain: files.length - review,
+    review,
+    acceptsThemeBlocks,
+    unusedTranslationKeys,
+    unusedSettings,
+  };
 }

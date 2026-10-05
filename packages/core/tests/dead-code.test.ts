@@ -71,6 +71,18 @@ describe('deadCode — đồ thị mẫu', () => {
     expect(result.unusedTranslationKeys).toEqual(['general.unused']);
   });
 
+  it('liệt kê setting không file nào đọc, không kèm tiền tố setting:', async () => {
+    const result = await deadCodeOf(queryGraph());
+
+    expect(result.unusedSettings).toEqual(['sections/grid.liquid#section.columns']);
+  });
+
+  it('không đưa setting vào danh sách file', async () => {
+    const result = await deadCodeOf(queryGraph());
+
+    expect(result.files.some((f) => f.kind === 'setting')).toBe(false);
+  });
+
   it('không đưa khoá dịch vào danh sách file', async () => {
     const result = await deadCodeOf(queryGraph());
 
@@ -164,6 +176,7 @@ describe('deadCode — từng quy tắc', () => {
       review: 0,
       acceptsThemeBlocks: false,
       unusedTranslationKeys: [],
+      unusedSettings: [],
     });
   });
 
@@ -175,6 +188,14 @@ describe('deadCode — từng quy tắc', () => {
     );
 
     expect((await deadCodeOf(graph)).unusedTranslationKeys).toEqual(['a.first', 'z.last']);
+  });
+
+  it('xếp setting không đọc theo id, bỏ setting đang được đọc', async () => {
+    const graph = buildGraph(BASE_FILES, [...BASE_REFS, ref('sections/hero.liquid', 'setting', 'settings.used')], {
+      settings: ['setting:settings.zeta', 'setting:settings.used', 'setting:sections/hero.liquid#section.alpha'],
+    });
+
+    expect((await deadCodeOf(graph)).unusedSettings).toEqual(['sections/hero.liquid#section.alpha', 'settings.zeta']);
   });
 
   it('không bao giờ báo template, config hay locale', async () => {

@@ -45,8 +45,8 @@ describe('themegraph analyze', () => {
     expect(result.stderr).toBe('');
     expect(result.stdout).toContain(themeRoot);
     expect(result.stdout).toMatch(/File\s+13\b/);
-    expect(result.stdout).toMatch(/Node\s+19\b/);
-    expect(result.stdout).toMatch(/Cạnh\s+19\b/);
+    expect(result.stdout).toMatch(/Node\s+22\b/);
+    expect(result.stdout).toMatch(/Cạnh\s+22\b/);
     expect(result.stdout).toContain('RENDERS 9');
     expect(result.stdout).toContain('page_type 4');
     expect(result.stdout).toContain(path.join(themeRoot, '.themegraph', 'graph.db'));
@@ -61,7 +61,7 @@ describe('themegraph analyze', () => {
       const result = await runCli(['analyze']);
 
       expect(result.code).toBe(0);
-      expect(result.stdout).toMatch(/Node\s+19\b/);
+      expect(result.stdout).toMatch(/Node\s+22\b/);
     } finally {
       process.chdir(originalCwd);
     }
@@ -121,7 +121,7 @@ describe('themegraph analyze --json', () => {
     const json = JSON.parse(result.stdout) as { stats: { nodes: number }; missing: unknown[]; dbPath: string };
 
     expect(result.code).toBe(0);
-    expect(json.stats.nodes).toBe(19);
+    expect(json.stats.nodes).toBe(22);
     expect(json.missing).toHaveLength(2);
     expect(json.dbPath).toBe(path.join(themeRoot, '.themegraph', 'graph.db'));
   });
@@ -365,6 +365,9 @@ describe('themegraph context', () => {
       '',
       'Khoá dịch (1):',
       '  general.title  dòng 1',
+      '',
+      'Setting được đọc (1):',
+      '  sections/hero.liquid#section.show_card  dòng 2',
     ]);
   });
 
@@ -400,6 +403,30 @@ describe('themegraph context', () => {
       ['Khoá dịch (2):', '  cart.items     dòng 1, 3', '  general.title  dòng 2     [có điều kiện]'].join('\n'),
     );
     expect(css.stdout).not.toContain('Khoá dịch');
+  });
+
+  it('cho biết section.settings trong một snippet là setting của section nào', async () => {
+    await writeFile(
+      path.join(themeRoot, 'snippets', 'card.liquid'),
+      '{% if section.settings.show_card %}\n  {% if a %}{{ settings.accent }}{% endif %}\n{% endif %}',
+    );
+    await runCli(['analyze', themeRoot]);
+
+    const result = await runCli(['context', 'snippets/card.liquid', '-t', themeRoot]);
+
+    expect(result.stdout).toContain(
+      [
+        'Setting được đọc (2):',
+        '  sections/hero.liquid#section.show_card  dòng 1',
+        '  settings.accent                         dòng 2  [có điều kiện]',
+      ].join('\n'),
+    );
+  });
+
+  it('không in mục setting khi file không đọc setting nào', async () => {
+    const result = await runCli(['context', 'assets/base.css', '-t', themeRoot]);
+
+    expect(result.stdout).not.toContain('Setting được đọc');
   });
 
   it('hỏi được về một khoá dịch bằng id t:<khoá>', async () => {
@@ -543,6 +570,35 @@ describe('themegraph dead-code', () => {
     expect(lines.slice(4, 7)).toEqual(['', 'Khoá dịch không file nào gọi bằng tên viết sẵn (1), cần xem lại:', '  cart.old']);
   });
 
+  it('in mục setting không đọc sau mục khoá dịch', async () => {
+    await writeFile(
+      path.join(themeRoot, 'config', 'settings_schema.json'),
+      JSON.stringify([{ name: 'Colors', settings: [{ type: 'color', id: 'accent' }, { type: 'color', id: 'old_color' }] }]),
+    );
+    await writeFile(path.join(themeRoot, 'locales', 'en.default.json'), JSON.stringify({ general: { title: 'x', old: 'y' }, cart: { items: 'n' } }));
+    await runCli(['analyze', themeRoot]);
+
+    const result = await runCli(['dead-code', '-t', themeRoot]);
+
+    expect(result.stdout.split('\n')).toEqual([
+      'Không tìm thấy file nào không được dùng.',
+      '',
+      'Khoá dịch không file nào gọi bằng tên viết sẵn (1), cần xem lại:',
+      '  general.old',
+      "  Khoá vẫn có thể được gọi bằng tên ghép lúc chạy, ví dụ 'products.' | append: handle | t.",
+      '',
+      'Setting không file nào đọc bằng tên viết sẵn (1), cần xem lại:',
+      '  settings.old_color',
+      '  Setting vẫn có thể được đọc bằng tên là biến (section.settings[ten]), hoặc do chính Shopify đọc.',
+    ]);
+  });
+
+  it('không in mục setting khi mọi setting đều được đọc', async () => {
+    const result = await runCli(['dead-code', '-t', themeRoot]);
+
+    expect(result.stdout).not.toContain('Setting không file nào đọc');
+  });
+
   it('in JSON với --json', async () => {
     await writeFile(path.join(themeRoot, 'snippets', 'old.liquid'), '<p>cu</p>');
     await runCli(['analyze', themeRoot]);
@@ -584,7 +640,7 @@ describe('themegraph verify', () => {
 
     expect(result.code).toBe(0);
     expect(lines.slice(0, 6)).toEqual([
-      'Đã đối chiếu 38 phép duyệt (19 node × 2 chiều), 188 cặp so sánh.',
+      'Đã đối chiếu 44 phép duyệt (22 node × 2 chiều), 246 cặp so sánh.',
       '',
       '  Sai khác giữa SQL và BFS   0',
       '  Lỗi toàn vẹn của database  0',
@@ -679,7 +735,7 @@ describe('themegraph — lệnh đã build', () => {
       encoding: 'utf8',
     });
 
-    expect(stdout).toMatch(/Node\s+19\b/);
+    expect(stdout).toMatch(/Node\s+22\b/);
     expect(existsSync(path.join(themeRoot, '.themegraph', 'graph.db'))).toBe(true);
   });
 

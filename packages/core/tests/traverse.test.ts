@@ -25,7 +25,12 @@ const ids = (start: string, edgeTypes?: Parameters<typeof traverse>[3]) =>
 
 describe('traverse — lọc theo loại cạnh', () => {
   it('đi qua mọi loại cạnh khi không có tuỳ chọn', () => {
-    expect(ids('snippets/card.liquid')).toEqual(['snippets/card.liquid', 'snippets/price.liquid', 't:product.price']);
+    expect(ids('snippets/card.liquid')).toEqual([
+      'snippets/card.liquid',
+      'setting:sections/main-product.liquid#section.title',
+      'snippets/price.liquid',
+      't:product.price',
+    ]);
   });
 
   it('chỉ đi qua các loại cạnh được liệt kê', () => {
@@ -92,5 +97,60 @@ describe('traverse — lọc theo loại cạnh', () => {
 
   it('trả về chỉ node xuất phát khi danh sách loại cạnh rỗng', () => {
     expect(ids('snippets/card.liquid', { edgeTypes: [] })).toEqual(['snippets/card.liquid']);
+  });
+});
+
+describe('traverse — đường đi dài và vòng', () => {
+  /** Dựng một chuỗi snippet s00 -> s01 -> ... dài `length` node, rồi chạy `run` trên nó. */
+  async function withChain<T>(length: number, loopBack: boolean, run: (chain: GraphHandle) => T): Promise<T> {
+    const name = (i: number) => `s${String(i).padStart(2, '0')}`;
+    const files = [file('layout/theme.liquid', 'layout')];
+    const refs = [];
+
+    for (let i = 0; i < length; i++) {
+      files.push(file(`snippets/${name(i)}.liquid`, 'snippet'));
+      if (i > 0) refs.push(ref(`snippets/${name(i - 1)}.liquid`, 'render', name(i)));
+    }
+    // Vòng: node cuối gọi lại node đầu.
+    if (loopBack) refs.push(ref(`snippets/${name(length - 1)}.liquid`, 'render', name(0)));
+
+    const root = await saveToTempTheme(buildGraph(files, refs));
+    const chain = openGraph(root);
+    try {
+      return run(chain);
+    } finally {
+      chain.close();
+      await removeTempTheme(root);
+    }
+  }
+
+  it('tính đúng độ sâu của node nằm xa hơn mức chặn ban đầu', async () => {
+    // Mức chặn ban đầu là 16; chuỗi 40 node buộc truy vấn phải nới mức chặn.
+    const reached = await withChain(40, false, (chain) => traverse(chain, 'snippets/s00.liquid', 'forward'));
+
+    expect(reached).toHaveLength(40);
+    expect(reached.map((n) => n.depth)).toEqual(Array.from({ length: 40 }, (_, i) => i));
+    expect(reached.at(-1)).toMatchObject({ id: 'snippets/s39.liquid', depth: 39 });
+  });
+
+  it('cũng đúng theo chiều ngược', async () => {
+    const reached = await withChain(40, false, (chain) => traverse(chain, 'snippets/s39.liquid', 'backward'));
+
+    expect(reached.at(-1)).toMatchObject({ id: 'snippets/s00.liquid', depth: 39 });
+  });
+
+  it('dừng được và tính đúng trên một vòng dài hơn mức chặn ban đầu', async () => {
+    const reached = await withChain(40, true, (chain) => traverse(chain, 'snippets/s10.liquid', 'forward'));
+
+    expect(reached).toHaveLength(40);
+    // Đi xuôi từ s10: s11 cách 1, s39 cách 29, rồi quay về s00 cách 30, s09 cách 39.
+    expect(reached.find((n) => n.id === 'snippets/s39.liquid')?.depth).toBe(29);
+    expect(reached.find((n) => n.id === 'snippets/s09.liquid')?.depth).toBe(39);
+  });
+
+  it('trả mảng rỗng cho node không có trong đồ thị', async () => {
+    const reached = await withChain(3, false, (chain) => traverse(chain, 'snippets/khong-co.liquid', 'forward'));
+
+    expect(reached).toEqual([]);
   });
 });

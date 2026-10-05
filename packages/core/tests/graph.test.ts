@@ -344,3 +344,201 @@ describe('buildGraph — khoá dịch', () => {
     expect(graph.edges.filter((e) => e.type === 'USES_LAYOUT').length).toBeGreaterThan(0);
   });
 });
+
+describe('buildGraph — setting', () => {
+  const SETTINGS = [
+    'setting:settings.accent',
+    'setting:sections/main-product.liquid#section.title',
+    'setting:sections/main-product.liquid#block.heading',
+    'setting:blocks/_text.liquid#block.text',
+  ];
+  const read = (from: string, to: string, extra: { line?: number; conditional?: boolean } = {}) =>
+    ref(from, 'setting', to, extra);
+
+  const settingEdges = (graph: Graph) =>
+    graph.edges.filter((e) => e.type === 'READS_SETTING').map((e) => `${e.from} -> ${e.to}`);
+
+  it('tạo một node cho mỗi setting được khai', () => {
+    const graph = buildGraph(FILES, [], { settings: SETTINGS });
+
+    expect(graph.nodes.filter((n) => n.kind === 'setting').map((n) => n.id)).toEqual([...SETTINGS].sort());
+  });
+
+  it('nối file tới setting nó đọc trực tiếp, gộp các lần đọc trùng', () => {
+    const graph = buildGraph(
+      FILES,
+      [
+        read('layout/theme.liquid', 'settings.accent', { line: 3 }),
+        read('sections/main-product.liquid', 'section.settings.title', { line: 2 }),
+        read('sections/main-product.liquid', 'section.settings.title', { line: 9, conditional: true }),
+        read('sections/main-product.liquid', 'block.settings.heading', { line: 12 }),
+        read('blocks/_text.liquid', 'block.settings.text', { line: 1 }),
+      ],
+      { settings: SETTINGS },
+    );
+
+    expect(settingEdges(graph)).toEqual([
+      'blocks/_text.liquid -> setting:blocks/_text.liquid#block.text',
+      'layout/theme.liquid -> setting:settings.accent',
+      'sections/main-product.liquid -> setting:sections/main-product.liquid#block.heading',
+      'sections/main-product.liquid -> setting:sections/main-product.liquid#section.title',
+    ]);
+    expect(graph.edges.find((e) => e.to.endsWith('#section.title'))).toMatchObject({ count: 2, conditional: false });
+  });
+
+  it('nối lần đọc trong snippet tới setting của section đang render nó, qua nhiều tầng', () => {
+    // main-product -> card -> price; price đọc section.settings.title.
+    const graph = buildGraph(
+      FILES,
+      [
+        ref('sections/main-product.liquid', 'render', 'card'),
+        ref('snippets/card.liquid', 'render', 'price'),
+        read('snippets/price.liquid', 'section.settings.title', { line: 4 }),
+      ],
+      { settings: SETTINGS },
+    );
+
+    expect(settingEdges(graph)).toEqual([
+      'snippets/price.liquid -> setting:sections/main-product.liquid#section.title',
+    ]);
+  });
+
+  it('một lần đọc trong snippet thành một cạnh và một dòng ref cho MỖI section có khai', () => {
+    const files = [...FILES, file('sections/grid.liquid', 'section')];
+    const graph = buildGraph(
+      files,
+      [
+        ref('sections/main-product.liquid', 'render', 'card'),
+        ref('sections/grid.liquid', 'render', 'card'),
+        read('snippets/card.liquid', 'section.settings.title', { line: 4 }),
+      ],
+      { settings: [...SETTINGS, 'setting:sections/grid.liquid#section.title'] },
+    );
+
+    expect(settingEdges(graph)).toEqual([
+      'snippets/card.liquid -> setting:sections/grid.liquid#section.title',
+      'snippets/card.liquid -> setting:sections/main-product.liquid#section.title',
+    ]);
+    expect(graph.refs.filter((r) => r.kind === 'setting').map((r) => [r.line, r.status, r.target])).toEqual([
+      [4, 'resolved', 'setting:sections/grid.liquid#section.title'],
+      [4, 'resolved', 'setting:sections/main-product.liquid#section.title'],
+    ]);
+  });
+
+  it('ghi missing cho lần đọc trực tiếp một setting không được khai, không tạo cạnh', () => {
+    const graph = buildGraph(FILES, [read('sections/main-product.liquid', 'section.settings.gone', { line: 7 })], {
+      settings: SETTINGS,
+    });
+
+    expect(settingEdges(graph)).toEqual([]);
+    expect(graph.refs.map((r) => [r.to, r.status, r.target])).toEqual([
+      ['section.settings.gone', 'missing', 'setting:sections/main-product.liquid#section.gone'],
+    ]);
+  });
+
+  it('ghi unresolved, không phải missing, cho lần đọc trong snippet mà không tìm ra chủ', () => {
+    const graph = buildGraph(FILES, [read('snippets/card.liquid', 'section.settings.title', { line: 4 })], {
+      settings: SETTINGS,
+    });
+
+    expect(settingEdges(graph)).toEqual([]);
+    expect(graph.refs.map((r) => [r.to, r.status, r.target])).toEqual([['section.settings.title', 'unresolved', null]]);
+  });
+
+  it('dừng được khi các snippet gọi vòng lẫn nhau', () => {
+    const graph = buildGraph(
+      FILES,
+      [
+        ref('sections/main-product.liquid', 'render', 'card'),
+        ref('snippets/card.liquid', 'render', 'price'),
+        ref('snippets/price.liquid', 'render', 'card'),
+        read('snippets/price.liquid', 'section.settings.title'),
+      ],
+      { settings: SETTINGS },
+    );
+
+    expect(settingEdges(graph)).toEqual([
+      'snippets/price.liquid -> setting:sections/main-product.liquid#section.title',
+    ]);
+  });
+
+  it('không đi qua cạnh asset hay layout khi tìm section tổ tiên', () => {
+    // Template dùng layout: đó không phải quan hệ "render snippet này".
+    const graph = buildGraph(
+      FILES,
+      [
+        ref('templates/product.json', 'section', 'main-product', { source: 'json' }),
+        read('layout/theme.liquid', 'section.settings.title'),
+      ],
+      { settings: SETTINGS },
+    );
+
+    expect(graph.refs.find((r) => r.kind === 'setting')?.status).toBe('unresolved');
+  });
+
+  it('không coi file gọi một asset là tổ tiên của asset đó', () => {
+    // Asset dạng .liquid có thể chứa Liquid, nhưng Shopify chạy nó tách khỏi
+    // mọi section: section.settings ở đó không thuộc về section nào.
+    const files = [...FILES, file('assets/theme.css.liquid', 'asset')];
+    const graph = buildGraph(
+      files,
+      [
+        ref('sections/main-product.liquid', 'asset', 'theme.css'),
+        read('assets/theme.css.liquid', 'section.settings.title'),
+      ],
+      { settings: SETTINGS },
+    );
+
+    expect(edgeKeys(graph)).toContain('sections/main-product.liquid -USES_ASSET-> assets/theme.css.liquid');
+    expect(graph.refs.find((r) => r.kind === 'setting')?.status).toBe('unresolved');
+  });
+
+  it('không nối settings.x trong snippet nhận tham số tên settings', () => {
+    const graph = buildGraph(
+      FILES,
+      [
+        { ...ref('sections/main-product.liquid', 'render', 'card'), passesSettings: true },
+        read('snippets/card.liquid', 'settings.accent', { line: 2 }),
+        read('snippets/card.liquid', 'settings.width', { line: 3 }),
+        read('snippets/price.liquid', 'settings.accent', { line: 1 }),
+      ],
+      { settings: SETTINGS },
+    );
+
+    // card nhận tham số settings nên cả hai lần đọc ở đó đều bị bỏ, kể cả lần
+    // trùng tên với một setting toàn cục có thật. price thì không bị ảnh hưởng.
+    expect(settingEdges(graph)).toEqual(['snippets/price.liquid -> setting:settings.accent']);
+    expect(graph.refs.filter((r) => r.kind === 'setting').map((r) => [r.from, r.to, r.status])).toEqual([
+      ['snippets/card.liquid', 'settings.accent', 'unresolved'],
+      ['snippets/card.liquid', 'settings.width', 'unresolved'],
+      ['snippets/price.liquid', 'settings.accent', 'resolved'],
+    ]);
+  });
+
+  it('tham số settings không ảnh hưởng tới section.settings trong cùng snippet', () => {
+    const graph = buildGraph(
+      FILES,
+      [
+        { ...ref('sections/main-product.liquid', 'render', 'card'), passesSettings: true },
+        read('snippets/card.liquid', 'section.settings.title'),
+      ],
+      { settings: SETTINGS },
+    );
+
+    expect(settingEdges(graph)).toEqual(['snippets/card.liquid -> setting:sections/main-product.liquid#section.title']);
+  });
+
+  it('cho cùng kết quả dù ref được đưa vào theo thứ tự nào', () => {
+    const files = [...FILES, file('sections/grid.liquid', 'section')];
+    const refs = [
+      ref('sections/main-product.liquid', 'render', 'card'),
+      ref('sections/grid.liquid', 'render', 'card'),
+      read('snippets/card.liquid', 'section.settings.title', { line: 4 }),
+      read('snippets/card.liquid', 'section.settings.title', { line: 4, conditional: true }),
+      read('layout/theme.liquid', 'settings.accent'),
+    ];
+    const facts = { settings: [...SETTINGS, 'setting:sections/grid.liquid#section.title'] };
+
+    expect(buildGraph(files, [...refs].reverse(), facts)).toEqual(buildGraph(files, refs, facts));
+  });
+});

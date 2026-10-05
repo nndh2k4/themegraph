@@ -27,7 +27,7 @@ describe('extractRefs', () => {
       { path: 'assets/app.js', kind: 'asset', ext: 'js' },
       { path: 'locales/fr.json', kind: 'locale', ext: 'json' },
       { path: 'locales/en.default.schema.json', kind: 'locale_schema', ext: 'json' },
-      { path: 'config/settings_schema.json', kind: 'config', ext: 'json' },
+      { path: 'config/settings_data.json', kind: 'config', ext: 'json' },
     ];
 
     // Nội dung cố ý không phải JSON hợp lệ: các file này không được đem đi parse.
@@ -56,7 +56,12 @@ describe('extractFile', () => {
 
     expect(fromJson.refs.map((r) => r.to)).toEqual(['hero']);
     expect(fromJson.schema).toBeNull();
-    expect(core.extractFile(asset, 'body {}')).toEqual({ refs: [], schema: null, translationKeys: [] });
+    expect(core.extractFile(asset, 'body {}')).toEqual({
+      refs: [],
+      schema: null,
+      translationKeys: [],
+      settings: [],
+    });
   });
 });
 

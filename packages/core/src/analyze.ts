@@ -73,6 +73,7 @@ export async function analyze(themeRoot: string): Promise<AnalyzeResult> {
   const rawRefs: RawRef[] = [];
   const schemas: FileSchema[] = [];
   const translationKeys: string[] = [];
+  const settings: string[] = [];
   const errors: AnalyzeError[] = [];
 
   for (const file of files) {
@@ -86,6 +87,7 @@ export async function analyze(themeRoot: string): Promise<AnalyzeResult> {
 
       rawRefs.push(...extraction.refs);
       translationKeys.push(...extraction.translationKeys);
+      settings.push(...extraction.settings);
       if (extraction.schema !== null) {
         schemas.push({ file: file.path, ...extraction.schema });
       }
@@ -100,7 +102,7 @@ export async function analyze(themeRoot: string): Promise<AnalyzeResult> {
   }
 
   // Bước 4: dựng đồ thị (phân giải tên thô thành file, gộp cạnh, thêm loại trang).
-  const graph = buildGraph(files, rawRefs, { schemas, translationKeys });
+  const graph = buildGraph(files, rawRefs, { schemas, translationKeys, settings });
 
   // Bước 5: ghi xuống đĩa.
   saveGraph(root, graph);

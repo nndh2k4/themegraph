@@ -36,6 +36,11 @@ function conventionalPath(ref: RawRef): string | null {
       return TRANSLATION_PREFIX + ref.to;
     case "no_layout":
       return null;
+    case "setting":
+      // Đích của một lần đọc setting còn tuỳ file nào render file đang đọc,
+      // điều hàm này không biết. buildGraph xử lý loại ref này riêng, bằng
+      // resolveSettingRef.
+      return null;
   }
 }
 

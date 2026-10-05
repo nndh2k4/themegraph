@@ -1,1 +1,10 @@
-{}
+[
+  { "name": "theme_info", "theme_name": "Mini" },
+  {
+    "name": "Colors",
+    "settings": [
+      { "type": "header", "content": "Brand" },
+      { "type": "color", "id": "accent", "label": "Accent" }
+    ]
+  }
+]

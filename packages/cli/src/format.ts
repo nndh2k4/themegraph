@@ -58,6 +58,11 @@ function translationKey(id: string): string {
   return id.startsWith("t:") ? id.slice("t:".length) : id;
 }
 
+/** Bỏ tiền tố "setting:" để còn lại đúng phần mô tả setting thuộc đâu. */
+function settingName(id: string): string {
+  return id.startsWith("setting:") ? id.slice("setting:".length) : id;
+}
+
 /** "page:product" -> "product": tên trang như người dùng gõ. */
 function pageName(id: string): string {
   return id.startsWith("page:") ? id.slice("page:".length) : id;
@@ -183,7 +188,7 @@ function linkNotes(link: ContextLink): string {
 }
 
 export function formatContext(result: ContextResult): string[] {
-  const { node, usedBy, uses, translations, broken, pages } = result;
+  const { node, usedBy, uses, translations, settings, broken, pages } = result;
   const lines = [`${node.id} (${node.kind})`];
 
   // Với chính một loại trang thì câu "thuộc trang nào" không có nghĩa.
@@ -221,6 +226,19 @@ export function formatContext(result: ContextResult): string[] {
       ...table(
         translations.map((link) => [
           translationKey(link.id),
+          `dòng ${link.lines.join(", ")}`,
+          link.conditional ? CONDITIONAL : "",
+        ]),
+      ),
+    );
+  }
+
+  if (settings.length > 0) {
+    lines.push("", `Setting được đọc (${settings.length}):`);
+    lines.push(
+      ...table(
+        settings.map((link) => [
+          settingName(link.id),
           `dòng ${link.lines.join(", ")}`,
           link.conditional ? CONDITIONAL : "",
         ]),
@@ -272,9 +290,23 @@ function unusedKeyLines(keys: readonly string[]): string[] {
   ];
 }
 
+/** Mục setting không thấy đọc; rỗng khi không có setting nào. */
+function unusedSettingLines(settings: readonly string[]): string[] {
+  if (settings.length === 0) return [];
+
+  return [
+    "",
+    `Setting không file nào đọc bằng tên viết sẵn (${settings.length}), cần xem lại:`,
+    ...settings.map((setting) => `  ${setting}`),
+    "  Setting vẫn có thể được đọc bằng tên là biến (section.settings[ten]), hoặc do chính Shopify đọc.",
+  ];
+}
+
 export function formatDeadCode(result: DeadCodeResult): string[] {
+  const extras = [...unusedKeyLines(result.unusedTranslationKeys), ...unusedSettingLines(result.unusedSettings)];
+
   if (result.files.length === 0) {
-    return ["Không tìm thấy file nào không được dùng.", ...unusedKeyLines(result.unusedTranslationKeys)];
+    return ["Không tìm thấy file nào không được dùng.", ...extras];
   }
 
   const certain = result.files.filter((entry) => entry.confidence === "certain");
@@ -300,7 +332,7 @@ export function formatDeadCode(result: DeadCodeResult): string[] {
     lines.push("  File khác trong mục này: chỉ được gọi bởi một file cần xem lại.");
   }
 
-  lines.push(...unusedKeyLines(result.unusedTranslationKeys));
+  lines.push(...extras);
   return lines;
 }
 

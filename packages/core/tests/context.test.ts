@@ -140,6 +140,43 @@ describe('context', () => {
     expect(result.translations).toEqual([]);
   });
 
+  it('tách setting được đọc khỏi danh sách file, và cho biết setting thuộc section nào', () => {
+    const result = context(graph, 'snippets/card.liquid');
+
+    // card đọc section.settings.title; trong hai section gọi nó chỉ
+    // main-product khai setting này.
+    expect(result.uses.map((l) => l.id)).toEqual(['snippets/price.liquid']);
+    expect(result.settings).toEqual([
+      {
+        id: 'setting:sections/main-product.liquid#section.title',
+        kind: 'setting',
+        type: 'READS_SETTING',
+        conditional: true,
+        count: 1,
+        sources: 'liquid',
+        lines: [6],
+      },
+    ]);
+  });
+
+  it('không lẫn setting vào danh sách khoá dịch và ngược lại', () => {
+    const result = context(graph, 'sections/main-product.liquid');
+
+    expect(result.translations.map((l) => l.id)).toEqual(['t:product.title']);
+    expect(result.settings.map((l) => l.id)).toEqual(['setting:sections/main-product.liquid#section.title']);
+  });
+
+  it('cho biết file nào đọc một setting', () => {
+    const result = context(graph, 'setting:sections/main-product.liquid#section.title');
+
+    expect(result.node.kind).toBe('setting');
+    expect(result.usedBy.map((l) => [l.id, l.lines])).toEqual([
+      ['sections/main-product.liquid', [2]],
+      ['snippets/card.liquid', [6]],
+    ]);
+    expect(result.settings).toEqual([]);
+  });
+
   it('hiện cạnh tự trỏ ở cả hai phía', () => {
     const { usedBy, uses } = context(graph, 'snippets/menu.liquid');
 

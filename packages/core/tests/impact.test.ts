@@ -146,6 +146,16 @@ describe('impact', () => {
     ]);
   });
 
+  it('đi ngược từ một setting lên các file đọc nó và các trang', () => {
+    const result = impact(graph, 'setting:sections/main-product.liquid#section.title');
+
+    expect(rows(result.affected).slice(0, 2)).toEqual([
+      ['sections/main-product.liquid', 1, true],
+      ['snippets/card.liquid', 1, false],
+    ]);
+    expect(result.pages.map((p) => p.id)).toEqual(['page:product', 'page:collection']);
+  });
+
   it('khoá dịch không lọt vào kết quả khi hỏi về một file', () => {
     // Khoá dịch chỉ nhận cạnh vào, nên đi ngược từ một file không bao giờ gặp nó.
     const kinds = impact(graph, 'snippets/price.liquid').affected.map((n) => n.kind);

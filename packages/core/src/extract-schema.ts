@@ -1,3 +1,5 @@
+import { settingIdsOf } from "./extract-settings.js";
+
 /** Kiểu của một object JSON bất kỳ sau khi parse. */
 type JsonObject = Record<string, unknown>;
 
@@ -24,6 +26,11 @@ export interface ParsedSchema {
   blockTypes: string[]; // tên các theme block (file trong blocks/) được nhắc tới
   presets: number; // số mục trong "presets"
   acceptsThemeBlocks: boolean; // "blocks" có mục "@theme" hay không
+  settings: string[]; // id của các setting khai ở tầng ngoài cùng của schema
+  // Id của các setting khai trong block CỤC BỘ, gộp mọi loại block lại và bỏ
+  // trùng. Gộp vì mã đọc chúng qua cùng một cách viết, block.settings.x, và
+  // khi đọc mã không biết lúc đó block thuộc loại nào.
+  blockSettings: string[];
 }
 
 /**
@@ -41,7 +48,9 @@ export interface ParsedSchema {
  */
 export function parseSchema(schemaBody: string): ParsedSchema {
   const schema: unknown = JSON.parse(schemaBody);
-  if (!isObject(schema)) return { blockTypes: [], presets: 0, acceptsThemeBlocks: false };
+  if (!isObject(schema)) {
+    return { blockTypes: [], presets: 0, acceptsThemeBlocks: false, settings: [], blockSettings: [] };
+  }
 
   // Block CỤC BỘ: khai báo ngay trong schema, nhận ra nhờ có "name" (Shopify
   // bắt buộc block cục bộ phải có name; mục tham chiếu theme block thì chỉ có type).
@@ -104,5 +113,7 @@ export function parseSchema(schemaBody: string): ParsedSchema {
     // Chỉ xét "blocks" ở tầng ngoài cùng: đó là nơi schema khai nó nhận gì.
     // "@theme" nằm trong presets không có nghĩa này.
     acceptsThemeBlocks: declared.some((block) => block.type === "@theme"),
+    settings: settingIdsOf(schema.settings),
+    blockSettings: [...new Set(declared.flatMap((block) => settingIdsOf(block.settings)))],
   };
 }

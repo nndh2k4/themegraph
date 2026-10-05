@@ -9,7 +9,7 @@ import { VERSION } from "./version.js";
  * Phiên bản của lược đồ bảng bên dưới. Tăng số này mỗi khi đổi cấu trúc bảng,
  * để công cụ đọc biết một graph.db cũ có còn dùng được hay phải analyze lại.
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /** Thư mục công cụ ghi dữ liệu vào, nằm ngay trong thư mục theme. */
 const DATA_DIR = ".themegraph";

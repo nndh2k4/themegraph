@@ -64,8 +64,8 @@ describe('renderFlow — danh sách file', () => {
     const result = renderFlow(graph, 'page:product');
     const inTree = flatten(result.tree).map((n) => n.id);
 
-    expect(result.files.some((f) => f.kind === 'translation_key')).toBe(false);
-    expect(inTree.some((id) => id.startsWith('t:'))).toBe(false);
+    expect(result.files.some((f) => f.kind === 'translation_key' || f.kind === 'setting')).toBe(false);
+    expect(inTree.some((id) => id.startsWith('t:') || id.startsWith('setting:'))).toBe(false);
   });
 
   it('không kể node gốc trong danh sách file', () => {

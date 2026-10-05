@@ -118,9 +118,11 @@ describe('extractLiquidRefs — section và sections', () => {
   });
 
   it('không coi {% schema %} hay biến section.settings là lời gọi section', () => {
+    // Biến section.settings.title là một lần ĐỌC SETTING (kind setting), xem
+    // nhóm test "đọc setting" ở cuối file; ở đây chỉ xét ref loại section.
     const content = '{{ section.settings.title }}\n{% schema %}{ "name": "Hero" }{% endschema %}';
 
-    expect(briefLayout(content)).toEqual([]);
+    expect(extractLiquidRefs(SECTION, content).filter((r) => r.kind === 'section')).toEqual([]);
   });
 });
 
@@ -417,6 +419,7 @@ describe('extractLiquid — dữ kiện schema', () => {
       refs: [],
       schema: null,
       translationKeys: [],
+      settings: [],
     });
   });
 
@@ -447,6 +450,7 @@ describe('extractLiquid — dữ kiện schema', () => {
       refs: [],
       schema: { presets: 0, acceptsThemeBlocks: false },
       translationKeys: [],
+      settings: [],
     });
   });
 
@@ -518,5 +522,208 @@ describe('extractLiquidRefs — khoá dịch', () => {
       ['asset', 'base.css', 1],
       ['translation', 'a.b', 1],
     ]);
+  });
+});
+
+describe('extractLiquid — setting khai trong schema', () => {
+  const BLOCK: ThemeFile = { path: 'blocks/text.liquid', kind: 'block', ext: 'liquid' };
+  const withSchema = (schema: unknown) => `{% schema %}${JSON.stringify(schema)}{% endschema %}`;
+
+  it('ghi setting của section dưới dạng đọc bằng section.settings', () => {
+    const schema = { name: 'Hero', settings: [{ type: 'text', id: 'title' }, { type: 'header', content: 'x' }] };
+
+    expect(extractLiquid(SECTION, withSchema(schema)).settings).toEqual(['setting:sections/hero.liquid#section.title']);
+  });
+
+  it('ghi setting của theme block dưới dạng đọc bằng block.settings', () => {
+    const schema = { name: 'Text', settings: [{ type: 'text', id: 'text' }] };
+
+    expect(extractLiquid(BLOCK, withSchema(schema)).settings).toEqual(['setting:blocks/text.liquid#block.text']);
+  });
+
+  it('gộp setting của các block cục bộ, bỏ id trùng giữa các loại block', () => {
+    const schema = {
+      name: 'Footer',
+      settings: [{ type: 'checkbox', id: 'show_social' }],
+      blocks: [
+        { type: 'link_list', name: 'Menu', settings: [{ type: 'text', id: 'heading' }, { type: 'link_list', id: 'menu' }] },
+        { type: 'text', name: 'Text', settings: [{ type: 'text', id: 'heading' }, { type: 'richtext', id: 'subtext' }] },
+        { type: '@app' },
+      ],
+    };
+
+    expect(extractLiquid(SECTION, withSchema(schema)).settings).toEqual([
+      'setting:sections/hero.liquid#section.show_social',
+      'setting:sections/hero.liquid#block.heading',
+      'setting:sections/hero.liquid#block.menu',
+      'setting:sections/hero.liquid#block.subtext',
+    ]);
+  });
+
+  it('trả mảng rỗng khi file không có schema hoặc schema không có setting', () => {
+    expect(extractLiquid(SECTION, '<div></div>').settings).toEqual([]);
+    expect(extractLiquid(SECTION, withSchema({ name: 'Hero' })).settings).toEqual([]);
+  });
+});
+
+describe('extractLiquidRefs — đọc setting', () => {
+  const settingRefs = (content: string, file: ThemeFile = SECTION) =>
+    extractLiquidRefs(file, content)
+      .filter((r) => r.kind === 'setting')
+      .map((r) => [r.to, r.line, r.conditional]);
+
+  it('sinh ref setting cho ba cách đọc', () => {
+    const content = '{{ settings.cart_type }}\n{{ section.settings.title }}\n{{ block.settings.text | escape }}';
+
+    expect(extractLiquidRefs(SECTION, content)).toEqual([
+      { from: 'sections/hero.liquid', to: 'settings.cart_type', kind: 'setting', source: 'liquid', conditional: false, line: 1 },
+      { from: 'sections/hero.liquid', to: 'section.settings.title', kind: 'setting', source: 'liquid', conditional: false, line: 2 },
+      { from: 'sections/hero.liquid', to: 'block.settings.text', kind: 'setting', source: 'liquid', conditional: false, line: 3 },
+    ]);
+  });
+
+  it('chỉ lấy tên setting, bỏ phần truy cập sâu hơn', () => {
+    const content = '{{ section.settings.image.alt }}{{ settings.colors.accent }}';
+
+    expect(settingRefs(content).map((r) => r[0])).toEqual(['section.settings.image', 'settings.colors']);
+  });
+
+  it('bắt được lần đọc trong điều kiện, trong tham số của render và trong {% style %}', () => {
+    const content = [
+      '{% if section.settings.show %}x{% endif %}',
+      "{% render 'card', size: block.settings.size %}",
+      '{% style %}.a { width: {{ settings.page_width }}px; }{% endstyle %}',
+    ].join('\n');
+
+    expect(settingRefs(content).map((r) => [r[0], r[1]])).toEqual([
+      ['section.settings.show', 1],
+      ['block.settings.size', 2],
+      ['settings.page_width', 3],
+    ]);
+  });
+
+  it('nhận tên setting viết trong ngoặc vuông với chuỗi cố định', () => {
+    expect(settingRefs("{{ section.settings['title'] }}").map((r) => r[0])).toEqual(['section.settings.title']);
+  });
+
+  it('bỏ qua khi tên setting là biến, và khi chỉ nhắc tới cả đối tượng settings', () => {
+    const content = '{{ section.settings[name] }}{{ settings[key] }}{{ section.settings }}{{ settings }}';
+
+    expect(settingRefs(content)).toEqual([]);
+  });
+
+  it('không nhầm thuộc tính khác của section và block', () => {
+    expect(settingRefs('{{ section.id }}{{ block.shopify_attributes }}{{ section.blocks.size }}')).toEqual([]);
+  });
+
+  it('không nhầm biến khác có thuộc tính settings', () => {
+    expect(settingRefs('{{ product.settings.title }}{{ item.settings.title }}')).toEqual([]);
+  });
+
+  it('coi biến lặp trên section.blocks là block', () => {
+    const content = '{% for item in section.blocks %}{{ item.settings.heading }}{% endfor %}';
+
+    expect(settingRefs(content)).toEqual([['block.settings.heading', 1, true]]);
+  });
+
+  it('không coi biến lặp trên danh sách khác là block', () => {
+    const content = '{% for item in collection.products %}{{ item.settings.heading }}{% endfor %}';
+
+    expect(settingRefs(content)).toEqual([]);
+  });
+
+  it('điều kiện của chính tag if không bị tính là có điều kiện, phần thân thì có', () => {
+    const content = '{% if section.settings.show %}{{ section.settings.title }}{% endif %}';
+
+    expect(settingRefs(content)).toEqual([
+      ['section.settings.show', 1, false],
+      ['section.settings.title', 1, true],
+    ]);
+  });
+
+  it('điều kiện của if lồng trong một if khác vẫn là có điều kiện', () => {
+    const content = '{% if a %}{% if section.settings.show %}x{% endif %}{% endif %}';
+
+    expect(settingRefs(content)).toEqual([['section.settings.show', 1, true]]);
+  });
+});
+
+describe('extractLiquidRefs — tên tắt của settings', () => {
+  const names = (content: string) =>
+    extractLiquidRefs(SECTION, content)
+      .filter((r) => r.kind === 'setting')
+      .map((r) => r.to);
+
+  it('hiểu tên tắt gán từ section.settings, block.settings và settings', () => {
+    const content = [
+      '{% liquid',
+      '  assign section_st = section.settings',
+      '  assign block_st = block.settings',
+      '  assign theme_st = settings',
+      '%}',
+      '{{ section_st.title }}{{ block_st.text }}{{ theme_st.page_width }}',
+    ].join('\n');
+
+    expect(names(content)).toEqual(['section.settings.title', 'block.settings.text', 'settings.page_width']);
+  });
+
+  it('ghi đúng dòng của lần đọc, không phải dòng gán tên tắt', () => {
+    const refs = extractLiquidRefs(SECTION, '{% assign st = section.settings %}\n\n{{ st.title }}');
+
+    expect(refs.map((r) => [r.to, r.line])).toEqual([['section.settings.title', 3]]);
+  });
+
+  it('tên tắt có hiệu lực cả khi lệnh gán nằm phía sau trong file', () => {
+    expect(names('{{ st.title }}{% assign st = section.settings %}')).toEqual(['section.settings.title']);
+  });
+
+  it('hiểu tên tắt gán từ biến lặp trên section.blocks', () => {
+    const content = '{% for item in section.blocks %}{% assign bs = item.settings %}{{ bs.heading }}{% endfor %}';
+
+    expect(names(content)).toEqual(['block.settings.heading']);
+  });
+
+  it('không coi là tên tắt khi phép gán có filter hoặc trỏ sâu hơn settings', () => {
+    const content = [
+      '{% assign a = section.settings | json %}',
+      '{% assign b = section.settings.title %}',
+      '{% assign c = section %}',
+      "{% assign d = 'settings' %}",
+      '{{ a.x }}{{ b.y }}{{ c.z }}{{ d.w }}',
+    ].join('\n');
+
+    // Chỉ còn lần đọc thật ở dòng 2.
+    expect(names(content)).toEqual(['section.settings.title']);
+  });
+
+  it('không coi phép gán từ một setting toàn cục cụ thể là tên tắt của settings', () => {
+    // c là giá trị của MỘT setting; c.accent không phải settings.accent.
+    expect(names('{% assign c = settings.colors %}{{ c.accent }}')).toEqual(['settings.colors']);
+  });
+
+  it('không coi biến thường là tên tắt', () => {
+    expect(names('{% assign st = product %}{{ st.title }}')).toEqual([]);
+  });
+});
+
+describe('extractLiquidRefs — render truyền tham số settings', () => {
+  const renders = (content: string) =>
+    extractLiquidRefs(SECTION, content)
+      .filter((r) => r.kind === 'render')
+      .map((r) => [r.to, r.passesSettings]);
+
+  it('đánh dấu lời gọi render có tham số tên settings', () => {
+    const content = "{% render 'size-style', settings: block.settings, is_group: true %}\n{% render 'card', size: 2 %}";
+
+    expect(renders(content)).toEqual([
+      ['size-style', true],
+      ['card', undefined],
+    ]);
+  });
+
+  it('không thêm trường passesSettings vào ref thường', () => {
+    const [ref] = extractLiquidRefs(SECTION, "{% render 'card' %}");
+
+    expect(ref).not.toHaveProperty('passesSettings');
   });
 });

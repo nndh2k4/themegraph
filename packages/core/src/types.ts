@@ -37,6 +37,9 @@ export interface ScanResult {
  *   thị biết không được gán layout mặc định theme.liquid cho template đó.
  * - translation: dùng một khoá dịch qua filter t, ví dụ {{ 'cart.title' | t }}.
  *   `to` là khoá ('cart.title'), không phải tên file.
+ * - setting: đọc một setting. `to` là cách mã viết: 'settings.x' (toàn cục),
+ *   'section.settings.x' hoặc 'block.settings.x'. Setting đó thuộc file nào
+ *   thì tầng dựng đồ thị mới xác định được, vì còn tuỳ ai render file này.
  */
 export type RefKind =
   | "render"
@@ -47,7 +50,8 @@ export type RefKind =
   | "asset"
   | "layout"
   | "no_layout"
-  | "translation";
+  | "translation"
+  | "setting";
 
 /**
  * Nơi quan hệ được khai báo.
@@ -72,6 +76,11 @@ export interface RawRef {
   source: RefSource;
   conditional: boolean; // true nếu lời gọi nằm trong if / unless / case / for
   line: number; // dòng mở tag, đếm từ 1; ref lấy từ file JSON thì là 0
+  // Chỉ có ở ref render / include, và chỉ khi lời gọi truyền một tham số tên
+  // "settings": {% render 'size-style', settings: block.settings %}. Bên trong
+  // snippet đó, chữ settings là tham số này chứ không còn là setting toàn cục
+  // của theme, nên các lần đọc settings.x ở đó không được nối vào đâu cả.
+  passesSettings?: true;
 }
 
 /**
@@ -94,6 +103,9 @@ export interface Extraction {
   // Các khoá dịch file này ĐỊNH NGHĨA. Chỉ file locale mặc định mới có; mọi
   // file khác trả mảng rỗng.
   translationKeys: string[];
+  // Id node của các setting file này ĐỊNH NGHĨA: trong {% schema %} của nó,
+  // hoặc trong config/settings_schema.json với setting toàn cục.
+  settings: string[];
 }
 
 /** Dữ kiện schema của một file cụ thể, dạng lưu trong đồ thị. */
@@ -109,6 +121,8 @@ export interface GraphFacts {
   schemas?: readonly FileSchema[];
   // Mọi khoá dịch của locale mặc định, dạng 'general.cart.title'.
   translationKeys?: readonly string[];
+  // Id node của mọi setting theme định nghĩa (xem settingNodeId).
+  settings?: readonly string[];
 }
 
 /**
@@ -121,18 +135,22 @@ export interface GraphFacts {
  *   không phải lỗi, nhưng cũng không thành cạnh trong đồ thị.
  * - missing: tham chiếu HỎNG. `expected` là đường dẫn lẽ ra phải có.
  * - none: ref không trỏ tới đâu (no_layout).
+ * - unresolved: không xác định được đích khi chỉ đọc mã. Chỉ gặp ở ref đọc
+ *   setting: một snippet đọc section.settings.x mà không section nào gọi nó
+ *   khai x. Không phải lỗi, chỉ là giới hạn của phân tích tĩnh.
  */
 export type Resolution =
   | { status: "resolved"; path: string }
   | { status: "local_block" }
   | { status: "missing"; expected: string }
-  | { status: "none" };
+  | { status: "none" }
+  | { status: "unresolved" };
 
 /**
  * Loại node trong đồ thị: mọi loại file, cộng thêm các thứ không phải file:
- * loại trang và khoá dịch.
+ * loại trang, khoá dịch và setting.
  */
-export type NodeKind = FileKind | "page_type" | "translation_key";
+export type NodeKind = FileKind | "page_type" | "translation_key" | "setting";
 
 /**
  * Một node của đồ thị.
@@ -141,6 +159,7 @@ export type NodeKind = FileKind | "page_type" | "translation_key";
  * - Node loại trang: `id` có tiền tố 'page:' (ví dụ 'page:product'), để không
  *   bao giờ trùng với đường dẫn của một file.
  * - Node khoá dịch: `id` có tiền tố 't:' (ví dụ 't:general.cart.title').
+ * - Node setting: `id` có tiền tố 'setting:' (xem settingNodeId).
  */
 export interface GraphNode {
   id: string;
@@ -156,13 +175,20 @@ export interface GraphNode {
  *                  section group, block)
  * - USES_ASSET:    file này tham chiếu một file trong assets/
  * - USES_TRANSLATION: file này dùng một khoá dịch qua filter t
+ * - READS_SETTING: file này đọc giá trị của một setting
  */
-export type EdgeType = "USES_TEMPLATE" | "USES_LAYOUT" | "RENDERS" | "USES_ASSET" | "USES_TRANSLATION";
+export type EdgeType =
+  | "USES_TEMPLATE"
+  | "USES_LAYOUT"
+  | "RENDERS"
+  | "USES_ASSET"
+  | "USES_TRANSLATION"
+  | "READS_SETTING";
 
 /**
  * Các loại cạnh nối FILE với FILE (và loại trang với template). Đi theo đúng
- * các cạnh này là đi theo luồng render của theme; cạnh tới khoá dịch không
- * thuộc luồng đó.
+ * các cạnh này là đi theo luồng render của theme; cạnh tới khoá dịch và tới
+ * setting không thuộc luồng đó.
  */
 export const FILE_EDGE_TYPES: readonly EdgeType[] = ["USES_TEMPLATE", "USES_LAYOUT", "RENDERS", "USES_ASSET"];
 
@@ -191,7 +217,7 @@ export interface GraphEdge {
 export interface ResolvedRef extends RawRef {
   status: Resolution["status"];
   // resolved: id của node đích; missing: id lẽ ra phải có;
-  // local_block và none: null.
+  // local_block, none và unresolved: null.
   target: string | null;
 }
 

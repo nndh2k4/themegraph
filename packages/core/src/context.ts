@@ -5,8 +5,9 @@ import type { GraphHandle } from "./open.js";
 import type { Reached } from "./traverse.js";
 import type { EdgeType, GraphNode, NodeKind, RefKind } from "./types.js";
 
-/** Cạnh tới khoá dịch, tách khỏi danh sách "file này gọi file nào". */
+/** Hai loại cạnh không nối tới file, tách khỏi danh sách "file này gọi file nào". */
 const TRANSLATION_EDGE: EdgeType = "USES_TRANSLATION";
+const SETTING_EDGE: EdgeType = "READS_SETTING";
 
 /** Một quan hệ trực tiếp giữa node đang hỏi và một node khác. */
 export interface ContextLink {
@@ -36,6 +37,9 @@ export interface ContextResult {
   usedBy: ContextLink[]; // ai dùng trực tiếp node này
   uses: ContextLink[]; // node này dùng trực tiếp những FILE nào
   translations: ContextLink[]; // các khoá dịch node này dùng
+  // Các setting node này đọc. Id của mỗi setting cho biết nó thuộc file nào,
+  // tức trả lời được "section.settings.x trong snippet này là của section nào".
+  settings: ContextLink[];
   broken: BrokenRef[]; // tham chiếu hỏng nằm trong file này
   pages: Reached[]; // các loại trang đi tới được node này, qua bao nhiêu tầng cũng tính
   totalPages: number;
@@ -104,15 +108,16 @@ export function context(graph: GraphHandle, name: string, options: FindNodeOptio
   // "File này thuộc trang nào" chính là phần trang của truy vấn impact.
   const { pages, totalPages } = impact(graph, node.id);
 
-  // Một section dùng vài chục khoá dịch là chuyện thường. Để lẫn chúng vào
-  // danh sách file được gọi thì danh sách đó hết đọc nổi, nên tách riêng.
+  // Một section dùng vài chục khoá dịch và setting là chuyện thường. Để lẫn
+  // chúng vào danh sách file được gọi thì danh sách đó hết đọc nổi, nên tách riêng.
   const outgoing = links("src", "dst");
 
   return {
     node,
     usedBy: links("dst", "src"),
-    uses: outgoing.filter((link) => link.type !== TRANSLATION_EDGE),
+    uses: outgoing.filter((link) => link.type !== TRANSLATION_EDGE && link.type !== SETTING_EDGE),
     translations: outgoing.filter((link) => link.type === TRANSLATION_EDGE),
+    settings: outgoing.filter((link) => link.type === SETTING_EDGE),
     broken,
     pages,
     totalPages,

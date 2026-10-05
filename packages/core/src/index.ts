@@ -10,9 +10,13 @@ export { extractFile, extractRefs } from './extract.js';
 export { extractJsonRefs } from './extract-json.js';
 export { extractLiquid, extractLiquidRefs } from './extract-liquid.js';
 export { collectTranslationKeys, isDefaultLocale } from './extract-locale.js';
+export { collectGlobalSettings, isGlobalSettingsSchema, SETTING_PREFIX, settingNodeId } from './extract-settings.js';
+export type { SettingObject } from './extract-settings.js';
 
 // Resolver: quan hệ thô -> file thật trong theme.
 export { resolveRef, TRANSLATION_PREFIX } from './resolver.js';
+export { resolveSettingRef } from './resolve-setting.js';
+export type { Ancestor, SettingResolution } from './resolve-setting.js';
 
 // Đồ thị: danh sách file + quan hệ thô -> node và cạnh.
 export { buildGraph } from './graph.js';
