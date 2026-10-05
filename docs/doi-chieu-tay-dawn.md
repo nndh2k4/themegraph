@@ -52,3 +52,24 @@ Phép kiểm chứng này chỉ xác nhận hai cách duyệt cho cùng kết qu
 - **Tên ghép lúc chạy.** `{{ 'icon-' | append: name | asset_url }}` không sinh cạnh, vì tên file chỉ có khi chạy. Đây là lý do 47 asset của Dawn nằm ở mức "cần xem lại".
 - **JavaScript và CSS.** Nội dung của file trong `assets/` không được phân tích. Section được tải qua Section Rendering API (trường hợp 10) vì thế không có cạnh trỏ vào.
 - **Mức "chắc chắn" hiếm gặp ở `impact`.** Phần lớn lời gọi trong theme nằm trong `{% if %}` hoặc `{% for %}`, nên phần lớn quan hệ mang nhãn "có điều kiện".
+
+## Sau vòng hai của đồ thị
+
+Các số liệu ở trên đo khi đồ thị chỉ có file và loại trang. Vòng hai thêm khoá dịch và setting làm node, nên đồ thị lớn hơn nhiều; bốn truy vấn về file cho cùng kết quả như trước, vì `render-flow` chỉ đi theo cạnh nối file với file.
+
+| | Dawn | Purity |
+| --- | --- | --- |
+| Node / cạnh | 1299 / 1830 | 3811 / 5444 |
+| Khoá dịch (được dùng / tổng) | 261 / 371 | 533 / 536 |
+| Setting (được đọc / tổng) | 571 / 571 | 2555 / 2736 |
+| Khoá dịch được gọi mà không tồn tại | 0 | 0 |
+| Setting được đọc mà không tồn tại | 4 | 90 |
+| `verify`: cặp đã so / sai khác | 26374 / 0 | 138110 / 0 |
+
+Bốn lần đọc setting hỏng của Dawn đã được dò lại bằng `grep` và đều là thật:
+
+- `settings.media_padding` ở `layout/theme.liquid:139` và `layout/password.liquid:81`: `config/settings_schema.json` không có setting này.
+- `settings.color_background` ở `templates/gift_card.liquid:10`: cũng không có.
+- `section.settings.product_show_vendor` ở `sections/main-search.liquid:274`: schema của section khai `show_vendor`, không khai `product_show_vendor`.
+
+Với Purity, 90 lần đọc hỏng mới được soi theo nhóm, chưa dò từng dòng. Các ca đã mở ra xem (`section_st.banner_image` trong `image-with-text-overlay`, `settings.rtl` trong `header`) đều là đọc một setting mà schema không khai.
