@@ -123,3 +123,44 @@ describe('extractLiquidRefs — section và sections', () => {
     expect(briefLayout(content)).toEqual([]);
   });
 });
+
+describe('extractLiquidRefs — content_for', () => {
+  const BLOCK: ThemeFile = { path: 'blocks/_form.liquid', kind: 'block', ext: 'liquid' };
+
+  const briefBlock = (content: string) =>
+    extractLiquidRefs(BLOCK, content).map((r) => [r.kind, r.to, r.line]);
+
+  it("sinh ref block từ content_for 'block' có type là chuỗi", () => {
+    const content = "{% content_for 'block', type: '_submit-button', id: 'button' %}";
+
+    expect(extractLiquidRefs(BLOCK, content)).toEqual([
+      { from: 'blocks/_form.liquid', to: '_submit-button', kind: 'block', source: 'liquid', conditional: false, line: 1 },
+    ]);
+  });
+
+  it('lấy đúng type dù tham số viết theo thứ tự khác', () => {
+    const content = "<div>\n{%- content_for 'block', id: 'text', type: '_custom-text' -%}\n</div>";
+
+    expect(briefBlock(content)).toEqual([['block', '_custom-text', 2]]);
+  });
+
+  it("không sinh ref cho content_for 'blocks'", () => {
+    // Dạng số nhiều render mọi block con mà merchant đặt trong theme editor.
+    // Block nào thì nằm trong JSON template, không biết được từ mã Liquid.
+    const content = "{% content_for 'blocks' %}\n{% content_for 'blocks', closest.product: product %}";
+
+    expect(briefBlock(content)).toEqual([]);
+  });
+
+  it("chỉ dạng số ít 'block' mới sinh ref, kể cả khi dạng 'blocks' có tham số type", () => {
+    // Shopify không định nghĩa type cho dạng số nhiều; nếu ai đó viết vậy thì
+    // cũng không được coi là lời gọi tới một block cụ thể.
+    expect(briefBlock("{% content_for 'blocks', type: '_text' %}")).toEqual([]);
+  });
+
+  it("bỏ qua content_for 'block' có type là biến hoặc thiếu type", () => {
+    const content = "{% content_for 'block', type: block_type, id: 'a' %}\n{% content_for 'block', id: 'b' %}";
+
+    expect(briefBlock(content)).toEqual([]);
+  });
+});

@@ -21,7 +21,8 @@ function lineAt(content: string, offset: number): number {
  *
  * Nhận nội dung file dưới dạng chuỗi thay vì tự đọc đĩa, giống extractJsonRefs.
  *
- * Hiện trích: {% render %}, {% include %}, {% section %}, {% sections %}.
+ * Hiện trích: {% render %}, {% include %}, {% section %}, {% sections %},
+ * {% content_for 'block' %}.
  */
 export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
   // Chỉ file .liquid mới chứa mã Liquid. Asset (.css, .js) có thể chứa chuỗi
@@ -94,6 +95,27 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
       if (typeof node.markup === "string") return;
 
       addRef("section_group", node.markup.value, node.position.start);
+      return;
+    }
+
+    // {% content_for 'block', type: '_ten', id: '...' %}: chèn một theme block
+    // cố định (static block), tức file blocks/_ten.liquid.
+    if (node.name === "content_for") {
+      if (typeof node.markup === "string") return;
+
+      // Dạng số nhiều {% content_for 'blocks' %} render mọi block con mà
+      // merchant đặt trong theme editor. Block nào được đặt thì ghi trong JSON
+      // template, không đọc ra được từ mã Liquid, nên không sinh ref ở đây.
+      if (node.markup.contentForType.value !== "block") return;
+
+      // Tham số viết dạng tên: giá trị, thứ tự tuỳ ý; tìm tham số tên "type".
+      const typeArg = node.markup.args.find((arg) => arg.name === "type");
+
+      // Thiếu type, hoặc type là biến thì không biết block nào khi đọc mã.
+      if (typeArg === undefined) return;
+      if (typeArg.value.type !== NodeTypes.String) return;
+
+      addRef("block", typeArg.value.value, node.position.start);
     }
   });
 
