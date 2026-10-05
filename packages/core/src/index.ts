@@ -1,4 +1,4 @@
-export const VERSION = '0.1.0';
+export { VERSION } from './version.js';
 
 export * from './types.js';
 
@@ -15,3 +15,7 @@ export { resolveRef } from './resolver.js';
 
 // Đồ thị: danh sách file + quan hệ thô -> node và cạnh.
 export { buildGraph } from './graph.js';
+
+// Lưu trữ: đồ thị -> <theme>/.themegraph/graph.db.
+export { graphDbPath, saveGraph, SCHEMA_VERSION } from './store.js';
+export type { SaveGraphOptions } from './store.js';
