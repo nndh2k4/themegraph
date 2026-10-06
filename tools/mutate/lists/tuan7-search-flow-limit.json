@@ -230,8 +230,8 @@
  [
   "packages/core/src/format.ts",
   "impact khong cat",
-  "        options,\n        \"file\",\n      ),\n    );\n  }\n\n  return lines;\n}\n\n// ---- render-flow",
-  "        {},\n        \"file\",\n      ),\n    );\n  }\n\n  return lines;\n}\n\n// ---- render-flow"
+  "        options,\n        \"file\",\n      ),\n    );\n\n    if (offPage.size > 0) {",
+  "        {},\n        \"file\",\n      ),\n    );\n\n    if (offPage.size > 0) {"
  ],
  [
   "packages/cli/src/run.ts",

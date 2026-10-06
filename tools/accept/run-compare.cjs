@@ -49,11 +49,16 @@ const ARMS = {
 /** Mục `item` có được nhắc tới trong câu trả lời không. */
 function mentioned(item, answer) {
   const escaped = item.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  // Mặc định: tên đứng trong dấu `, hoặc ngay sau một dấu / (đường dẫn), có
+  // Mặc định: tên đứng trong dấu `, hoặc ngay sau một dấu / hay \ (đường dẫn), có
   // thể kèm đuôi .liquid. Tránh khớp nhầm các tên là từ thường như "page".
-  const pattern = item.match ?? `\`${escaped}(\\.liquid)?\`|/${escaped}(\\.liquid)?(?![\\w-])`;
+  const pattern = item.match ?? `\`${escaped}(\\.liquid)?\`|[/\\\\]${escaped}(\\.liquid)?(?![\\w-])`;
   return new RegExp(pattern, "i").test(answer);
 }
+
+// Model dùng cho MỌI lượt của một đợt. Ghim lại để tài khoản có đổi model mặc
+// định giữa chừng thì lượt chạy thất bại rõ ràng, thay vì lặng lẽ chạy bằng
+// model khác và cho ra số liệu không so được.
+const MODEL = process.env.ACCEPT_MODEL ?? "claude-opus-5-5";
 
 function runOnce(question, arm, repeat) {
   const label = `${question.id}-${arm}-${repeat}`;
@@ -61,7 +66,17 @@ function runOnce(question, arm, repeat) {
   const started = Date.now();
   const run = spawnSync(
     "claude",
-    ["-p", question.question, "--output-format", "stream-json", "--verbose", "--disable-slash-commands", ...ARMS[arm]],
+    [
+      "-p",
+      question.question,
+      "--model",
+      MODEL,
+      "--output-format",
+      "stream-json",
+      "--verbose",
+      "--disable-slash-commands",
+      ...ARMS[arm],
+    ],
     { cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, timeout: 600000 },
   );
   const seconds = Math.round((Date.now() - started) / 1000);
@@ -71,6 +86,7 @@ function runOnce(question, arm, repeat) {
   let answer = "";
   let cost = null;
   let servers = "";
+  const models = new Set();
   for (const line of (run.stdout ?? "").split("\n")) {
     let event;
     try {
@@ -82,6 +98,7 @@ function runOnce(question, arm, repeat) {
       servers = (event.mcp_servers ?? []).map((s) => `${s.name}:${s.status}`).join(", ");
     }
     if (event.type === "assistant") {
+      if (event.message?.model) models.add(event.message.model);
       for (const block of event.message?.content ?? []) {
         if (block.type === "tool_use") calls.push(block.name);
       }
@@ -106,6 +123,7 @@ function runOnce(question, arm, repeat) {
     themegraphCalls: calls.filter((name) => name.startsWith("mcp__themegraph__")).length,
     cost,
     servers,
+    models: [...models],
     score: hit.length,
     outOf: question.expected.length,
     missed,
@@ -119,6 +137,7 @@ function runOnce(question, arm, repeat) {
       `## ${label}`,
       `Câu hỏi: ${question.question}`,
       `MCP: ${servers || "(không có)"}`,
+      `Model: ${[...models].join(", ") || "(không rõ)"}`,
       `Thời gian: ${seconds} giây; ${calls.length} lời gọi tool (${calls.join(", ")})`,
       `Điểm: ${hit.length}/${question.expected.length}; sót: ${missed.join(", ") || "không"}; điểm cộng: ${bonus.join(", ") || "không"}`,
       "Câu trả lời:",
