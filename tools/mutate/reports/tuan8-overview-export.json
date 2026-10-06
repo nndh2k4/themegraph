@@ -1,0 +1,197 @@
+{
+  "tests": [
+    "packages/core/tests/overview-export.test.ts",
+    "packages/cli/tests/run.test.ts"
+  ],
+  "timeoutMs": 180000,
+  "totals": {
+    "tong": 30,
+    "bat": 27,
+    "bienDich": 0,
+    "lot": 3,
+    "quaGio": 0,
+    "khongThay": 0
+  },
+  "results": [
+    {
+      "file": "packages/core/src/overview.ts",
+      "name": "dem ca file tu goi minh",
+      "outcome": "bat",
+      "summary": "2 failed | 143 passed (145)"
+    },
+    {
+      "file": "packages/core/src/overview.ts",
+      "name": "cong so loi goi",
+      "outcome": "bat",
+      "summary": "2 failed | 143 passed (145)"
+    },
+    {
+      "file": "packages/core/src/overview.ts",
+      "name": "tinh ca template",
+      "outcome": "bat",
+      "summary": "1 failed | 144 passed (145)"
+    },
+    {
+      "file": "packages/core/src/overview.ts",
+      "name": "tinh ca canh khong phai file",
+      "outcome": "bat",
+      "summary": "3 failed | 142 passed (145)"
+    },
+    {
+      "file": "packages/core/src/overview.ts",
+      "name": "xep tang dan",
+      "outcome": "bat",
+      "summary": "3 failed | 142 passed (145)"
+    },
+    {
+      "file": "packages/core/src/overview.ts",
+      "name": "bang nhau khong xep theo id",
+      "outcome": "bat",
+      "summary": "2 failed | 143 passed (145)"
+    },
+    {
+      "file": "packages/core/src/overview.ts",
+      "name": "gioi han 11",
+      "outcome": "bat",
+      "summary": "1 failed | 144 passed (145)"
+    },
+    {
+      "file": "packages/core/src/overview.ts",
+      "name": "page giu tien to",
+      "outcome": "bat",
+      "summary": "2 failed | 143 passed (145)"
+    },
+    {
+      "file": "packages/core/src/overview.ts",
+      "name": "page khong xep",
+      "outcome": "bat",
+      "summary": "2 failed | 143 passed (145)"
+    },
+    {
+      "file": "packages/core/src/overview.ts",
+      "name": "broken dem ca unresolved",
+      "outcome": "bat",
+      "summary": "3 failed | 142 passed (145)"
+    },
+    {
+      "file": "packages/core/src/overview.ts",
+      "name": "nodes dem sai",
+      "outcome": "bat",
+      "summary": "1 failed | 144 passed (145)"
+    },
+    {
+      "file": "packages/core/src/overview.ts",
+      "name": "edges dem sai",
+      "outcome": "bat",
+      "summary": "1 failed | 144 passed (145)"
+    },
+    {
+      "file": "packages/core/src/overview.ts",
+      "name": "unused certain la review",
+      "outcome": "bat",
+      "summary": "1 failed | 144 passed (145)"
+    },
+    {
+      "file": "packages/core/src/overview.ts",
+      "name": "unused keys la settings",
+      "outcome": "LOT",
+      "summary": "145 passed (145)"
+    },
+    {
+      "file": "packages/core/src/overview.ts",
+      "name": "refs theo kind",
+      "outcome": "bat",
+      "summary": "4 failed | 141 passed (145)"
+    },
+    {
+      "file": "packages/core/src/overview.ts",
+      "name": "nodesByKind khong xep",
+      "outcome": "bat",
+      "summary": "2 failed | 143 passed (145)"
+    },
+    {
+      "file": "packages/core/src/export-graph.ts",
+      "name": "luon xuat het",
+      "outcome": "bat",
+      "summary": "2 failed | 143 passed (145)"
+    },
+    {
+      "file": "packages/core/src/export-graph.ts",
+      "name": "khong bao gio xuat nhom",
+      "outcome": "bat",
+      "summary": "2 failed | 143 passed (145)"
+    },
+    {
+      "file": "packages/core/src/export-graph.ts",
+      "name": "nham hai nhom",
+      "outcome": "bat",
+      "summary": "1 failed | 144 passed (145)"
+    },
+    {
+      "file": "packages/core/src/export-graph.ts",
+      "name": "giu canh thieu dau dich",
+      "outcome": "bat",
+      "summary": "3 failed | 142 passed (145)"
+    },
+    {
+      "file": "packages/core/src/export-graph.ts",
+      "name": "giu canh thieu dau nguon",
+      "outcome": "LOT",
+      "summary": "145 passed (145)"
+    },
+    {
+      "file": "packages/core/src/export-graph.ts",
+      "name": "conditional luon sai",
+      "outcome": "bat",
+      "summary": "1 failed | 144 passed (145)"
+    },
+    {
+      "file": "packages/core/src/export-graph.ts",
+      "name": "dao chieu canh",
+      "outcome": "bat",
+      "summary": "2 failed | 143 passed (145)"
+    },
+    {
+      "file": "packages/core/src/export-graph.ts",
+      "name": "node khong xep",
+      "outcome": "bat",
+      "summary": "2 failed | 143 passed (145)"
+    },
+    {
+      "file": "packages/core/src/export-graph.ts",
+      "name": "canh khong xep",
+      "outcome": "bat",
+      "summary": "1 failed | 144 passed (145)"
+    },
+    {
+      "file": "packages/core/src/export-graph.ts",
+      "name": "count luon 1",
+      "outcome": "bat",
+      "summary": "1 failed | 144 passed (145)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "overview luon in muc dung nhieu",
+      "outcome": "bat",
+      "summary": "1 failed | 144 passed (145)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "overview nham certain review",
+      "outcome": "LOT",
+      "summary": "145 passed (145)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "overview in so trang sai",
+      "outcome": "bat",
+      "summary": "2 failed | 143 passed (145)"
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "overview goi nham ham",
+      "outcome": "bat",
+      "summary": "1 failed | 144 passed (145)"
+    }
+  ]
+}

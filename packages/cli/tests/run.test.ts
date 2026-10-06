@@ -1683,3 +1683,46 @@ describe('themegraph mcp', () => {
     expect(result.stdout).toContain('themegraph search');
   });
 });
+
+describe('themegraph overview', () => {
+  beforeEach(async () => {
+    await runCli(['analyze', themeRoot]);
+  });
+
+  it('in số liệu của theme và các file được gọi nhiều nhất', async () => {
+    const result = await runCli(['overview', '-t', themeRoot]);
+    const lines = result.stdout.split('\n');
+
+    expect(result.code).toBe(0);
+    expect(lines[0]).toBe(`Theme            ${themeRoot}`);
+    expect(lines[1]).toMatch(/^Phân tích {8}\d{4}-\d{2}-\d{2} \d{2}:\d{2} bằng ThemeGraph /);
+    expect(lines[2]).toMatch(/^Node {13}22 {2}\(asset 1, block 1, /);
+    expect(lines[3]).toMatch(/^Cạnh {13}22 {2}\(/);
+    expect(lines[4]).toBe('Trang            4  (customers/login, gift_card, index, product)');
+    expect(lines[5]).toBe('Tham chiếu hỏng  2');
+    expect(lines[6]).toBe('File không dùng  0 chắc chắn, 0 cần xem lại');
+    expect(lines[7]).toBe('Không thấy dùng  0 khoá dịch, 0 setting');
+    expect(lines[8]).toBe('');
+    expect(lines[9]).toBe('File được nhiều nơi gọi nhất:');
+    // layout, hero và card đều có ba nơi gọi; card được block text, section hero và
+    // template gift_card gọi. Bằng nhau nên xếp theo id.
+    expect(lines[10]).toBe('  3  layout/theme.liquid         layout');
+    expect(lines[11]).toBe('  3  sections/hero.liquid        section');
+    expect(lines[12]).toBe('  3  snippets/card.liquid        snippet');
+  });
+
+  it('in JSON với --json', async () => {
+    const result = await runCli(['overview', '-t', themeRoot, '--json']);
+    const json = JSON.parse(result.stdout) as { nodes: number; pages: string[]; brokenRefs: number };
+
+    expect(json.nodes).toBe(22);
+    expect(json.pages).toHaveLength(4);
+    expect(json.brokenRefs).toBe(2);
+  });
+
+  it('trả mã 2 khi có tham số thừa', async () => {
+    const result = await runCli(['overview', 'thua', '-t', themeRoot]);
+
+    expect(result.code).toBe(2);
+  });
+});

@@ -59,6 +59,12 @@ export type { BrokenRef, ContextLink, ContextResult } from './context.js';
 export { deadCode } from './dead-code.js';
 export type { DeadCodeResult, DeadConfidence, DeadFile, DeadReason } from './dead-code.js';
 
+// Tổng quan của cả theme, và xuất đồ thị cho giao diện vẽ.
+export { overview } from './overview.js';
+export type { OverviewResult, UsageCount } from './overview.js';
+export { EXPORT_GROUPS, exportGraph } from './export-graph.js';
+export type { ExportedGraph, ExportGraphOptions, ExportGroup } from './export-graph.js';
+
 // Kiểm chứng: đối chiếu truy vấn SQL với phép duyệt bằng JavaScript.
 export { bfsTraverse, diffTraversals, verify } from './verify.js';
 export type { PlainEdge, Reach, VerifyMismatch, VerifyResult } from './verify.js';
@@ -85,6 +91,7 @@ export {
   formatDeadCode,
   formatImpact,
   formatList,
+  formatOverview,
   formatRenderFlow,
   formatSearch,
   formatStatus,

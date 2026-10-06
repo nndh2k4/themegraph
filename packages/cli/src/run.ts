@@ -16,6 +16,7 @@ import {
   formatDeadCode,
   formatImpact,
   formatList,
+  formatOverview,
   formatRenderFlow,
   formatSearch,
   formatStatus,
@@ -24,6 +25,7 @@ import {
   listThemes,
   NODE_KINDS,
   openGraph,
+  overview,
   registryPath,
   renderFlow,
   search,
@@ -57,6 +59,7 @@ Cách dùng:
                                    (không có đường dẫn: dùng thư mục đang đứng)
   themegraph list                  Các theme đã phân tích trên máy này
   themegraph status                Đồ thị của theme này có còn khớp với các file không
+  themegraph overview              Theme này gồm những gì: số liệu, trang, file dùng nhiều
   themegraph clean                 Xoá dữ liệu ThemeGraph của theme này
                                    (--all: của mọi theme đã phân tích)
 
@@ -386,6 +389,8 @@ async function dispatch(
       );
     case "context":
       return runNamedQuery(command, "đường dẫn của một file", rest, flags, io, context, formatContext);
+    case "overview":
+      return runBareQuery(command, rest, flags, io, overview, formatOverview);
     case "dead-code":
       return runBareQuery(command, rest, flags, io, deadCode, formatDeadCode);
     case "verify":

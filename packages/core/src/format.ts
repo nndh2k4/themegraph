@@ -5,6 +5,7 @@ import type { CleanResult } from "./clean.js";
 import type { ContextLink, ContextResult } from "./context.js";
 import type { DeadCodeResult, DeadFile } from "./dead-code.js";
 import type { ImpactResult } from "./impact.js";
+import type { OverviewResult } from "./overview.js";
 import type { ListedTheme } from "./registry.js";
 import type { FlowNode, RenderFlowResult } from "./render-flow.js";
 import type { SearchResult } from "./search.js";
@@ -598,6 +599,32 @@ export function formatList(themes: readonly ListedTheme[]): string[] {
 
   if (themes.some((theme) => !theme.present)) {
     lines.push("", 'Theme không còn graph.db: chạy "themegraph clean --theme <đường dẫn>" để gỡ khỏi danh sách.');
+  }
+  return lines;
+}
+
+export function formatOverview(result: OverviewResult): string[] {
+  const { unused } = result;
+
+  const lines = [
+    ...table(
+      [
+        ["Theme", result.themeRoot],
+        ["Phân tích", `${formatTime(result.meta.analyzedAt)} bằng ThemeGraph ${result.meta.toolVersion}`],
+        ["Node", `${result.nodes}  (${formatCounts(result.nodesByKind)})`],
+        ["Cạnh", `${result.edges}  (${formatCounts(result.edgesByType)})`],
+        ["Trang", `${result.pages.length}  (${result.pages.join(", ")})`],
+        ["Tham chiếu hỏng", String(result.brokenRefs)],
+        ["File không dùng", `${unused.certain} chắc chắn, ${unused.review} cần xem lại`],
+        ["Không thấy dùng", `${unused.translationKeys} khoá dịch, ${unused.settings} setting`],
+      ],
+      "",
+    ),
+  ];
+
+  if (result.mostUsed.length > 0) {
+    lines.push("", "File được nhiều nơi gọi nhất:");
+    lines.push(...table(result.mostUsed.map((entry) => [String(entry.usedBy), entry.id, entry.kind])));
   }
   return lines;
 }
