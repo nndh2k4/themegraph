@@ -1,0 +1,11 @@
+[
+ ["packages/core/src/format.ts","bo dong tong hop","    ...flowSummary(files),\n",""],
+ ["packages/core/src/format.ts","giu loai dem bang 0","([, count]) => count > 0,","() => true,"],
+ ["packages/core/src/format.ts","dem sai loai","files.filter((node) => node.kind === kind).length","files.length"],
+ ["packages/core/src/format.ts","section gom ca group","const sections = files.filter((node) => node.kind === \"section\");","const sections = files.filter((node) => node.kind === \"section\" || node.kind === \"section_group\");"],
+ ["packages/core/src/format.ts","luon in dong Section","if (sections.length > 0) {\n    // Xếp theo id","if (true) {\n    // Xếp theo id"],
+ ["packages/core/src/format.ts","section khong sap xep","      .sort()\n      .join(\", \");\n    lines.push(`Section","      .join(\", \");\n    lines.push(`Section"],
+ ["packages/core/src/format.ts","section bo nhan dieu kien","node.id + (node.certain ? \"\" : ` ${CONDITIONAL}`))\n      .sort()","node.id)\n      .sort()"],
+ ["packages/core/src/format.ts","thu tu loai","[\"template\", \"layout\", \"section_group\", \"section\",","[\"layout\", \"template\", \"section_group\", \"section\","],
+ ["packages/core/src/format.ts","offPage noi qua","Nó vẫn có thể lên trang nếu merchant thêm nó từ theme editor","Nó không lên trang nào, trừ khi merchant thêm nó từ theme editor"]
+]

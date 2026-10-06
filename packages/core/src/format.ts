@@ -200,7 +200,7 @@ export function formatImpact(result: ImpactResult, options: FormatOptions = {}):
     if (offPage.size > 0) {
       lines.push(
         "",
-        `File ghi ${OFF_PAGE} có dùng ${target.id} nhưng bản thân nó không nằm trên trang nào, nên không làm trang nào đổi.`,
+        `File ghi ${OFF_PAGE}: theo đồ thị, nó có dùng ${target.id} nhưng không template hay file nào trên một trang gọi tới nó. Nó vẫn có thể lên trang nếu merchant thêm nó từ theme editor, hoặc nếu JavaScript tải nó (Section Rendering API), hai cách mà đồ thị không thấy.`,
       );
     }
   }
@@ -236,6 +236,40 @@ function drawTree(node: FlowNode, parents: ReadonlySet<string>, lines: string[])
   for (const child of node.children) drawTree(child, parents, lines);
 }
 
+/**
+ * Thứ tự in các loại file trong dòng tổng hợp của render-flow: từ ngoài vào
+ * trong theo cách một trang được dựng.
+ */
+const FLOW_KIND_ORDER = ["template", "layout", "section_group", "section", "block", "snippet", "asset"] as const;
+
+/**
+ * Hai dòng tổng hợp đặt trước cây: đếm file theo loại, và danh sách ĐẦY ĐỦ các
+ * section của trang.
+ *
+ * Cây có thể bị cắt theo độ sâu hoặc số dòng, còn hai dòng này tính trên toàn
+ * bộ `files`, nên câu hỏi hay gặp nhất, "trang này có những section nào",
+ * luôn có câu trả lời đủ. Trong nghiệm thu, một agent chỉ đọc phần cây đã cắt
+ * và bỏ sót bảy section nằm dưới một section group ở tầng 4.
+ */
+function flowSummary(files: readonly Reached[]): string[] {
+  const counts = FLOW_KIND_ORDER.map((kind) => [kind, files.filter((node) => node.kind === kind).length] as const).filter(
+    ([, count]) => count > 0,
+  );
+
+  const lines = [`Theo loại: ${counts.map(([kind, count]) => `${count} ${kind}`).join(", ")}.`];
+
+  const sections = files.filter((node) => node.kind === "section");
+  if (sections.length > 0) {
+    // Xếp theo id cho dễ dò; `files` vốn xếp theo độ sâu.
+    const names = sections
+      .map((node) => node.id + (node.certain ? "" : ` ${CONDITIONAL}`))
+      .sort()
+      .join(", ");
+    lines.push(`Section (${sections.length}): ${names}`);
+  }
+  return lines;
+}
+
 /** Có node nào trong cây bị cắt các con đi không. */
 function hasHidden(node: FlowNode): boolean {
   return node.hidden > 0 || node.children.some(hasHidden);
@@ -249,7 +283,10 @@ export function formatRenderFlow(result: RenderFlowResult, options: FormatOption
   }
 
   const deepest = Math.max(...files.map((node) => node.depth));
-  const lines = [`${root.id} (${root.kind}) kéo theo ${files.length} file, sâu nhất ${deepest} tầng.`];
+  const lines = [
+    `${root.id} (${root.kind}) kéo theo ${files.length} file, sâu nhất ${deepest} tầng.`,
+    ...flowSummary(files),
+  ];
 
   // Chỉ nói về giới hạn khi nó thật sự giấu đi thứ gì.
   if (result.maxDepth !== null && hasHidden(tree)) {

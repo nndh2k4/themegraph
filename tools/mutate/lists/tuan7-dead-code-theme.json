@@ -1,0 +1,62 @@
+[
+ [
+  "packages/core/src/dead-code.ts",
+  "moi acceptor deu mo cua",
+  "JOIN schemas s ON s.file = l.id AND s.accepts_theme_blocks = 1",
+  "JOIN schemas s ON s.accepts_theme_blocks = 1"
+ ],
+ [
+  "packages/core/src/dead-code.ts",
+  "khong can accepts",
+  "JOIN schemas s ON s.file = l.id AND s.accepts_theme_blocks = 1",
+  "JOIN schemas s ON s.file = l.id"
+ ],
+ [
+  "packages/core/src/dead-code.ts",
+  "mo cua ca block rieng tu",
+  "JOIN nodes b ON b.kind = 'block' AND substr(b.id, 1, 8) <> 'blocks/_'",
+  "JOIN nodes b ON b.kind = 'block'"
+ ],
+ [
+  "packages/core/src/dead-code.ts",
+  "bo nhanh @theme",
+  "JOIN nodes b ON b.kind = 'block' AND substr(b.id, 1, 8) <> 'blocks/_'",
+  "JOIN nodes b ON b.kind = 'khong-co'"
+ ],
+ [
+  "packages/core/src/dead-code.ts",
+  "accepts tinh ca file chet",
+  "acceptors.some((id) => !unusedIds.has(id))",
+  "acceptors.length > 0"
+ ],
+ [
+  "packages/core/src/dead-code.ts",
+  "accepts luon sai",
+  "acceptors.some((id) => !unusedIds.has(id))",
+  "false"
+ ],
+ [
+  "packages/core/src/dead-code.ts",
+  "khong lan review sang block cong khai",
+  "if (!publicBlocksReviewed && acceptors.includes(id)) {",
+  "if (false) {"
+ ],
+ [
+  "packages/core/src/dead-code.ts",
+  "lan review tu moi file",
+  "if (!publicBlocksReviewed && acceptors.includes(id)) {",
+  "if (!publicBlocksReviewed) {"
+ ],
+ [
+  "packages/core/src/dead-code.ts",
+  "lan review sang ca block rieng tu",
+  ".filter((node) => node.kind === \"block\" && !node.id.startsWith(\"blocks/_\"))",
+  ".filter((node) => node.kind === \"block\")"
+ ],
+ [
+  "packages/core/src/dead-code.ts",
+  "lan review sang moi file",
+  ".filter((node) => node.kind === \"block\" && !node.id.startsWith(\"blocks/_\"))",
+  ".filter((node) => !node.id.startsWith(\"blocks/_\"))"
+ ]
+]

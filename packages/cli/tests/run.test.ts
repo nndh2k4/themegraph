@@ -256,7 +256,7 @@ describe('themegraph impact', () => {
     // Cột "có điều kiện" của dòng này trống, nên chỉ kiểm thứ tự các ô.
     expect(lines.some((line) => /^ +1 +sections\/lonely\.liquid +section +\[không trang nào dùng\]$/.test(line))).toBe(true);
     expect(lines.at(-1)).toBe(
-      'File ghi [không trang nào dùng] có dùng snippets/card.liquid nhưng bản thân nó không nằm trên trang nào, nên không làm trang nào đổi.',
+      'File ghi [không trang nào dùng]: theo đồ thị, nó có dùng snippets/card.liquid nhưng không template hay file nào trên một trang gọi tới nó. Nó vẫn có thể lên trang nếu merchant thêm nó từ theme editor, hoặc nếu JavaScript tải nó (Section Rendering API), hai cách mà đồ thị không thấy.',
     );
     // Trang nào cũng không đi qua section đó.
     expect(lines.filter((line) => line.includes('qua ')).some((line) => line.includes('lonely'))).toBe(false);
@@ -351,6 +351,8 @@ describe('themegraph render-flow', () => {
     expect(result.code).toBe(0);
     expect(result.stdout.split('\n')).toEqual([
       'page:index (page_type) kéo theo 7 file, sâu nhất 3 tầng.',
+      'Theo loại: 1 template, 1 layout, 1 section_group, 1 section, 1 block, 1 snippet, 1 asset.',
+      'Section (1): sections/hero.liquid',
       '',
       'page:index',
       '  templates/index.json',
@@ -403,8 +405,10 @@ describe('themegraph render-flow', () => {
 
     expect(result.code).toBe(0);
     expect(result.stdout.split('\n')).toEqual([
-      // Câu tóm tắt vẫn tính trên cả cây.
+      // Câu tóm tắt và hai dòng tổng hợp vẫn tính trên cả cây.
       'page:index (page_type) kéo theo 7 file, sâu nhất 3 tầng.',
+      'Theo loại: 1 template, 1 layout, 1 section_group, 1 section, 1 block, 1 snippet, 1 asset.',
+      'Section (1): sections/hero.liquid',
       'Cây dưới đây dừng ở tầng 2. Hỏi tiếp từ một file trong cây, hoặc tăng độ sâu, để xem phần bên dưới.',
       '',
       'page:index',
@@ -412,6 +416,33 @@ describe('themegraph render-flow', () => {
       '    blocks/text.liquid  (1 file con chưa mở)',
       '    layout/theme.liquid  (2 file con chưa mở)',
       '    sections/hero.liquid  (2 file con chưa mở)',
+    ]);
+  });
+
+  it('liệt kê đủ section của trang dù cây bị cắt ở tầng 1, và đánh dấu section có điều kiện', async () => {
+    // Thêm một section chỉ được gọi trong một nhánh if, nằm sâu dưới hero.
+    await writeFile(path.join(themeRoot, 'sections', 'deep.liquid'), '<p>x</p>');
+    await appendFile(path.join(themeRoot, 'snippets', 'card.liquid'), "{% if x %}{% section 'deep' %}{% endif %}");
+    await runCli(['analyze', themeRoot]);
+
+    const result = await runCli(['render-flow', 'index', '-t', themeRoot, '--depth', '1']);
+    const lines = result.stdout.split('\n');
+
+    // Cây chỉ còn template, nhưng dòng Section vẫn có cả hai, xếp theo id.
+    expect(lines).toContain('Section (2): sections/deep.liquid [có điều kiện], sections/hero.liquid');
+    expect(lines).toContain('Theo loại: 1 template, 1 layout, 1 section_group, 2 section, 1 block, 1 snippet, 1 asset.');
+    expect(lines.filter((line) => line.startsWith('  ')).map((line) => line.trim())).toEqual([
+      'templates/index.json  (3 file con chưa mở)',
+    ]);
+  });
+
+  it('không có dòng Section khi gốc không kéo theo section nào, và bỏ loại có số đếm bằng 0', async () => {
+    const result = await runCli(['render-flow', 'blocks/text.liquid', '-t', themeRoot]);
+
+    expect(result.stdout.split('\n').slice(0, 3)).toEqual([
+      'blocks/text.liquid (block) kéo theo 1 file, sâu nhất 1 tầng.',
+      'Theo loại: 1 snippet.',
+      '',
     ]);
   });
 
@@ -428,6 +459,8 @@ describe('themegraph render-flow', () => {
 
     expect(result.stdout.split('\n')).toEqual([
       'page:index (page_type) kéo theo 7 file, sâu nhất 3 tầng.',
+      'Theo loại: 1 template, 1 layout, 1 section_group, 1 section, 1 block, 1 snippet, 1 asset.',
+      'Section (1): sections/hero.liquid',
       '',
       'page:index',
       '  templates/index.json',

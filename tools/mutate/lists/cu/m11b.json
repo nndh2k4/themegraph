@@ -1,0 +1,1 @@
+[["packages/core/src/status.ts","dem sai nodes","nodes: Number(graph.db.prepare(\"SELECT count(*) AS n FROM nodes\")","nodes: Number(graph.db.prepare(\"SELECT count(*) AS n FROM edges\")"]]

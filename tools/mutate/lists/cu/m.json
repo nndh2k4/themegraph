@@ -1,0 +1,6 @@
+[
+ ["packages/core/src/resolver.ts","so nhieu: khong kiem tra ten dang","lastDot > 0 && PLURAL_FORMS.has(expected.slice(lastDot + 1)) && knownPaths.has(parent)","lastDot > 0 && knownPaths.has(parent)"],
+ ["packages/core/src/resolver.ts","so nhieu: khong kiem tra khoa cha","lastDot > 0 && PLURAL_FORMS.has(expected.slice(lastDot + 1)) && knownPaths.has(parent)","lastDot > 0 && PLURAL_FORMS.has(expected.slice(lastDot + 1))"],
+ ["packages/core/src/resolver.ts","so nhieu: ap cho moi loai ref","  if (ref.kind === \"translation\") {\n    const lastDot","  if (true) {\n    const lastDot"],
+ ["packages/core/src/resolver.ts","so nhieu: bo han","      return { status: \"resolved\", path: parent };","      "]
+]

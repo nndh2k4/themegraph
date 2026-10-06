@@ -25,13 +25,14 @@ Nếu máy có MCP server khác cũng có tool tên `impact` hay `context` (ví 
 - Tên file là đường dẫn tính từ gốc theme: `snippets/card-product.liquid`. Chỉ tên file (`card-product`) cũng được nếu theme không có file trùng tên; nếu trùng, tool trả về danh sách để chọn.
 - Tên trang là tên template: `product`, `collection`, `index`, `cart`, `customers/login`.
 - Không cần tham số `theme` khi đang làm việc trong thư mục theme.
-- `render_flow` mặc định dừng ở tầng 3. Node ghi "(n file con chưa mở)": gọi lại `render_flow` với chính node đó làm gốc, hoặc tăng `max_depth`.
+- `render_flow` luôn mở đầu bằng số file theo loại và danh sách đầy đủ section của trang; cây bên dưới mặc định dừng ở tầng 3. Node ghi "(n file con chưa mở)": gọi lại `render_flow` với chính node đó làm gốc, hoặc tăng `max_depth`.
 - Danh sách bị cắt có dòng "... và n ... nữa": tăng `limit` nếu thật sự cần phần còn lại.
 
 ## Cách đọc kết quả
 
 - **`[có điều kiện]`**: quan hệ chỉ xảy ra trong một nhánh `if`/`case`/`unless`, qua một block mà merchant có thể không thêm, hoặc ở một template thay thế (`product.alt.json`). Trang ghi `[có điều kiện]` vẫn có thể vỡ; khi báo cho người dùng hãy tách hai nhóm "luôn bị ảnh hưởng" và "bị ảnh hưởng trong một số trường hợp".
-- **`dead_code` có hai mức.** "Chắc chắn không dùng" thì xoá được. "Cần xem lại" thì KHÔNG tự xoá: section có thể được tải qua Section Rendering API, asset có thể được gọi bằng tên ghép lúc chạy; nêu lý do cho người dùng quyết định. Danh sách khoá dịch và setting "không thấy dùng" cũng ở mức cần xem lại.
+- **`dead_code` có hai mức.** "Chắc chắn không dùng" nghĩa là đồ thị không thấy cách dùng nào; trước khi xoá vẫn grep tên file một lượt (kể cả trong `assets/*.js`) và để người dùng xác nhận, vì đồ thị là kết quả phân tích tĩnh và có thể sai. "Cần xem lại" thì KHÔNG tự xoá: section có thể được tải qua Section Rendering API, asset có thể được gọi bằng tên ghép lúc chạy; nêu lý do cho người dùng quyết định. Danh sách khoá dịch và setting "không thấy dùng" cũng ở mức cần xem lại.
+- **`[không trang nào dùng]`** trong `impact`: theo đồ thị, file đó không nằm trên trang nào. Section mang nhãn này vẫn có thể được merchant thêm từ theme editor hoặc được JavaScript tải; nếu là section, grep tên nó trong `assets/` trước khi kết luận.
 - **"Tham chiếu hỏng"** trong `context`: file gọi tới một snippet, asset, khoá dịch hoặc setting không tồn tại. Đây thường là lỗi thật, nên báo cho người dùng.
 - **Dòng "ĐỒ THỊ ĐÃ CŨ"** ở đầu câu trả lời: có file đã đổi sau lần phân tích gần nhất (thường là do chính bạn vừa sửa). Kết quả chưa tính các thay đổi đó. Chạy `themegraph analyze` trong thư mục theme (vài giây) rồi gọi lại tool nếu câu trả lời phụ thuộc vào file vừa đổi.
 - **Lỗi "chưa được phân tích"**: chạy `themegraph analyze` trong thư mục theme.

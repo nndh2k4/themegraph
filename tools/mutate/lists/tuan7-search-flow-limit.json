@@ -1,0 +1,278 @@
+[
+ [
+  "packages/core/src/search.ts",
+  "phan biet hoa thuong tu khoa",
+  "query.toLowerCase().split",
+  "query.split"
+ ],
+ [
+  "packages/core/src/search.ts",
+  "phan biet hoa thuong id",
+  "const lowerId = id.toLowerCase();",
+  "const lowerId = id;"
+ ],
+ [
+  "packages/core/src/search.ts",
+  "bo loc kind",
+  "if (kinds.size > 0 && !kinds.has(kind)) continue;",
+  ""
+ ],
+ [
+  "packages/core/src/search.ts",
+  "mang kinds rong loc het",
+  "if (kinds.size > 0 && !kinds.has(kind)) continue;",
+  "if (!kinds.has(kind) && options.kinds !== undefined) continue;"
+ ],
+ [
+  "packages/core/src/search.ts",
+  "bo limit",
+  "hits: hits.slice(0, limit)",
+  "hits"
+ ],
+ [
+  "packages/core/src/search.ts",
+  "limit am",
+  "Math.max(0, options.limit ?? DEFAULT_SEARCH_LIMIT)",
+  "options.limit ?? DEFAULT_SEARCH_LIMIT"
+ ],
+ [
+  "packages/core/src/search.ts",
+  "total sau khi cat",
+  "total: hits.length };",
+  "total: Math.min(hits.length, limit) };"
+ ],
+ [
+  "packages/core/src/search.ts",
+  "bo exact",
+  "if (name === term) return \"exact\";",
+  ""
+ ],
+ [
+  "packages/core/src/search.ts",
+  "bo prefix",
+  "if (name.startsWith(term)) return \"prefix\";",
+  ""
+ ],
+ [
+  "packages/core/src/search.ts",
+  "bo name",
+  "if (name.includes(term)) return \"name\";",
+  ""
+ ],
+ [
+  "packages/core/src/search.ts",
+  "path khong khop",
+  "return id.includes(term) ? \"path\" : null;",
+  "return null;"
+ ],
+ [
+  "packages/core/src/search.ts",
+  "muc sat nhat thay vi long nhat",
+  "worst = Math.max(worst,",
+  "worst = Math.min(worst,"
+ ],
+ [
+  "packages/core/src/search.ts",
+  "mot tu khop la du",
+  "matched = false;\n        break;",
+  "continue;"
+ ],
+ [
+  "packages/core/src/search.ts",
+  "bo xep file truoc",
+  "Number(isSecondary(a.kind)) - Number(isSecondary(b.kind)) ||",
+  ""
+ ],
+ [
+  "packages/core/src/search.ts",
+  "bo xep id ngan truoc",
+  "a.id.length - b.id.length ||",
+  ""
+ ],
+ [
+  "packages/core/src/search.ts",
+  "bo xep hang",
+  "MATCH_ORDER.indexOf(a.match) - MATCH_ORDER.indexOf(b.match) ||",
+  ""
+ ],
+ [
+  "packages/core/src/search.ts",
+  "tu khoa rong van xep hang",
+  "terms.length === 0\n      ? byId",
+  "terms.length < 0\n      ? byId"
+ ],
+ [
+  "packages/core/src/search.ts",
+  "ten page giu tien to",
+  "if (kind === \"page_type\") return lower.slice(\"page:\".length);",
+  ""
+ ],
+ [
+  "packages/core/src/search.ts",
+  "ten khoa dich giu tien to",
+  "if (kind === \"translation_key\") return lower.slice(\"t:\".length);",
+  ""
+ ],
+ [
+  "packages/core/src/search.ts",
+  "ten setting ca id",
+  "if (kind === \"setting\") return lower.slice(lower.lastIndexOf(\".\") + 1);",
+  ""
+ ],
+ [
+  "packages/core/src/search.ts",
+  "duoi tu dau cham cuoi",
+  "const dot = base.indexOf(\".\");",
+  "const dot = base.lastIndexOf(\".\");"
+ ],
+ [
+  "packages/core/src/search.ts",
+  "ten giu thu muc",
+  "const base = lower.slice(lower.lastIndexOf(\"/\") + 1);",
+  "const base = lower;"
+ ],
+ [
+  "packages/core/src/search.ts",
+  "mac dinh 20",
+  "DEFAULT_SEARCH_LIMIT = 20",
+  "DEFAULT_SEARCH_LIMIT = 21"
+ ],
+ [
+  "packages/core/src/render-flow.ts",
+  "bo cat do sau",
+  "if (depth + 1 === maxDepth) {",
+  "if (false) {"
+ ],
+ [
+  "packages/core/src/render-flow.ts",
+  "cat lech mot tang",
+  "if (depth + 1 === maxDepth) {",
+  "if (depth === maxDepth) {"
+ ],
+ [
+  "packages/core/src/render-flow.ts",
+  "khong dem con bi giau",
+  "child.hidden = outgoing.all(childId).length;",
+  "child.hidden = 0;"
+ ],
+ [
+  "packages/core/src/render-flow.ts",
+  "khong ghi maxDepth",
+  "maxDepth: maxDepth ?? null,",
+  "maxDepth: null,"
+ ],
+ [
+  "packages/core/src/render-flow.ts",
+  "nhan maxDepth 0",
+  "maxDepth < 1)",
+  "maxDepth < 0)"
+ ],
+ [
+  "packages/core/src/render-flow.ts",
+  "nhan so le",
+  "!Number.isInteger(maxDepth) || ",
+  ""
+ ],
+ [
+  "packages/core/src/format.ts",
+  "capped khong cat",
+  "if (limit === undefined || lines.length <= limit) return [...lines];",
+  "return [...lines];"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "capped lech mot",
+  "lines.length <= limit) return",
+  "lines.length < limit) return"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "dem sai phan giau",
+  "const hidden = lines.length - Math.max(0, limit);",
+  "const hidden = lines.length;"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "luon bao cay bi cat",
+  "if (result.maxDepth !== null && hasHidden(tree)) {",
+  "if (result.maxDepth !== null) {"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "khong bao cay bi cat",
+  "if (result.maxDepth !== null && hasHidden(tree)) {",
+  "if (false) {"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "hasHidden chi xet goc",
+  "return node.hidden > 0 || node.children.some(hasHidden);",
+  "return node.hidden > 0;"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "bo ghi chu con chua mo",
+  "if (node.hidden > 0) notes.push(",
+  "if (false) notes.push("
+ ],
+ [
+  "packages/core/src/format.ts",
+  "search khong noi tong",
+  "hits.length < total ? `${hits.length} trên ${total}` : String(total)",
+  "String(hits.length)"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "search tu khoa rong van in khop",
+  "query.trim() === \"\" ? \"\" :",
+  "false ? \"\" :"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "impact khong cat",
+  "        options,\n        \"file\",\n      ),\n    );\n  }\n\n  return lines;\n}\n\n// ---- render-flow",
+  "        {},\n        \"file\",\n      ),\n    );\n  }\n\n  return lines;\n}\n\n// ---- render-flow"
+ ],
+ [
+  "packages/cli/src/run.ts",
+  "limit nhan 1e3",
+  "if (!/^\\d+$/.test(value)) return null;",
+  "if (Number.isNaN(Number(value))) return null;"
+ ],
+ [
+  "packages/cli/src/run.ts",
+  "depth nhan 0",
+  "parseCount(parsed.values.depth, 1)",
+  "parseCount(parsed.values.depth, 0)"
+ ],
+ [
+  "packages/cli/src/run.ts",
+  "search bo kinds",
+  "kinds: flags.kinds,",
+  ""
+ ],
+ [
+  "packages/cli/src/run.ts",
+  "search bo limit",
+  "...(flags.limit === undefined ? {} : { limit: flags.limit }),",
+  ""
+ ],
+ [
+  "packages/cli/src/run.ts",
+  "khong kiem kind",
+  "if (unknownKind !== undefined) {",
+  "if (false) {"
+ ],
+ [
+  "packages/cli/src/run.ts",
+  "bo depth",
+  "flags.depth === undefined ? options : { ...options, maxDepth: flags.depth }",
+  "options"
+ ],
+ [
+  "packages/cli/src/run.ts",
+  "bo limit trinh bay",
+  "flags.limit === undefined ? {} : { limit: flags.limit };\n  for",
+  "{};\n  for"
+ ]
+]

@@ -1,0 +1,548 @@
+[
+ [
+  "packages/core/src/select-theme.ts",
+  "bo chon theo duong dan trong so",
+  "if (byPath !== undefined) return byPath.path;",
+  ""
+ ],
+ [
+  "packages/core/src/select-theme.ts",
+  "ten phan biet hoa thuong",
+  "theme.name.toLowerCase() === wanted.toLowerCase()",
+  "theme.name === wanted"
+ ],
+ [
+  "packages/core/src/select-theme.ts",
+  "trung ten lay cai dau",
+  "if (byName.length === 1 && byName[0] !== undefined) return byName[0].path;",
+  "if (byName[0] !== undefined) return byName[0].path;"
+ ],
+ [
+  "packages/core/src/select-theme.ts",
+  "bo thu muc ngoai so",
+  "if (existsSync(path.join(asPath, \".themegraph\", \"graph.db\"))) return asPath;",
+  ""
+ ],
+ [
+  "packages/core/src/select-theme.ts",
+  "khong trim",
+  "const wanted = requested.trim();",
+  "const wanted = requested;"
+ ],
+ [
+  "packages/core/src/select-theme.ts",
+  "chuoi rong la co neu",
+  "requested !== undefined && requested.trim() !== \"\"",
+  "requested !== undefined"
+ ],
+ [
+  "packages/core/src/select-theme.ts",
+  "duong dan khong tinh tu cwd",
+  "const asPath = path.resolve(cwd, wanted);",
+  "const asPath = path.resolve(wanted);"
+ ],
+ [
+  "packages/core/src/select-theme.ts",
+  "bo findThemeRoot",
+  "findThemeRoot(cwd) ?? findRegisteredTheme(cwd)",
+  "findRegisteredTheme(cwd)"
+ ],
+ [
+  "packages/core/src/select-theme.ts",
+  "bo findRegisteredTheme",
+  "findThemeRoot(cwd) ?? findRegisteredTheme(cwd)",
+  "findThemeRoot(cwd)"
+ ],
+ [
+  "packages/core/src/select-theme.ts",
+  "bo theme duy nhat",
+  "if (themes.length === 1 && themes[0] !== undefined) return themes[0].path;",
+  ""
+ ],
+ [
+  "packages/core/src/select-theme.ts",
+  "nhieu theme lay cai dau",
+  "if (themes.length === 1 && themes[0] !== undefined) return themes[0].path;",
+  "if (themes[0] !== undefined) return themes[0].path;"
+ ],
+ [
+  "packages/core/src/select-theme.ts",
+  "so trong bao mo ho",
+  "if (themes.length === 0) {\n    throw",
+  "if (false) {\n    throw"
+ ],
+ [
+  "packages/core/src/select-theme.ts",
+  "theme duy nhat thang cwd",
+  "  // 4. Theme chứa thư mục đang đứng.\n  const here",
+  "  if (themes.length === 1 && themes[0] !== undefined) return themes[0].path;\n  const here"
+ ],
+ [
+  "packages/core/src/find-node.ts",
+  "bo cach hieu 4",
+  "if (sameName.length === 1 && sameName[0] !== undefined) return sameName[0];",
+  ""
+ ],
+ [
+  "packages/core/src/find-node.ts",
+  "trung ten lay cai dau",
+  "if (sameName.length === 1 && sameName[0] !== undefined) return sameName[0];",
+  "if (sameName[0] !== undefined) return sameName[0];"
+ ],
+ [
+  "packages/core/src/find-node.ts",
+  "trung ten khong liet ke",
+  "if (sameName.length > 1) {",
+  "if (false) {"
+ ],
+ [
+  "packages/core/src/find-node.ts",
+  "nhan ten co thu muc",
+  "if (name === \"\" || name.includes(\"/\")) return [];",
+  "if (name === \"\") return [];"
+ ],
+ [
+  "packages/core/src/find-node.ts",
+  "nhan ca khoa dich",
+  "if (NON_FILE_KINDS.includes(node.kind)) return false;",
+  ""
+ ],
+ [
+  "packages/core/src/find-node.ts",
+  "khop mot phan",
+  "return base === wanted || (dot > 0 && base.slice(0, dot) === wanted);",
+  "return base.includes(wanted);"
+ ],
+ [
+  "packages/core/src/find-node.ts",
+  "bo khop ca duoi",
+  "return base === wanted || (dot > 0",
+  "return (dot > 0"
+ ],
+ [
+  "packages/core/src/find-node.ts",
+  "bo khop khong duoi",
+  "return base === wanted || (dot > 0 && base.slice(0, dot) === wanted);",
+  "return base === wanted;"
+ ],
+ [
+  "packages/core/src/find-node.ts",
+  "duoi tu dau cham dau",
+  "const dot = base.lastIndexOf(\".\");\n      return",
+  "const dot = base.indexOf(\".\");\n      return"
+ ],
+ [
+  "packages/core/src/find-node.ts",
+  "phan biet hoa thuong",
+  "const wanted = name.toLowerCase();",
+  "const wanted = name;"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "note khong bao cu",
+  "if (!status.stale) return lines;",
+  "if (true) return lines;"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "note luon bao cu",
+  "if (!status.stale) return lines;",
+  ""
+ ],
+ [
+  "packages/core/src/format.ts",
+  "note bo file xoa",
+  "[...status.modified, ...status.added, ...status.removed]",
+  "[...status.modified, ...status.added]"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "note bo file them",
+  "[...status.modified, ...status.added, ...status.removed]",
+  "[...status.modified, ...status.removed]"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "note khong cat",
+  "changed.slice(0, MAX_CHANGED_SHOWN).join",
+  "changed.join"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "note dem sai phan con lai",
+  "changed.length - MAX_CHANGED_SHOWN} file khác",
+  "changed.length} file khác"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "note ten theme la ca duong dan",
+  "`Theme: ${path.basename(status.themeRoot)} (",
+  "`Theme: ${status.themeRoot} ("
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "khong dong graph",
+  "      graph.close();\n    }\n\n    // Agent",
+  "    }\n\n    // Agent"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "bo ghi chu theme",
+  "return [...formatThemeNote(status), \"\", ...lines];",
+  "return lines;"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "loi khong danh dau isError",
+  "return { isError: true, content:",
+  "return { content:"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "bo qua tham so theme",
+  "const themeRoot = selectTheme(theme, cwd);",
+  "const themeRoot = selectTheme(undefined, cwd);"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "bo qua cwd",
+  "const cwd = options.cwd ?? process.cwd();",
+  "const cwd = process.cwd();"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "bo instructions",
+  "{ instructions: INSTRUCTIONS }",
+  "{}"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "bo readOnly",
+  "readOnlyHint: true",
+  "readOnlyHint: false"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "search bo kind",
+  "kinds: kind === undefined ? [] : [kind],",
+  "kinds: [],"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "search bo limit",
+  "limit: limit ?? DEFAULT_SEARCH_RESULTS }",
+  "limit: DEFAULT_SEARCH_RESULTS }"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "impact bo limit",
+  "formatImpact(impact(graph, target), { limit: limit ?? DEFAULT_LIST_LIMIT })",
+  "formatImpact(impact(graph, target), { limit: DEFAULT_LIST_LIMIT })"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "impact khong gioi han",
+  "formatImpact(impact(graph, target), { limit: limit ?? DEFAULT_LIST_LIMIT })",
+  "formatImpact(impact(graph, target), limit === undefined ? {} : { limit })"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "context bo limit",
+  "formatContext(context(graph, target), { limit: limit ?? DEFAULT_LIST_LIMIT })",
+  "formatContext(context(graph, target), { limit: DEFAULT_LIST_LIMIT })"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "context khong gioi han",
+  "formatContext(context(graph, target), { limit: limit ?? DEFAULT_LIST_LIMIT })",
+  "formatContext(context(graph, target), limit === undefined ? {} : { limit })"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "flow bo max_depth",
+  "maxDepth: max_depth ?? DEFAULT_FLOW_DEPTH",
+  "maxDepth: DEFAULT_FLOW_DEPTH"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "flow khong gioi han do sau",
+  "renderFlow(graph, page, { maxDepth: max_depth ?? DEFAULT_FLOW_DEPTH })",
+  "renderFlow(graph, page, max_depth === undefined ? {} : { maxDepth: max_depth })"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "flow bo limit",
+  "limit: limit ?? DEFAULT_FLOW_LINES,",
+  "limit: DEFAULT_FLOW_LINES,"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "dead bo limit",
+  "formatDeadCode(deadCode(graph), { limit: limit ?? DEFAULT_LIST_LIMIT })",
+  "formatDeadCode(deadCode(graph), { limit: DEFAULT_LIST_LIMIT })"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "limit nhan 0",
+  "z.number().int().min(1).max(2000)",
+  "z.number().int().min(0).max(2000)"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "limit nhan so le",
+  "z.number().int().min(1).max(2000)",
+  "z.number().min(1).max(2000)"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "mac dinh do sau 4",
+  "DEFAULT_FLOW_DEPTH = 3",
+  "DEFAULT_FLOW_DEPTH = 4"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "mac dinh list 51",
+  "DEFAULT_LIST_LIMIT = 50",
+  "DEFAULT_LIST_LIMIT = 60"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "mac dinh search 21",
+  "DEFAULT_SEARCH_RESULTS = 20",
+  "DEFAULT_SEARCH_RESULTS = 21"
+ ],
+ [
+  "packages/mcp/src/server.ts",
+  "bo tool dead_code",
+  "\"dead_code\",\n    {",
+  "\"dead_code_x\",\n    {"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "claude loi van coi la co",
+  "if (version === null || !version.ok) {",
+  "if (version === null) {"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "luon dang ky lai",
+  "if (exists && current.output.includes(options.cliPath) && current.output.includes(options.nodePath)) {",
+  "if (false) {"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "khong xet node",
+  "current.output.includes(options.cliPath) && current.output.includes(options.nodePath)",
+  "current.output.includes(options.cliPath)"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "khong xet cli",
+  "current.output.includes(options.cliPath) && current.output.includes(options.nodePath)",
+  "current.output.includes(options.nodePath)"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "khong go truoc khi them",
+  "if (exists) options.runClaude([\"mcp\", \"remove\", SERVER_NAME, \"--scope\", \"user\"]);",
+  ""
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "dry-run van dang ky",
+  "  if (options.dryRun) {\n    return { target, outcome: \"planned\", detail: `sẽ chạy",
+  "  if (false) {\n    return { target, outcome: \"planned\", detail: `sẽ chạy"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "dry-run van go server",
+  "if (options.dryRun) return { target, outcome: \"planned\", detail: `sẽ gỡ MCP server",
+  "if (false) return { target, outcome: \"planned\", detail: `sẽ gỡ MCP server"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "bo scope user",
+  "[\"mcp\", \"add\", \"--scope\", \"user\", SERVER_NAME,",
+  "[\"mcp\", \"add\", \"--scope\", \"local\", SERVER_NAME,"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "thieu tham so mcp",
+  "args: [options.cliPath, \"mcp\"]",
+  "args: [options.cliPath]"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "add loi van bao xong",
+  "return added !== null && added.ok\n",
+  "return added !== null\n"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "remove loi van bao xong",
+  "return removed !== null && removed.ok\n",
+  "return removed !== null\n"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "skill tu tao .claude",
+  "if (!existsSync(claudeDir)) {",
+  "if (false) {"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "skill luon ghi",
+  "if (current === wanted) return",
+  "if (false) return"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "skill dry-run van ghi",
+  "if (options.dryRun) return { target, outcome: \"planned\", detail: `sẽ ghi ${skillFile}.` };",
+  ""
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "skill dry-run van xoa",
+  "if (options.dryRun) return { target, outcome: \"planned\", detail: `sẽ xoá ${skillFile}.` };",
+  ""
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "skill xoa ca thu muc co file khac",
+  "if (readdirSync(skillDir).length === 0) rmdirSync(skillDir);",
+  "rmSync(skillDir, { recursive: true });"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "skill khong xoa thu muc rong",
+  "if (readdirSync(skillDir).length === 0) rmdirSync(skillDir);",
+  ""
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "cursor tu tao .cursor",
+  "if (!existsSync(cursorDir)) {",
+  "if (false) {"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "cursor ghi de json hong",
+  "return { target, outcome: \"failed\", detail: `${configFile} không phải JSON hợp lệ; không sửa file này.` };",
+  "parsed = {};"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "cursor nhan dang la",
+  "if (!isObject(parsed) || (parsed.mcpServers !== undefined && !isObject(parsed.mcpServers))) {",
+  "if (false) {"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "cursor khong xet mcpServers la",
+  "if (!isObject(parsed) || (parsed.mcpServers !== undefined && !isObject(parsed.mcpServers))) {",
+  "if (!isObject(parsed)) {"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "cursor mat server khac",
+  "isObject(config.mcpServers) ? { ...config.mcpServers } : {}",
+  "{}"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "cursor mat khoa khac",
+  "JSON.stringify({ ...config, mcpServers: servers }, null, 2)",
+  "JSON.stringify({ mcpServers: servers }, null, 2)"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "cursor luon ghi",
+  "if (JSON.stringify(servers[SERVER_NAME]) === JSON.stringify(wanted)) {",
+  "if (false) {"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "cursor dry-run van ghi",
+  "if (options.dryRun) return { target, outcome: \"planned\", detail: `sẽ ghi mục",
+  "if (false) return { target, outcome: \"planned\", detail: `sẽ ghi mục"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "cursor dry-run van go",
+  "if (options.dryRun) return { target, outcome: \"planned\", detail: `sẽ gỡ mục",
+  "if (false) return { target, outcome: \"planned\", detail: `sẽ gỡ mục"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "cursor remove khong xoa muc",
+  "delete servers[SERVER_NAME];\n    write();",
+  "write();"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "cursor remove tao file",
+  "if (!(SERVER_NAME in servers)) {",
+  "if (false) {"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "loi mot buoc lam hong ca lenh",
+  "    try {\n      return step(options);\n    } catch (error) {",
+  "    if (step !== null) return step(options);\n    try {\n      return step(options);\n    } catch (error) {"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "nhac khoi dong lai khi go",
+  "} else if (!options.remove && !options.dryRun && steps.some",
+  "} else if (!options.dryRun && steps.some"
+ ],
+ [
+  "packages/cli/src/setup.ts",
+  "nhac khoi dong lai khi khong doi",
+  "steps.some((step) => step.outcome === \"done\")) {",
+  "true) {"
+ ],
+ [
+  "packages/cli/src/run.ts",
+  "setup loi van ma 0",
+  "return steps.some((step) => step.outcome === \"failed\") ? EXIT_FAILED : EXIT_OK;",
+  "return EXIT_OK;"
+ ],
+ [
+  "packages/cli/src/run.ts",
+  "setup bo dry-run",
+  "dryRun: flags.dryRun,",
+  "dryRun: false,"
+ ],
+ [
+  "packages/cli/src/run.ts",
+  "setup bo remove",
+  "remove: flags.remove,",
+  "remove: false,"
+ ],
+ [
+  "packages/cli/src/run.ts",
+  "setup bo json",
+  "if (flags.json) io.stdout(JSON.stringify(steps, null, 2));\n  else for",
+  "for"
+ ],
+ [
+  "packages/cli/src/run.ts",
+  "setup sai cliPath",
+  "new URL(\"./cli.js\", import.meta.url)",
+  "new URL(\"./run.js\", import.meta.url)"
+ ],
+ [
+  "packages/cli/src/run.ts",
+  "setup nhan tham so thua",
+  "const rejected = rejectPositionals(\"setup\", positionals, io);\n  if (rejected !== null) return rejected;",
+  "const rejected = null;"
+ ],
+ [
+  "packages/cli/src/run.ts",
+  "mcp nhan tham so thua",
+  "const rejected = rejectPositionals(\"mcp\", positionals, io);\n  if (rejected !== null) return rejected;",
+  "void io; void positionals; return 0;"
+ ]
+]

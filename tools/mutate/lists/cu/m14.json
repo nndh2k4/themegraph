@@ -1,0 +1,17 @@
+[
+ ["packages/core/src/registry.ts","khong lay khoa","      closeSync(openSync(lock, \"wx\"));\n      break;","      break;"],
+ ["packages/core/src/registry.ts","khong nha khoa","    return body();\n  } finally {\n    rmSync(lock, { force: true });\n  }","    return body();\n  } finally {\n  }"],
+ ["packages/core/src/registry.ts","khong go khoa cu","      if (ageMs > LOCK_STALE_MS) {","      if (false) {"],
+ ["packages/core/src/registry.ts","go khoa con moi","      if (ageMs > LOCK_STALE_MS) {","      if (ageMs > -1) {"],
+ ["packages/core/src/registry.ts","unregister luon lay khoa","  if (!existsSync(registryPath())) return false;\n",""],
+ ["packages/core/src/registry.ts","khong don file tam","    rmSync(temp, { force: true });\n    throw error;","    throw error;"],
+ ["packages/core/src/status.ts","hash luon khop","if (hashOf.get(file.path) !== hashContent(content)) modified.push(file.path);",""],
+ ["packages/core/src/status.ts","thieu hash coi la khong doi","if (hashOf.get(file.path) !== hashContent(content))","if ((hashOf.get(file.path) ?? hashContent(content)) !== hashContent(content))"],
+ ["packages/core/src/analyze.ts","khong ghi hash","      fileHashes.push({ file: file.path, hash: hashContent(content) });",""],
+ ["packages/core/src/analyze.ts","hash cua ten file","hash: hashContent(content) });","hash: hashContent(file.path) });"],
+ ["packages/core/src/analyze.ts","khong dua hash vao do thi","{ schemas, translationKeys, settings, fileHashes }","{ schemas, translationKeys, settings }"],
+ ["packages/core/src/graph.ts","khong loc hash la","      .filter((entry) => filePaths.has(entry.file))\n","      .filter(() => true)\n"],
+ ["packages/core/src/graph.ts","khong xep hash","    fileHashes: fileHashes\n      .filter((entry) => filePaths.has(entry.file))\n      .sort((a, b) => compareText(a.file, b.file)),","    fileHashes: fileHashes\n      .filter((entry) => filePaths.has(entry.file)),"],
+ ["packages/core/src/store.ts","khong ghi bang hash","        insertFileHash.run(entry.file, entry.hash);",""],
+ ["packages/core/src/hash.ts","hash hang so","return createHash(\"sha1\").update(content, \"utf8\").digest(\"hex\");","return createHash(\"sha1\").update(\"x\", \"utf8\").digest(\"hex\");"]
+]

@@ -1,0 +1,116 @@
+[
+ [
+  "packages/core/src/impact.ts",
+  "direct la moi do sau",
+  "affected.filter((node) => node.depth === 1).map",
+  "affected.map"
+ ],
+ [
+  "packages/core/src/impact.ts",
+  "direct la do sau 2",
+  "node.depth === 1",
+  "node.depth === 2"
+ ],
+ [
+  "packages/core/src/impact.ts",
+  "via gom ca trang",
+  "reachable.filter((id) => id !== page.id && direct.has(id))",
+  "reachable.filter((id) => direct.has(id))"
+ ],
+ [
+  "packages/core/src/impact.ts",
+  "via khong loc direct",
+  "reachable.filter((id) => id !== page.id && direct.has(id))",
+  "reachable.filter((id) => id !== page.id)"
+ ],
+ [
+  "packages/core/src/impact.ts",
+  "via khong sap xep",
+  "direct.has(id)).sort(),",
+  "direct.has(id)),"
+ ],
+ [
+  "packages/core/src/impact.ts",
+  "di nguoc thay vi xuoi",
+  "traverse(graph, page.id, \"forward\")",
+  "traverse(graph, page.id, \"backward\")"
+ ],
+ [
+  "packages/core/src/impact.ts",
+  "offPage rong",
+  "for (const id of reachable) onSomePage.add(id);",
+  "for (const id of affected) onSomePage.add(id.id);"
+ ],
+ [
+  "packages/core/src/impact.ts",
+  "offPage gom tat ca",
+  "for (const id of reachable) onSomePage.add(id);",
+  ""
+ ],
+ [
+  "packages/core/src/impact.ts",
+  "offPage dao nguoc",
+  "!onSomePage.has(node.id))",
+  "onSomePage.has(node.id))"
+ ],
+ [
+  "packages/core/src/impact.ts",
+  "offPage gom ca trang",
+  "node.kind !== \"page_type\" && !onSomePage.has(node.id)",
+  "!onSomePage.has(node.id) || node.kind === \"page_type\""
+ ],
+ [
+  "packages/core/src/format.ts",
+  "via khong cat",
+  "via.slice(0, MAX_VIA_SHOWN).join",
+  "via.join"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "via dem sai",
+  "via.length - MAX_VIA_SHOWN} file khác",
+  "via.length} file khác"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "via rong van in qua",
+  "if (via.length === 0) return \"\";",
+  ""
+ ],
+ [
+  "packages/core/src/format.ts",
+  "bo cot via",
+  "          viaNote(page.via),\n",
+  ""
+ ],
+ [
+  "packages/core/src/format.ts",
+  "bo nhan offPage",
+  "offPage.has(node.id) ? OFF_PAGE : \"\"",
+  "\"\""
+ ],
+ [
+  "packages/core/src/format.ts",
+  "nhan offPage cho moi file",
+  "offPage.has(node.id) ? OFF_PAGE : \"\"",
+  "OFF_PAGE"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "luon in giai thich",
+  "if (offPage.size > 0) {",
+  "if (true) {"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "khong in giai thich",
+  "if (offPage.size > 0) {",
+  "if (false) {"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "toi da 4",
+  "MAX_VIA_SHOWN = 3",
+  "MAX_VIA_SHOWN = 4"
+ ]
+]

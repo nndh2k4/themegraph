@@ -1,0 +1,1 @@
+[["packages/cli/src/run.ts","clean khong tim len","const themeRoot = flags.theme ?? findThemeRoot(cwd) ?? findRegisteredTheme(cwd) ?? cwd;","const themeRoot = flags.theme ?? findRegisteredTheme(cwd) ?? cwd;"],["packages/cli/src/format.ts","time: thang lech mot","two(date.getMonth() + 1)","two(date.getMonth())"]]

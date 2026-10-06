@@ -1,0 +1,1 @@
+[["packages/core/src/registry.ts","unregister luon lay khoa","  if (!existsSync(registryPath())) return false;\n",""]]
