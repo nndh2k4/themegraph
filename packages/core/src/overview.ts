@@ -31,8 +31,9 @@ export interface OverviewResult {
     translationKeys: number;
     settings: number;
   };
-  // Các file được nhiều file khác gọi trực tiếp nhất: sửa chúng thì ảnh hưởng
-  // rộng nhất. Nhiều nhất trước; bằng nhau thì theo id.
+  // Các file Liquid và section group được nhiều file khác gọi trực tiếp nhất:
+  // sửa chúng thì ảnh hưởng rộng nhất. Không gồm asset. Nhiều nhất trước; bằng
+  // nhau thì theo id.
   mostUsed: UsageCount[];
 }
 
@@ -70,14 +71,16 @@ export function overview(graph: GraphHandle): OverviewResult {
   // Chỉ đếm cạnh của luồng render (file gọi file), và đếm số NƠI GỌI khác
   // nhau chứ không cộng số lời gọi: một file gọi icon mười lần vẫn là một nơi.
   // Loại trang và template bị loại khỏi kết quả: template nào cũng "được dùng"
-  // bởi đúng một loại trang, điều không nói lên gì.
+  // bởi đúng một loại trang, điều không nói lên gì. Asset cũng bị loại: trên
+  // theme thật, mười chỗ đầu bảng toàn là icon SVG, che mất các file Liquid mà
+  // người sửa theme cần biết.
   const mostUsed = db
     .prepare(
       `SELECT e.dst AS id, n.kind AS kind, count(DISTINCT e.src) AS used_by
        FROM edges e JOIN nodes n ON n.id = e.dst
        WHERE e.type IN (${FILE_EDGE_TYPES.map((type) => `'${type}'`).join(", ")})
          AND e.src <> e.dst
-         AND n.kind NOT IN ('page_type', 'template')
+         AND n.kind NOT IN ('page_type', 'template', 'asset')
        GROUP BY e.dst
        ORDER BY used_by DESC, e.dst
        LIMIT ?`,

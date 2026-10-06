@@ -1,0 +1,290 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --text: #1c2330;
+  --muted: #5d6878;
+  --line: #dde1e7;
+  --accent: #0b6bcb;
+  --warn-bg: #fff4d6;
+  --warn-line: #e0b84c;
+  --fail-bg: #fde8e8;
+  --fail-line: #d98080;
+  --tag-bg: #e9edf3;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14181f;
+    --panel: #1c222c;
+    --text: #e4e8ee;
+    --muted: #98a3b3;
+    --line: #2d3644;
+    --accent: #6cb2ff;
+    --warn-bg: #3a3116;
+    --warn-line: #8a7226;
+    --fail-bg: #3b1f1f;
+    --fail-line: #8a4545;
+    --tag-bg: #2a323f;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 system-ui, "Segoe UI", sans-serif;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+code,
+.node,
+.path {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 24px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+}
+
+.brand {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.current-theme {
+  font-weight: 600;
+}
+
+.quick-search {
+  margin-left: auto;
+}
+
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 24px 60px;
+}
+
+h1 {
+  font-size: 20px;
+  margin: 0 0 12px;
+  overflow-wrap: anywhere;
+}
+
+h2 {
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+
+.count {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  min-width: 0;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 800px) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+td {
+  padding: 3px 12px 3px 0;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+td.number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  width: 1%;
+  white-space: nowrap;
+}
+
+td.narrow {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.note {
+  font-size: 12px;
+}
+
+.failure ul {
+  margin: 6px 0 0;
+}
+
+.kind,
+.tag {
+  display: inline-block;
+  padding: 0 7px;
+  border-radius: 10px;
+  background: var(--tag-bg);
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.tag {
+  border: 1px dashed var(--line);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.stat {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.stat.alert {
+  border-color: var(--warn-line);
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-label {
+  color: var(--muted);
+}
+
+.chips {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.themes {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.themes li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.themes .missing {
+  opacity: 0.75;
+}
+
+.theme-name {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.warning,
+.failure {
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 12px 0;
+}
+
+.warning {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-line);
+}
+
+.failure {
+  background: var(--fail-bg);
+  border: 1px solid var(--fail-line);
+}
+
+.failure p,
+.warning p {
+  margin: 0;
+}
+
+.search-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.search-form input {
+  flex: 1;
+}
+
+input,
+select,
+button {
+  font: inherit;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+button {
+  cursor: pointer;
+}
+
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

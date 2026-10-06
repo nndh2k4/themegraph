@@ -158,7 +158,8 @@ describe('overview', () => {
   it('không đưa loại trang, template, khoá dịch hay setting vào danh sách dùng nhiều', () => {
     const kinds = new Set(overview(graph).mostUsed.map((entry) => entry.kind));
 
-    for (const kind of ['page_type', 'template', 'translation_key', 'setting']) {
+    // Đồ thị mẫu có assets/base.css được layout dùng: nó không được lọt vào.
+    for (const kind of ['page_type', 'template', 'asset', 'translation_key', 'setting']) {
       expect(kinds.has(kind as never)).toBe(false);
     }
   });

@@ -1726,3 +1726,83 @@ describe('themegraph overview', () => {
     expect(result.code).toBe(2);
   });
 });
+
+describe('themegraph serve', () => {
+  type Serving = { port: number; url: string; close(): Promise<void> };
+  let serving: Serving | undefined;
+
+  afterEach(async () => {
+    await serving?.close();
+    serving = undefined;
+  });
+
+  /** Chạy lệnh serve trên một cổng do hệ điều hành chọn và giữ lại server để tắt. */
+  async function serve(args: string[] = ['--port', '0']) {
+    const out: string[] = [];
+    const err: string[] = [];
+    const code = await run(
+      ['serve', ...args],
+      { stdout: (line) => out.push(line), stderr: (line) => err.push(line) },
+      { onServing: (server) => (serving = server) },
+    );
+    return { code, stdout: out.join('\n'), stderr: err.join('\n') };
+  }
+
+  it('chạy server, in địa chỉ, và phục vụ API', async () => {
+    await runCli(['analyze', themeRoot]);
+
+    const result = await serve();
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout.split('\n')).toEqual([
+      `ThemeGraph đang chạy ở http://localhost:${serving?.port}`,
+      'Bấm Ctrl+C để dừng.',
+    ]);
+
+    const themes = (await (await fetch(`${serving?.url}/api/themes`)).json()) as { name: string }[];
+    expect(themes.map((theme) => theme.name)).toContain('mini-theme');
+  });
+
+  it('phục vụ giao diện web đã build ở trang gốc', async () => {
+    await serve();
+
+    const page = await fetch(`${serving?.url}/`);
+    const html = await page.text();
+
+    // pnpm test build mọi gói trước khi chạy test, nên bản build luôn có.
+    expect(page.status).toBe(200);
+    expect(html).toContain('<div id="root"></div>');
+
+    // File JavaScript mà trang nêu ra phải tải được.
+    const script = /src="(\/assets\/[^"]+\.js)"/.exec(html)?.[1];
+    expect(script).toBeDefined();
+    const asset = await fetch(`${serving?.url}${script}`);
+    expect(asset.status).toBe(200);
+    expect(asset.headers.get('content-type')).toBe('text/javascript; charset=utf-8');
+  });
+
+  it('báo lỗi và trả mã 1 khi cổng đang bận, kèm cách chữa', async () => {
+    await serve();
+    const busy = serving?.port ?? 0;
+    const first = serving;
+
+    const second = await serve(['--port', String(busy)]);
+    serving = first;
+
+    expect(second.code).toBe(1);
+    expect(second.stdout).toBe('');
+    expect(second.stderr).toContain(`cổng ${busy} đang được dùng`);
+    expect(second.stderr).toContain(`themegraph serve --port ${busy + 1}`);
+  });
+
+  it('trả mã 2 khi --port không hợp lệ hoặc có tham số thừa', async () => {
+    for (const bad of ['abc', '-1', '70000', '1.5']) {
+      const result = await runCli(['serve', `--port=${bad}`]);
+
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain('--port cần một số nguyên từ 0 tới 65535');
+    }
+    expect((await runCli(['serve', 'thua'])).code).toBe(2);
+  });
+});

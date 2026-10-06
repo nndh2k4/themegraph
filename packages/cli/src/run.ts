@@ -75,8 +75,10 @@ Cách dùng:
   themegraph setup                 Nối ThemeGraph vào Claude Code và Cursor: đăng ký MCP
                                    server, cài skill (--dry-run: chỉ xem; --remove: gỡ)
   themegraph mcp                   Chạy MCP server trên stdin/stdout (do AI agent gọi)
+  themegraph serve                 Mở giao diện web và API trên http://localhost:7777
+                                   (--port <n>: dùng cổng khác)
 
-Trừ analyze, list, setup và mcp, mọi lệnh chạy trên theme chứa thư mục đang đứng.
+Trừ analyze, list, setup, mcp và serve, mọi lệnh chạy trên theme chứa thư mục đang đứng.
 
 Tuỳ chọn:
   -t, --theme <thư-mục>            Dùng theme ở thư mục này thay vì thư mục đang đứng
@@ -95,6 +97,7 @@ interface Flags {
   kinds: NodeKind[];
   dryRun: boolean;
   remove: boolean;
+  port: number | undefined;
 }
 
 /**
@@ -107,6 +110,11 @@ export interface RunOverrides {
    * của người chạy test.
    */
   setup?: Partial<SetupOptions>;
+  /**
+   * Được gọi khi lệnh serve đã nghe cổng. Test dùng nó để lấy cổng thật và
+   * tắt server khi xong; khi chạy thật thì server sống tới khi bấm Ctrl+C.
+   */
+  onServing?: (server: { port: number; url: string; close(): Promise<void> }) => void;
 }
 
 /**
@@ -323,6 +331,42 @@ async function runMcp(positionals: string[], flags: Flags, io: Io): Promise<numb
 }
 
 /**
+ * Lệnh serve: chạy giao diện web và API trên 127.0.0.1 cho tới khi bị ngắt.
+ *
+ * Gói @themegraph/server chỉ được nạp ở đây, như gói mcp ở lệnh mcp.
+ */
+async function runServe(positionals: string[], flags: Flags, io: Io, overrides: RunOverrides): Promise<number> {
+  const rejected = rejectPositionals("serve", positionals, io);
+  if (rejected !== null) return rejected;
+
+  const { DEFAULT_PORT, startServer } = await import("@themegraph/server");
+  const port = flags.port ?? DEFAULT_PORT;
+
+  let server;
+  try {
+    server = await startServer({
+      port,
+      // File này sau khi build nằm ở packages/cli/dist/; bản build của giao
+      // diện nằm ở packages/web/dist/ (đường dẫn này cũng đúng khi chạy từ src/).
+      webRoot: fileURLToPath(new URL("../../web/dist", import.meta.url)),
+    });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") {
+      io.stderr(`Lỗi: cổng ${port} đang được dùng. Có thể một lệnh "themegraph serve" khác đang chạy; nếu không, thử cổng khác: themegraph serve --port ${port + 1}`);
+      return EXIT_FAILED;
+    }
+    throw error;
+  }
+
+  io.stdout(`ThemeGraph đang chạy ở ${server.url}`);
+  io.stdout("Bấm Ctrl+C để dừng.");
+  overrides.onServing?.(server);
+
+  // Server giữ tiến trình sống; lệnh "xong" ở đây nhưng tiến trình chưa thoát.
+  return EXIT_OK;
+}
+
+/**
  * Lệnh search: tìm node theo tên. Từ khoá có thể gồm nhiều từ; không có từ
  * khoá thì liệt kê, thường đi kèm --kind.
  */
@@ -364,6 +408,8 @@ async function dispatch(
       return runSetup(rest, flags, io, overrides);
     case "mcp":
       return runMcp(rest, flags, io);
+    case "serve":
+      return runServe(rest, flags, io, overrides);
     case "analyze":
       return runAnalyze(rest, flags, io);
     case "list":
@@ -426,6 +472,7 @@ export async function run(argv: string[], io: Io, overrides: RunOverrides = {}):
         kind: { type: "string", multiple: true },
         "dry-run": { type: "boolean" },
         remove: { type: "boolean" },
+        port: { type: "string" },
       },
       allowPositionals: true,
     });
@@ -452,6 +499,11 @@ export async function run(argv: string[], io: Io, overrides: RunOverrides = {}):
   const depth = parseCount(parsed.values.depth, 1);
   if (depth === null) return usageError("--depth cần một số nguyên từ 1 trở lên.", io);
 
+  const port = parseCount(parsed.values.port, 0);
+  if (port === null || (port !== undefined && port > 65535)) {
+    return usageError("--port cần một số nguyên từ 0 tới 65535.", io);
+  }
+
   const kinds = parsed.values.kind ?? [];
   const known: readonly string[] = NODE_KINDS;
   const unknownKind = kinds.find((kind) => !known.includes(kind));
@@ -468,6 +520,7 @@ export async function run(argv: string[], io: Io, overrides: RunOverrides = {}):
     kinds: kinds as NodeKind[],
     dryRun: parsed.values["dry-run"] ?? false,
     remove: parsed.values.remove ?? false,
+    port,
   };
 
   try {

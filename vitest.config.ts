@@ -10,6 +10,7 @@ export default defineConfig({
       // (Lệnh themegraph thật thì dùng dist/; test "chạy lệnh đã build" kiểm phần đó.)
       '@themegraph/core': path.join(import.meta.dirname, 'packages/core/src/index.ts'),
       '@themegraph/mcp': path.join(import.meta.dirname, 'packages/mcp/src/index.ts'),
+      '@themegraph/server': path.join(import.meta.dirname, 'packages/server/src/index.ts'),
     },
   },
   test: {

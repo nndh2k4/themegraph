@@ -1,0 +1,25 @@
+{
+  "name": "@themegraph/server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "HTTP server của ThemeGraph: API JSON chỉ đọc bọc quanh @themegraph/core, kèm phục vụ giao diện web",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@themegraph/core": "workspace:*"
+  }
+}

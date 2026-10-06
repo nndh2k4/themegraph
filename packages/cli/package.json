@@ -16,7 +16,8 @@
   },
   "dependencies": {
     "@themegraph/core": "workspace:*",
-    "@themegraph/mcp": "workspace:*"
+    "@themegraph/mcp": "workspace:*",
+    "@themegraph/server": "workspace:*"
   },
   "files": [
     "dist",
