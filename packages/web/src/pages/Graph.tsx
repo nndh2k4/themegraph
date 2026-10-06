@@ -1,5 +1,5 @@
 import type { NodeKind } from "@themegraph/core";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Sigma from "sigma";
 import { createEdgeArrowProgram } from "sigma/rendering";
 
@@ -7,14 +7,23 @@ import type { Api } from "../api.js";
 import { createDashedArrowProgram } from "../dashed-edge.js";
 import { layoutGraph } from "../graph-layout.js";
 import type { EdgeAttributes, LaidOutGraph, NodeAttributes } from "../graph-layout.js";
-import { drawGraph, DRAWN_KINDS, formatKinds, kindColor, parseKinds, toggleKind } from "../graph-model.js";
-import type { DrawGraph } from "../graph-model.js";
+import { drawGraph, DRAWN_KINDS, formatKinds, kindColor, parseKinds, searchNodes, toggleKind } from "../graph-model.js";
+import type { DrawGraph, NodeHit } from "../graph-model.js";
 import { displayName, kindLabel } from "../labels.js";
 import { formatRoute } from "../route.js";
 import { Conditional, Failure, Kind, NodeLink, useLoaded } from "../ui.js";
 
 /** Số quan hệ trực tiếp liệt kê trong panel trước khi rút gọn. */
 const MAX_LINKS_SHOWN = 12;
+
+/** Số kết quả hiện dưới ô tìm kiếm. */
+const MAX_HITS_SHOWN = 8;
+
+/** Yêu cầu đưa một node vào giữa vùng vẽ. `n` tăng mỗi lần, để yêu cầu lặp lại cùng một node vẫn chạy. */
+interface FlyTo {
+  id: string;
+  n: number;
+}
 
 /**
  * Màn đồ thị: mọi file của theme và quan hệ giữa chúng, vẽ bằng Sigma.
@@ -50,6 +59,13 @@ export function GraphView({
   );
   const graph = useMemo(() => (draw === null ? null : layoutGraph(draw)), [draw]);
 
+  // Từ khoá đang gõ trong ô tìm kiếm. Không nằm trong địa chỉ: nó chỉ là bước
+  // trung gian để chọn một node, và node được chọn thì đã nằm trong địa chỉ.
+  const [query, setQuery] = useState("");
+  const [flyTo, setFlyTo] = useState<FlyTo | null>(null);
+  const hits = useMemo(() => (exported === null ? [] : searchNodes(exported.nodes, query)), [exported, query]);
+  const matches = useMemo(() => (query.trim() === "" ? null : new Set(hits.map((hit) => hit.id))), [hits, query]);
+
   if (loaded.state === "loading") return <p className="muted">Đang tải đồ thị…</p>;
   if (loaded.state === "failed") return <Failure error={loaded.error} themeId={themeId} />;
   if (draw === null || graph === null || exported === null) return null;
@@ -64,12 +80,21 @@ export function GraphView({
     });
   };
 
+  // Chọn một kết quả tìm kiếm: chọn node đó, bật loại của nó nếu đang tắt,
+  // và đưa nó vào giữa vùng vẽ.
+  const pick = (hit: NodeHit): void => {
+    go({ node: hit.id, kinds: kinds.includes(hit.kind) ? kinds : toggleKind(kinds, hit.kind) });
+    setFlyTo((previous) => ({ id: hit.id, n: (previous?.n ?? 0) + 1 }));
+    setQuery("");
+  };
+
   const countOf = (kind: NodeKind): number => exported.nodes.filter((entry) => entry.kind === kind).length;
   const selected = node !== "" && graph.hasNode(node) ? node : null;
 
   return (
     <div className="graph-screen">
       <div className="graph-toolbar panel">
+        <GraphSearch query={query} hits={hits} onQuery={setQuery} onPick={pick} />
         <div className="graph-kinds">
           {DRAWN_KINDS.filter((kind) => countOf(kind) > 0).map((kind) => (
             <label key={kind} className="graph-kind">
@@ -93,7 +118,13 @@ export function GraphView({
         {draw.nodes.length === 0 ? (
           <p className="muted graph-empty">Không có node nào thuộc các loại đang chọn.</p>
         ) : (
-          <Canvas graph={graph} selected={selected} onSelect={(id) => go({ node: id, near: id === "" ? false : near })} />
+          <Canvas
+            graph={graph}
+            selected={selected}
+            matches={matches}
+            flyTo={flyTo}
+            onSelect={(id) => go({ node: id, near: id === "" ? false : near })}
+          />
         )}
         {node !== "" && (
           <NodePanel
@@ -112,6 +143,87 @@ export function GraphView({
   );
 }
 
+/**
+ * Ô tìm node theo tên. Gõ tới đâu, danh sách bên dưới và các node khớp trên
+ * hình đổi tới đó. Chọn bằng chuột, hoặc bằng phím mũi tên rồi Enter; Enter
+ * ngay thì lấy kết quả đầu tiên; Escape xoá từ khoá.
+ */
+function GraphSearch({
+  query,
+  hits,
+  onQuery,
+  onPick,
+}: {
+  query: string;
+  hits: NodeHit[];
+  onQuery: (query: string) => void;
+  onPick: (hit: NodeHit) => void;
+}) {
+  // Kết quả đang được tô đậm khi dùng phím mũi tên.
+  const [active, setActive] = useState(0);
+  const shown = hits.slice(0, MAX_HITS_SHOWN);
+  const current = Math.min(active, Math.max(shown.length - 1, 0));
+
+  return (
+    <div className="graph-search">
+      <input
+        type="search"
+        value={query}
+        placeholder="Tìm section, block, snippet, layout…"
+        aria-label="Tìm node trên đồ thị"
+        onChange={(event) => {
+          onQuery(event.target.value);
+          setActive(0);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            if (shown.length > 0) setActive((current + (event.key === "ArrowDown" ? 1 : shown.length - 1)) % shown.length);
+          } else if (event.key === "Enter") {
+            const hit = shown[current];
+            if (hit !== undefined) onPick(hit);
+          } else if (event.key === "Escape") {
+            onQuery("");
+          }
+        }}
+      />
+      {query.trim() !== "" && (
+        <div className="graph-hits panel">
+          {hits.length === 0 ? (
+            <p className="muted">Không có file nào khớp.</p>
+          ) : (
+            <>
+              <ul>
+                {shown.map((hit, index) => (
+                  <li key={hit.id}>
+                    <button
+                      type="button"
+                      className={index === current ? "graph-hit active" : "graph-hit"}
+                      // mousedown chứ không phải click: click tới sau khi ô nhập mất tiêu điểm.
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        onPick(hit);
+                      }}
+                    >
+                      <span className="swatch" style={{ background: kindColor(hit.kind) }} />
+                      <span className="node">{hit.label}</span>
+                      <span className="muted note">{kindLabel(hit.kind)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <p className="muted note">
+                {hits.length} file khớp, đang được làm nổi trên hình
+                {hits.length > shown.length && `; gõ thêm để thu hẹp (đang hiện ${shown.length})`}.
+              </p>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Đọc một màu khai trong styles.css, để hình vẽ đi theo chế độ sáng / tối của trang. */
 function cssColor(name: string, fallback: string): string {
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -126,17 +238,28 @@ function cssColor(name: string, fallback: string): string {
 function Canvas({
   graph,
   selected,
+  matches,
+  flyTo,
   onSelect,
 }: {
   graph: LaidOutGraph;
   selected: string | null;
+  // Các node khớp từ khoá đang gõ; null khi ô tìm kiếm trống.
+  matches: ReadonlySet<string> | null;
+  flyTo: FlyTo | null;
   onSelect: (id: string) => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const renderer = useRef<Sigma<NodeAttributes, EdgeAttributes> | null>(null);
   // Giữ trong ref chứ không trong state: các hàm tô của Sigma đọc giá trị mới
   // nhất mà không cần React vẽ lại component.
-  const active = useRef<{ selected: string | null; hovered: string | null }>({ selected, hovered: null });
+  const active = useRef<{ selected: string | null; hovered: string | null; matches: ReadonlySet<string> | null }>({
+    selected,
+    hovered: null,
+    matches,
+  });
+  // Yêu cầu flyTo cuối cùng đã thực hiện, để vẽ lại không làm camera bay lần nữa.
+  const flown = useRef(0);
   const select = useRef(onSelect);
   select.current = onSelect;
 
@@ -163,6 +286,14 @@ function Canvas({
       zIndex: true,
 
       nodeReducer: (id, data) => {
+        const found = active.current.matches;
+
+        // Đang gõ tìm kiếm (và không rê chuột lên node nào): làm nổi các node
+        // khớp, kèm tên; phần còn lại mờ đi.
+        if (found !== null && active.current.hovered === null) {
+          return found.has(id) ? { ...data, forceLabel: true, zIndex: 1 } : { ...data, color: fadedColor, label: "", zIndex: 0 };
+        }
+
         const focus = active.current.hovered ?? active.current.selected;
         if (focus === null || !graph.hasNode(focus)) return data;
 
@@ -174,6 +305,9 @@ function Canvas({
 
       edgeReducer: (edge, data) => {
         const base = { ...data, type: data.conditional ? "dashed" : "arrow", color: edgeColor, size: 1.5 };
+        // Đang tìm kiếm: ẩn cạnh, để nhìn ra các node khớp nằm ở đâu.
+        if (active.current.matches !== null && active.current.hovered === null) return { ...base, hidden: true };
+
         const focus = active.current.hovered ?? active.current.selected;
         if (focus === null || !graph.hasNode(focus)) return base;
 
@@ -201,8 +335,25 @@ function Canvas({
 
   useEffect(() => {
     active.current.selected = selected;
+    active.current.matches = matches;
     renderer.current?.refresh({ skipIndexation: true });
-  }, [selected, graph]);
+  }, [selected, matches, graph]);
+
+  // Đưa node vừa chọn từ ô tìm kiếm vào giữa vùng vẽ. Chạy sau effect tạo
+  // Sigma, và chạy lại khi đồ thị đổi: chọn một node thuộc loại đang tắt thì
+  // loại đó được bật, đồ thị dựng lại, rồi mới có node để bay tới.
+  useEffect(() => {
+    const sigma = renderer.current;
+    if (sigma === null || flyTo === null || flyTo.n === flown.current || !graph.hasNode(flyTo.id)) return;
+
+    flown.current = flyTo.n;
+    const position = sigma.getNodeDisplayData(flyTo.id);
+    if (position === undefined) return;
+
+    // Chỉ phóng to thêm, không bao giờ thu nhỏ lại so với mức đang xem.
+    const ratio = Math.min(sigma.getCamera().ratio, 0.5);
+    void sigma.getCamera().animate({ x: position.x, y: position.y, ratio }, { duration: 400 });
+  }, [flyTo, graph]);
 
   return (
     <div className="graph-canvas">

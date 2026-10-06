@@ -13,6 +13,7 @@ import {
   nodeLabel,
   nodeSize,
   parseKinds,
+  searchNodes,
   toggleKind,
 } from '../src/graph-model.js';
 
@@ -500,5 +501,107 @@ describe('flow-model', () => {
 
     expect(flowStats(tree)).toEqual({ rows: 6, repeated: 1, conditional: 2 });
     expect(flowStats(flowNode('page:index', 0))).toEqual({ rows: 1, repeated: 0, conditional: 0 });
+  });
+});
+
+describe('searchNodes', () => {
+  const NODES = [
+    node('assets/card.js', 'asset'),
+    node('blocks/card.liquid', 'block'),
+    node('config/card.json', 'config'),
+    node('layout/theme.liquid', 'layout'),
+    node('page:product', 'page_type'),
+    node('sections/header.liquid', 'section'),
+    node('sections/main-product.liquid', 'section'),
+    node('snippets/card-product.liquid', 'snippet'),
+    node('snippets/card.liquid', 'snippet'),
+    node('snippets/product-card-wide.liquid', 'snippet'),
+    node('templates/product.json', 'template'),
+  ];
+  const found = (query: string) => searchNodes(NODES, query).map((hit) => hit.id);
+
+  it('từ khoá rỗng hoặc toàn khoảng trắng thì không có kết quả', () => {
+    expect(found('')).toEqual([]);
+    expect(found('   ')).toEqual([]);
+  });
+
+  it('trả id, loại và tên ngắn của node', () => {
+    expect(searchNodes(NODES, 'header')).toEqual([{ id: 'sections/header.liquid', kind: 'section', label: 'header' }]);
+  });
+
+  it('tên bắt đầu bằng từ khoá đứng trước (ngắn hơn trước), rồi tới tên chỉ chứa từ khoá', () => {
+    expect(found('card')).toEqual([
+      // Tên đúng bằng "card" là ngắn nhất; hai file cùng tên xếp theo id.
+      'blocks/card.liquid',
+      'snippets/card.liquid',
+      'assets/card.js',
+      'snippets/card-product.liquid',
+      // Chỉ chứa "card".
+      'snippets/product-card-wide.liquid',
+    ]);
+  });
+
+  it('không phân biệt hoa thường, bỏ khoảng trắng thừa', () => {
+    expect(found('  HEADER ')).toEqual(['sections/header.liquid']);
+  });
+
+  it('tên file viết hoa vẫn được xếp hạng như tên viết thường', () => {
+    const mixed = [node('snippets/a-card-x.liquid', 'snippet'), node('snippets/Card-Longer-Name.liquid', 'snippet')];
+
+    // "Card-Longer-Name" bắt đầu bằng từ khoá nên đứng trước, dù tên dài hơn.
+    expect(searchNodes(mixed, 'card').map((hit) => hit.id)).toEqual(['snippets/Card-Longer-Name.liquid', 'snippets/a-card-x.liquid']);
+  });
+
+  it('khớp bằng tên đứng trước khớp nhờ tên thư mục, dù tên dài hơn', () => {
+    const nodes = [node('sections/a.liquid', 'section'), node('snippets/all-sections.liquid', 'snippet')];
+
+    expect(searchNodes(nodes, 'sections').map((hit) => hit.id)).toEqual(['snippets/all-sections.liquid', 'sections/a.liquid']);
+  });
+
+  it('kết quả không phụ thuộc thứ tự của danh sách đưa vào', () => {
+    expect(searchNodes([...NODES].reverse(), 'card')).toEqual(searchNodes(NODES, 'card'));
+    expect(searchNodes([...NODES].reverse(), 'product')).toEqual(searchNodes(NODES, 'product'));
+  });
+
+  it('nhiều từ: node phải chứa mọi từ, theo thứ tự nào cũng được', () => {
+    expect(found('product card')).toEqual(['snippets/card-product.liquid', 'snippets/product-card-wide.liquid']);
+    expect(found('card   product')).toEqual(['snippets/card-product.liquid', 'snippets/product-card-wide.liquid']);
+    expect(found('card khong-co')).toEqual([]);
+  });
+
+  it('gõ kèm tên thư mục để thu hẹp theo loại file; kết quả đó đứng sau kết quả khớp bằng tên', () => {
+    expect(found('snippets card')).toEqual([
+      'snippets/card.liquid',
+      'snippets/card-product.liquid',
+      'snippets/product-card-wide.liquid',
+    ]);
+    expect(found('sections')).toEqual(['sections/header.liquid', 'sections/main-product.liquid']);
+    // "product" khớp bằng tên với nhiều file; sections/main-product khớp bằng tên (hạng 2), không phải nhờ thư mục.
+    expect(found('product')).toEqual([
+      'page:product',
+      'templates/product.json',
+      'snippets/product-card-wide.liquid',
+      // Hai tên dài bằng nhau: xếp theo id.
+      'sections/main-product.liquid',
+      'snippets/card-product.liquid',
+    ]);
+  });
+
+  it('tìm cả trong loại đang tắt trên hình (asset), nhưng không tìm loại không vẽ được', () => {
+    expect(found('card.js')).toEqual(['assets/card.js']);
+    expect(found('card.json')).toEqual([]);
+    expect(found('config')).toEqual([]);
+  });
+
+  it('tìm được trang bằng tên và bằng tiền tố page:', () => {
+    expect(found('page:product')).toEqual(['page:product']);
+    expect(found('theme')).toEqual(['layout/theme.liquid']);
+  });
+
+  it('không sửa danh sách được đưa vào', () => {
+    const before = JSON.stringify(NODES);
+    searchNodes(NODES, 'card');
+
+    expect(JSON.stringify(NODES)).toBe(before);
   });
 });

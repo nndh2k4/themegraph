@@ -253,3 +253,60 @@ export function drawGraph(exported: ExportedGraph, options: DrawOptions): DrawGr
     center,
   };
 }
+
+/** Một node khớp với từ khoá tìm trên màn đồ thị. */
+export interface NodeHit {
+  id: string;
+  kind: NodeKind;
+  label: string;
+}
+
+/**
+ * Hạng của một node với từ khoá, số nhỏ đứng trước:
+ *   0  tên ngắn bắt đầu bằng từ khoá         ("card" -> card, card-product)
+ *   1  tên ngắn chứa mọi từ                  ("product card" -> card-product)
+ *   2  chỉ khớp khi tính cả tên thư mục      ("sections header" -> sections/header.liquid)
+ *
+ * Tên đúng bằng từ khoá không cần hạng riêng: nó là tên ngắn nhất trong các
+ * tên bắt đầu bằng từ khoá, và trong một hạng thì tên ngắn hơn đứng trước.
+ */
+function hitRank(label: string, words: readonly string[], whole: string): number {
+  if (label.startsWith(whole)) return 0;
+  return words.every((word) => label.includes(word)) ? 1 : 2;
+}
+
+/**
+ * Tìm node theo tên, cho ô tìm kiếm của màn đồ thị.
+ *
+ * Từ khoá được tách thành các từ; một node khớp khi id của nó chứa MỌI từ,
+ * không phân biệt hoa thường. So trên id (có cả tên thư mục) nên gõ
+ * "sections header" hay "snippets card" để thu hẹp theo loại file cũng được.
+ *
+ * Tìm trong mọi loại node vẽ được, kể cả loại đang tắt trên hình: người tìm
+ * một file thì muốn thấy nó dù ô lọc của loại đó đang tắt.
+ *
+ * Kết quả xếp theo hạng (xem hitRank), rồi tên ngắn hơn trước, rồi theo id.
+ * Từ khoá rỗng thì không có kết quả nào.
+ */
+export function searchNodes(nodes: readonly { id: string; kind: NodeKind }[], query: string): NodeHit[] {
+  const words = query.toLowerCase().split(/\s+/).filter((word) => word !== "");
+  if (words.length === 0) return [];
+
+  const whole = words.join(" ");
+  const drawn = new Set<string>(DRAWN_KINDS);
+  const hits: (NodeHit & { rank: number })[] = [];
+
+  for (const node of nodes) {
+    if (!drawn.has(node.kind)) continue;
+
+    const id = node.id.toLowerCase();
+    if (!words.every((word) => id.includes(word))) continue;
+
+    const label = nodeLabel(node.id, node.kind);
+    hits.push({ id: node.id, kind: node.kind, label, rank: hitRank(label.toLowerCase(), words, whole) });
+  }
+
+  return hits
+    .sort((a, b) => a.rank - b.rank || a.label.length - b.label.length || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .map(({ id, kind, label }) => ({ id, kind, label }));
+}
