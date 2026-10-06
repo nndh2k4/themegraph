@@ -73,3 +73,36 @@ Bốn lần đọc setting hỏng của Dawn đã được dò lại bằng `gre
 - `section.settings.product_show_vendor` ở `sections/main-search.liquid:274`: schema của section khai `show_vendor`, không khai `product_show_vendor`.
 
 Với Purity, 90 lần đọc hỏng mới được soi theo nhóm, chưa dò từng dòng. Các ca đã mở ra xem (`section_st.banner_image` trong `image-with-text-overlay`, `settings.rtl` trong `header`) đều là đọc một setting mà schema không khai.
+
+## Đối chiếu quy tắc về theme block trên Purity (06/10/2026)
+
+Mười trường hợp đối chiếu tay ở đầu tài liệu đều làm trên Dawn, mà Dawn không có thư mục `blocks/`. Vì vậy mọi quy tắc về theme block chưa từng được kiểm với một theme thật, và một quy tắc sai (`@theme`, xem [doi-chung-co-va-khong-co-themegraph.md](doi-chung-co-va-khong-co-themegraph.md)) đã lọt qua bộ test. Phần này bù chỗ đó.
+
+### Quy tắc, so với tài liệu Shopify
+
+| Quy tắc ThemeGraph dùng | Tài liệu Shopify (shopify.dev, mục Theme blocks) | Khớp |
+| --- | --- | --- |
+| `{"type": "@theme"}` cho phép thêm mọi theme block công khai | "To accept all theme blocks in a section by adding a generic entry of type `@theme`" | có |
+| Block tên bắt đầu bằng `_` không được `@theme` mở cửa, phải được nêu đích danh | "All underscore prefixed blocks would be excluded from appearing in the block picker"; "will need to explicitly add the block by base filename" | có |
+| `{% content_for "block", type: "...", id: "..." %}` là một lời gọi, không cần khai trong schema | "If a section or block contains static blocks but does not explicitly include them in the presets, the static blocks will always get added"; ví dụ dùng block riêng tư | có |
+| Block phải có preset mới thêm được từ editor | Tài liệu chỉ mô tả preset dùng để làm gì, không nói là bắt buộc | chưa rõ; ThemeGraph không dùng quy tắc này |
+
+### Đối chiếu độc lập trên cả 141 block
+
+`tools/accept/check-blocks.cjs` tự đọc file của theme bằng regex và `JSON.parse`, không dùng mã nào của ThemeGraph, rồi so tập file tham chiếu tới từng block với các cạnh trong `graph.db`.
+
+| | Purity |
+| --- | --- |
+| Tham chiếu script tìm được | 378 trong schema, 5 lời gọi tĩnh, 298 trong JSON template và section group, 176 trong preset |
+| Block có tập file tham chiếu trùng với đồ thị | 120 trên 141 |
+| Quan hệ script thấy mà đồ thị không có | 0 |
+| Quan hệ đồ thị có mà script không tính | 35, tất cả là block chỉ xuất hiện trong `presets` của section |
+| File nhận `@theme` | 1: `blocks/_slide.liquid` |
+| Block không được tham chiếu ở đâu | 27 (cộng 6 block chỉ được block chết gọi là 33, trùng với `dead-code`) |
+
+Đồ thị không sót quan hệ nào. 35 quan hệ dư có cùng một nguồn gốc: preset của một section có block lồng nhau (ví dụ một group chứa `button`), và đồ thị nối thẳng section với block con thay vì chỉ nối group với nó. Quan hệ đó có thật khi preset được dùng, và section vốn đã đi tới block ấy qua group, nên kết quả về trang không đổi; thứ bị lệch là block hiện ra gần section hơn một tầng và section xuất hiện trong danh sách "được gọi bởi" của block. Chưa sửa.
+
+### Giới hạn mới ghi nhận
+
+- Thư mục `listings/` (các bộ template của từng preset của theme; Purity có 11 file) không được quét. Trên Purity điều này chưa làm sai kết quả nào: không block hay section nào chỉ được dùng trong `listings/`.
+- Section được JavaScript tải qua Section Rendering API không có cạnh nào. `tools/accept/scan-js-sections.cjs` tìm dấu vết đó cho các section mà `dead-code` xếp vào mức cần xem lại: 8 trên 8 ở Dawn, 9 trên 12 ở Purity.

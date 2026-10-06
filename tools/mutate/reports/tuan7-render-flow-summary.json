@@ -1,0 +1,70 @@
+{
+  "tests": [
+    "packages/cli/tests/run.test.ts"
+  ],
+  "timeoutMs": 180000,
+  "totals": {
+    "tong": 9,
+    "bat": 9,
+    "bienDich": 0,
+    "lot": 0,
+    "quaGio": 0,
+    "khongThay": 0
+  },
+  "results": [
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "bo dong tong hop",
+      "outcome": "bat",
+      "summary": "5 failed | 119 passed (124)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "giu loai dem bang 0",
+      "outcome": "bat",
+      "summary": "1 failed | 123 passed (124)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "dem sai loai",
+      "outcome": "bat",
+      "summary": "5 failed | 119 passed (124)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "section gom ca group",
+      "outcome": "bat",
+      "summary": "4 failed | 120 passed (124)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "luon in dong Section",
+      "outcome": "bat",
+      "summary": "1 failed | 123 passed (124)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "section khong sap xep",
+      "outcome": "bat",
+      "summary": "1 failed | 123 passed (124)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "section bo nhan dieu kien",
+      "outcome": "bat",
+      "summary": "1 failed | 123 passed (124)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "thu tu loai",
+      "outcome": "bat",
+      "summary": "4 failed | 120 passed (124)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "offPage noi qua",
+      "outcome": "bat",
+      "summary": "1 failed | 123 passed (124)"
+    }
+  ]
+}

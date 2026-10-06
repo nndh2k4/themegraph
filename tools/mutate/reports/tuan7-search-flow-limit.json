@@ -1,0 +1,294 @@
+{
+  "tests": [
+    "packages/core/tests/search.test.ts",
+    "packages/core/tests/render-flow.test.ts",
+    "packages/cli/tests/run.test.ts"
+  ],
+  "timeoutMs": 180000,
+  "totals": {
+    "tong": 46,
+    "bat": 45,
+    "bienDich": 0,
+    "lot": 0,
+    "quaGio": 0,
+    "khongThay": 1
+  },
+  "results": [
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "phan biet hoa thuong tu khoa",
+      "outcome": "bat",
+      "summary": "1 failed | 158 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "phan biet hoa thuong id",
+      "outcome": "bat",
+      "summary": "1 failed | 158 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "bo loc kind",
+      "outcome": "bat",
+      "summary": "5 failed | 154 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "mang kinds rong loc het",
+      "outcome": "bat",
+      "summary": "7 failed | 152 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "bo limit",
+      "outcome": "bat",
+      "summary": "6 failed | 153 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "limit am",
+      "outcome": "bat",
+      "summary": "1 failed | 158 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "total sau khi cat",
+      "outcome": "bat",
+      "summary": "5 failed | 154 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "bo exact",
+      "outcome": "bat",
+      "summary": "6 failed | 153 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "bo prefix",
+      "outcome": "bat",
+      "summary": "3 failed | 156 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "bo name",
+      "outcome": "bat",
+      "summary": "2 failed | 157 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "path khong khop",
+      "outcome": "bat",
+      "summary": "6 failed | 153 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "muc sat nhat thay vi long nhat",
+      "outcome": "bat",
+      "summary": "9 failed | 150 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "mot tu khop la du",
+      "outcome": "bat",
+      "summary": "13 failed | 146 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "bo xep file truoc",
+      "outcome": "bat",
+      "summary": "1 failed | 158 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "bo xep id ngan truoc",
+      "outcome": "bat",
+      "summary": "5 failed | 154 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "bo xep hang",
+      "outcome": "bat",
+      "summary": "4 failed | 155 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "tu khoa rong van xep hang",
+      "outcome": "bat",
+      "summary": "1 failed | 158 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "ten page giu tien to",
+      "outcome": "bat",
+      "summary": "2 failed | 157 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "ten khoa dich giu tien to",
+      "outcome": "bat",
+      "summary": "3 failed | 156 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "ten setting ca id",
+      "outcome": "bat",
+      "summary": "4 failed | 155 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "duoi tu dau cham cuoi",
+      "outcome": "bat",
+      "summary": "2 failed | 157 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "ten giu thu muc",
+      "outcome": "bat",
+      "summary": "9 failed | 150 passed (159)"
+    },
+    {
+      "file": "packages/core/src/search.ts",
+      "name": "mac dinh 20",
+      "outcome": "bat",
+      "summary": "1 failed | 158 passed (159)"
+    },
+    {
+      "file": "packages/core/src/render-flow.ts",
+      "name": "bo cat do sau",
+      "outcome": "bat",
+      "summary": "5 failed | 154 passed (159)"
+    },
+    {
+      "file": "packages/core/src/render-flow.ts",
+      "name": "cat lech mot tang",
+      "outcome": "bat",
+      "summary": "5 failed | 154 passed (159)"
+    },
+    {
+      "file": "packages/core/src/render-flow.ts",
+      "name": "khong dem con bi giau",
+      "outcome": "bat",
+      "summary": "5 failed | 154 passed (159)"
+    },
+    {
+      "file": "packages/core/src/render-flow.ts",
+      "name": "khong ghi maxDepth",
+      "outcome": "bat",
+      "summary": "4 failed | 155 passed (159)"
+    },
+    {
+      "file": "packages/core/src/render-flow.ts",
+      "name": "nhan maxDepth 0",
+      "outcome": "bat",
+      "summary": "1 failed | 158 passed (159)"
+    },
+    {
+      "file": "packages/core/src/render-flow.ts",
+      "name": "nhan so le",
+      "outcome": "bat",
+      "summary": "1 failed | 158 passed (159)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "capped khong cat",
+      "outcome": "bat",
+      "summary": "5 failed | 154 passed (159)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "capped lech mot",
+      "outcome": "bat",
+      "summary": "2 failed | 157 passed (159)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "dem sai phan giau",
+      "outcome": "bat",
+      "summary": "5 failed | 154 passed (159)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "luon bao cay bi cat",
+      "outcome": "bat",
+      "summary": "1 failed | 158 passed (159)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "khong bao cay bi cat",
+      "outcome": "bat",
+      "summary": "1 failed | 158 passed (159)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "hasHidden chi xet goc",
+      "outcome": "bat",
+      "summary": "1 failed | 158 passed (159)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "bo ghi chu con chua mo",
+      "outcome": "bat",
+      "summary": "2 failed | 157 passed (159)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "search khong noi tong",
+      "outcome": "bat",
+      "summary": "3 failed | 156 passed (159)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "search tu khoa rong van in khop",
+      "outcome": "bat",
+      "summary": "2 failed | 157 passed (159)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "impact khong cat",
+      "outcome": "KHONG-THAY",
+      "summary": ""
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "limit nhan 1e3",
+      "outcome": "bat",
+      "summary": "2 failed | 157 passed (159)"
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "depth nhan 0",
+      "outcome": "bat",
+      "summary": "1 failed | 158 passed (159)"
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "search bo kinds",
+      "outcome": "bat",
+      "summary": "1 failed | 158 passed (159)"
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "search bo limit",
+      "outcome": "bat",
+      "summary": "3 failed | 156 passed (159)"
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "khong kiem kind",
+      "outcome": "bat",
+      "summary": "1 failed | 158 passed (159)"
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "bo depth",
+      "outcome": "bat",
+      "summary": "3 failed | 156 passed (159)"
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "bo limit trinh bay",
+      "outcome": "bat",
+      "summary": "5 failed | 154 passed (159)"
+    }
+  ]
+}

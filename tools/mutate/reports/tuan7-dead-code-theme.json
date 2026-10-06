@@ -1,0 +1,76 @@
+{
+  "tests": [
+    "packages/core/tests/dead-code.test.ts"
+  ],
+  "timeoutMs": 180000,
+  "totals": {
+    "tong": 10,
+    "bat": 10,
+    "bienDich": 0,
+    "lot": 0,
+    "quaGio": 0,
+    "khongThay": 0
+  },
+  "results": [
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "moi acceptor deu mo cua",
+      "outcome": "bat",
+      "summary": "3 failed | 28 passed (31)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "khong can accepts",
+      "outcome": "bat",
+      "summary": "1 failed | 30 passed (31)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "mo cua ca block rieng tu",
+      "outcome": "bat",
+      "summary": "4 failed | 27 passed (31)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "bo nhanh @theme",
+      "outcome": "bat",
+      "summary": "6 failed | 25 passed (31)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "accepts tinh ca file chet",
+      "outcome": "bat",
+      "summary": "2 failed | 29 passed (31)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "accepts luon sai",
+      "outcome": "bat",
+      "summary": "2 failed | 29 passed (31)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "khong lan review sang block cong khai",
+      "outcome": "bat",
+      "summary": "1 failed | 30 passed (31)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "lan review tu moi file",
+      "outcome": "bat",
+      "summary": "1 failed | 30 passed (31)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "lan review sang ca block rieng tu",
+      "outcome": "bat",
+      "summary": "1 failed | 30 passed (31)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "lan review sang moi file",
+      "outcome": "bat",
+      "summary": "1 failed | 30 passed (31)"
+    }
+  ]
+}
