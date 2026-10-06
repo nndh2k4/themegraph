@@ -1,0 +1,65 @@
+{
+  "_ghi_chu": "Thang chấm viết TRƯỚC khi chạy. Mỗi câu có danh sách mục phải có trong câu trả lời; điểm là số mục được nhắc tới. `match` là biểu thức chính quy (không phân biệt hoa thường) cho từng mục; mục không có `match` thì khớp theo tên đặt trong dấu ` hoặc đi sau một dấu /.",
+  "questions": [
+    {
+      "id": "buy-buttons",
+      "theme": "purity",
+      "question": "sửa snippets/buy-buttons.liquid thì ảnh hưởng những trang nào?",
+      "source": "themegraph impact snippets/buy-buttons.liquid: 17 trên 19 trang; bảy trang customers/* gộp thành một mục",
+      "expected": [
+        { "name": "product", "match": "product|sản phẩm" },
+        { "name": "index", "match": "\\bindex\\b|trang chủ|home" },
+        { "name": "404", "match": "\\b404\\b" },
+        { "name": "article", "match": "\\barticle\\b|bài viết" },
+        { "name": "blog", "match": "\\bblog\\b" },
+        { "name": "cart", "match": "\\bcart\\b|giỏ hàng" },
+        { "name": "collection", "match": "\\bcollection\\b" },
+        { "name": "list-collections", "match": "list-collections|danh sách collection" },
+        { "name": "page", "match": "`page`|\\bpage\\.|trang page|trang tĩnh|\\bpage\\b \\(" },
+        { "name": "search", "match": "\\bsearch\\b|tìm kiếm" },
+        { "name": "customers", "match": "customers?/|customers/\\*|tài khoản|\\baccount\\b" }
+      ]
+    },
+    {
+      "id": "cart-sections",
+      "theme": "purity",
+      "question": "trang cart render những section nào?",
+      "source": "themegraph render-flow cart: 13 section; hai section cuối do JavaScript tải (tính riêng là điểm cộng)",
+      "expected": [
+        { "name": "main-cart-items" },
+        { "name": "recently-viewed-products" },
+        { "name": "announcement-bar" },
+        { "name": "header" },
+        { "name": "footer" },
+        { "name": "mobile-navigation-bar" },
+        { "name": "header-search" },
+        { "name": "product-quickview" },
+        { "name": "cart-drawer" },
+        { "name": "newsletter-popup" },
+        { "name": "discount-popup" },
+        { "name": "offers-popup" },
+        { "name": "before-you-leave" }
+      ],
+      "bonus": [{ "name": "main-cart-edit" }, { "name": "main-cart-upsell" }]
+    },
+    {
+      "id": "dead-blocks",
+      "theme": "purity",
+      "question": "trong thư mục blocks/ có block nào không còn được dùng ở đâu không?",
+      "source": "tools/accept/check-blocks.cjs (đối chiếu độc lập) và themegraph dead-code: 33 block",
+      "expected": [
+        { "name": "_accordion-content" }, { "name": "_collection-image" }, { "name": "_form_subscribe" },
+        { "name": "_group-image-parallax" }, { "name": "_group-merquee" }, { "name": "_icon-text" },
+        { "name": "_icon" }, { "name": "_item" }, { "name": "_products" }, { "name": "_slide" },
+        { "name": "_social-icons-item" }, { "name": "alert" }, { "name": "collection-card" },
+        { "name": "collection-title" }, { "name": "group-collections-list" }, { "name": "group-faq-page" },
+        { "name": "group-highlight-collections" }, { "name": "group-image-card" },
+        { "name": "group-image-parallax" }, { "name": "group-image-with-text-offer" },
+        { "name": "group-image-with-text" }, { "name": "group-lookbook-image" },
+        { "name": "group-text-shopable-image" }, { "name": "group-text" }, { "name": "group-your-bundle" },
+        { "name": "icon-list" }, { "name": "image-box" }, { "name": "jumbo-text" }, { "name": "logo" },
+        { "name": "menu" }, { "name": "page" }, { "name": "progress-bar" }, { "name": "social-icons" }
+      ]
+    }
+  ]
+}

@@ -210,6 +210,7 @@ describe('impact — trang nào đi qua file nào', () => {
       depth: 3,
       certain: false,
       via: ['sections/grid.liquid'],
+      scriptOnly: false,
     });
   });
 

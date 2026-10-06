@@ -3,7 +3,14 @@ import type { FindNodeOptions } from "./find-node.js";
 import type { GraphHandle } from "./open.js";
 import { traverse } from "./traverse.js";
 import type { Reached } from "./traverse.js";
-import type { GraphNode } from "./types.js";
+import { FILE_EDGE_TYPES } from "./types.js";
+import type { EdgeType, GraphNode } from "./types.js";
+
+/**
+ * Các loại cạnh của luồng render "tĩnh": mọi cạnh nối file với file, trừ cạnh
+ * tải section lúc chạy.
+ */
+const STATIC_EDGE_TYPES: readonly EdgeType[] = FILE_EDGE_TYPES.filter((type) => type !== "LOADS_SECTION");
 
 /** Một loại trang bị ảnh hưởng, kèm lối mà nó đi tới target. */
 export interface ImpactPage extends Reached {
@@ -12,6 +19,13 @@ export interface ImpactPage extends Reached {
   // card-product qua main-product và related-products. Rỗng khi target là
   // template của chính trang đó: giữa hai bên không còn file nào.
   via: string[];
+  // true: trang này CHỈ đi tới target qua ít nhất một section do JavaScript
+  // tải lúc chạy (cạnh LOADS_SECTION); không có đường nào toàn lời gọi Liquid
+  // và JSON. Ví dụ: sửa snippet price ảnh hưởng trang 404 chỉ vì ô tìm kiếm ở
+  // header tải section gợi ý kết quả, nơi có in giá. Những trang như vậy là
+  // thật nhưng xa hơn hẳn các trang render target ngay khi tải, nên được
+  // tách ra để người đọc biết đâu là phần chính.
+  scriptOnly: boolean;
 }
 
 /** Kết quả của impact(): sửa một file thì những gì bị ảnh hưởng. */
@@ -59,6 +73,17 @@ export function impact(graph: GraphHandle, name: string, options: FindNodeOption
   // Các file gọi target trực tiếp: đúng những node ở độ sâu 1.
   const direct = new Set(affected.filter((node) => node.depth === 1).map((node) => node.id));
 
+  // Những node đi tới target mà không cần cạnh LOADS_SECTION nào. Chỉ cần
+  // thêm một phép duyệt ngược: target là khoá dịch hay setting thì bước đầu
+  // tiên đi qua cạnh không thuộc luồng render, nên bắt đầu từ các file dùng
+  // trực tiếp target thay vì từ chính target.
+  const reachesStatically = new Set<string>(direct);
+  for (const id of direct) {
+    for (const node of traverse(graph, id, "backward", { edgeTypes: STATIC_EDGE_TYPES })) {
+      reachesStatically.add(node.id);
+    }
+  }
+
   // Mọi node mà ít nhất một trang bị ảnh hưởng đi tới được.
   const onSomePage = new Set<string>();
 
@@ -71,6 +96,7 @@ export function impact(graph: GraphHandle, name: string, options: FindNodeOption
       return {
         ...page,
         via: reachable.filter((id) => id !== page.id && direct.has(id)).sort(),
+        scriptOnly: !reachesStatically.has(page.id),
       };
     });
 

@@ -139,6 +139,9 @@ export function formatAnalyze(result: AnalyzeResult): string[] {
 /** Số file tối đa nêu tên sau chữ "qua" ở mỗi trang; phần còn lại chỉ đếm. */
 const MAX_VIA_SHOWN = 3;
 
+/** Nhãn của trang chỉ đi tới target qua một section do JavaScript tải. */
+const SCRIPT_ONLY = "[qua JavaScript]";
+
 /** Ghi chú của file có dùng target nhưng không nằm trên trang nào. */
 const OFF_PAGE = "[không trang nào dùng]";
 
@@ -160,22 +163,35 @@ export function formatImpact(result: ImpactResult, options: FormatOptions = {}):
 
   const files = affected.filter((node) => node.kind !== "page_type");
   const offPage = new Set(result.offPage);
+  // Trang render target ngay khi tải đứng trước; trang chỉ dính qua một
+  // section do JavaScript tải đứng sau. sort() giữ thứ tự cũ trong mỗi nhóm.
+  const ordered = [...pages].sort((a, b) => Number(a.scriptOnly) - Number(b.scriptOnly));
+  const scriptOnly = ordered.filter((page) => page.scriptOnly).length;
+
   const lines = [
-    `Sửa ${target.id} (${target.kind}) ảnh hưởng ${files.length} file và ${pages.length} trên ${result.totalPages} trang.`,
+    `Sửa ${target.id} (${target.kind}) ảnh hưởng ${files.length} file và ${pages.length} trên ${result.totalPages} trang` +
+      (scriptOnly > 0 ? `, trong đó ${scriptOnly} trang chỉ ${SCRIPT_ONLY.slice(1, -1)}.` : "."),
   ];
 
   if (pages.length > 0) {
     lines.push("", `Trang (${pages.length}):`);
     lines.push(
       ...table(
-        pages.map((page) => [
+        ordered.map((page) => [
           pageName(page.id),
           `cách ${page.depth} tầng`,
-          page.certain ? "" : CONDITIONAL,
+          // Nhãn [qua JavaScript] đã hàm ý có điều kiện.
+          page.scriptOnly ? SCRIPT_ONLY : page.certain ? "" : CONDITIONAL,
           viaNote(page.via),
         ]),
       ),
     );
+
+    if (scriptOnly > 0) {
+      lines.push(
+        `Trang ghi ${SCRIPT_ONLY}: ${target.id} chỉ lên trang đó khi JavaScript tải riêng một section (Section Rendering API), ví dụ lúc mở giỏ hàng hoặc gõ vào ô tìm kiếm.`,
+      );
+    }
   }
 
   if (files.length > 0) {

@@ -303,6 +303,39 @@ describe('themegraph impact', () => {
     expect(json.pages.find((page) => page.id === 'page:gift_card')?.via).toEqual(['templates/gift_card.liquid']);
   });
 
+  it('tách trang chỉ dính qua section do JavaScript tải: nhãn riêng, xếp sau, có dòng giải thích', async () => {
+    // layout nạp cart.js; cart.js tải section drawer; drawer gọi card.
+    await writeFile(path.join(themeRoot, 'sections', 'drawer.liquid'), "{% render 'only-drawer' %}");
+    await writeFile(path.join(themeRoot, 'snippets', 'only-drawer.liquid'), '<p>x</p>');
+    await writeFile(path.join(themeRoot, 'assets', 'cart.js'), 'fetch(`/cart?section_id=drawer`);');
+    await appendFile(path.join(themeRoot, 'layout', 'theme.liquid'), "\n{{ 'cart.js' | asset_url | script_tag }}");
+    // Thêm một đường tĩnh cho riêng trang gift_card.
+    await appendFile(path.join(themeRoot, 'templates', 'gift_card.liquid'), "\n{% render 'only-drawer' %}");
+    await runCli(['analyze', themeRoot]);
+
+    const result = await impact('snippets/only-drawer.liquid');
+    const lines = result.stdout.split('\n');
+    const pageLines = lines.slice(lines.indexOf('Trang (4):') + 1, lines.indexOf('Trang (4):') + 5);
+
+    expect(lines[0]).toMatch(/ảnh hưởng \d+ file và 4 trên 4 trang, trong đó 3 trang chỉ qua JavaScript\.$/);
+    // gift_card có đường tĩnh nên đứng đầu và không mang nhãn.
+    expect(pageLines[0]).toMatch(/^ {2}gift_card +cách 2 tầng +qua /);
+    expect(pageLines[0]).not.toContain('[qua JavaScript]');
+    expect(pageLines.slice(1).every((line) => line.includes('[qua JavaScript]'))).toBe(true);
+    // Nhãn [qua JavaScript] thay cho [có điều kiện], không đứng cùng nó.
+    expect(pageLines.slice(1).some((line) => line.includes('[có điều kiện]'))).toBe(false);
+    expect(lines).toContain(
+      'Trang ghi [qua JavaScript]: snippets/only-drawer.liquid chỉ lên trang đó khi JavaScript tải riêng một section (Section Rendering API), ví dụ lúc mở giỏ hàng hoặc gõ vào ô tìm kiếm.',
+    );
+  });
+
+  it('không có nhãn hay dòng giải thích về JavaScript khi mọi trang đều có đường tĩnh', async () => {
+    const result = await impact('snippets/card.liquid');
+
+    expect(result.stdout).not.toContain('JavaScript');
+    expect(result.stdout.split('\n')[0]).toBe('Sửa snippets/card.liquid (snippet) ảnh hưởng 8 file và 4 trên 4 trang.');
+  });
+
   it('bỏ mục File khi chỉ có trang bị ảnh hưởng', async () => {
     const result = await impact('templates/index.json');
 

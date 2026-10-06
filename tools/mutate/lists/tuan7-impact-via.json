@@ -112,5 +112,53 @@
   "toi da 4",
   "MAX_VIA_SHOWN = 3",
   "MAX_VIA_SHOWN = 4"
+ ],
+ [
+  "packages/core/src/impact.ts",
+  "scriptOnly luon sai",
+  "scriptOnly: !reachesStatically.has(page.id),",
+  "scriptOnly: false,"
+ ],
+ [
+  "packages/core/src/impact.ts",
+  "scriptOnly luon dung",
+  "scriptOnly: !reachesStatically.has(page.id),",
+  "scriptOnly: true,"
+ ],
+ [
+  "packages/core/src/impact.ts",
+  "duong tinh gom ca LOADS_SECTION",
+  "FILE_EDGE_TYPES.filter((type) => type !== \"LOADS_SECTION\")",
+  "FILE_EDGE_TYPES"
+ ],
+ [
+  "packages/core/src/impact.ts",
+  "khong di nguoc tu direct",
+  "for (const node of traverse(graph, id, \"backward\", { edgeTypes: STATIC_EDGE_TYPES })) {",
+  "for (const node of []as{id:string}[]) {"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "khong xep trang JavaScript ra sau",
+  "[...pages].sort((a, b) => Number(a.scriptOnly) - Number(b.scriptOnly))",
+  "[...pages].reverse()"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "khong gan nhan JavaScript",
+  "page.scriptOnly ? SCRIPT_ONLY : page.certain ? \"\" : CONDITIONAL,",
+  "page.certain ? \"\" : CONDITIONAL,"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "luon noi ve JavaScript o cau dau",
+  "(scriptOnly > 0 ? `, trong đó",
+  "(true ? `, trong đó"
+ ],
+ [
+  "packages/core/src/format.ts",
+  "luon in giai thich JavaScript",
+  "    if (scriptOnly > 0) {\n      lines.push(\n        `Trang ghi",
+  "    if (true) {\n      lines.push(\n        `Trang ghi"
  ]
 ]

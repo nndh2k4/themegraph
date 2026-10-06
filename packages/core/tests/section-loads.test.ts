@@ -1,4 +1,4 @@
-import { appendFile, cp, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { appendFile, cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -175,6 +175,43 @@ describe('section do JavaScript tải — hệ quả ở các truy vấn', () =>
       ['sections/drawer.liquid'],
     ]);
     expect(result.offPage).toEqual([]);
+    // Không trang nào render drawer bằng Liquid hay JSON: mọi trang đều chỉ qua JavaScript.
+    expect(result.pages.length).toBeGreaterThan(0);
+    expect(result.pages.every((page) => page.scriptOnly)).toBe(true);
+  });
+
+  it('impact: tách trang render target ngay khi tải khỏi trang chỉ dính qua JavaScript', async () => {
+    // Một snippet có đúng hai đường lên trang:
+    //   - tĩnh:        templates/gift_card.liquid -> snippets/both.liquid
+    //                  (template này không dùng layout, nên không có cart.js)
+    //   - JavaScript:  layout -> assets/cart.js -> sections/drawer.liquid -> snippets/both.liquid
+    await write('snippets/both.liquid', '<p>x</p>');
+    await appendFile(path.join(themeRoot, 'templates', 'gift_card.liquid'), "\n{% render 'both' %}");
+    await write('sections/drawer.liquid', "{% render 'both' %}");
+    await loadFromLayout('cart.js');
+
+    const result = impact(await analyzed(), 'snippets/both.liquid');
+    const byPage = Object.fromEntries(result.pages.map((page) => [page.id, page.scriptOnly]));
+
+    expect(byPage['page:gift_card']).toBe(false);
+    expect(byPage['page:index']).toBe(true);
+    expect(byPage['page:product']).toBe(true);
+  });
+
+  it('impact: target là khoá dịch vẫn phân biệt được hai loại trang', async () => {
+    // Thêm một khoá dịch chỉ có hai nơi dùng: template gift_card và section drawer.
+    const localePath = path.join(themeRoot, 'locales', 'en.default.json');
+    const locale = JSON.parse(await readFile(localePath, 'utf8')) as Record<string, unknown>;
+    await writeFile(localePath, JSON.stringify({ ...locale, only: { here: 'x' } }));
+    await appendFile(path.join(themeRoot, 'templates', 'gift_card.liquid'), "\n{{ 'only.here' | t }}");
+    await write('sections/drawer.liquid', "{{ 'only.here' | t }}");
+    await loadFromLayout('cart.js');
+
+    const result = impact(await analyzed(), 't:only.here');
+    const byPage = Object.fromEntries(result.pages.map((page) => [page.id, page.scriptOnly]));
+
+    expect(byPage['page:gift_card']).toBe(false);
+    expect(byPage['page:index']).toBe(true);
   });
 
   it('context: file .js hiện trong "được gọi bởi" của section, kèm số dòng và loại cạnh', async () => {
