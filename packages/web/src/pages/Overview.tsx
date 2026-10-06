@@ -49,7 +49,9 @@ export function Overview({ api, themeId }: { api: Api; themeId: string }) {
           <ul className="chips">
             {overview.pages.map((page) => (
               <li key={page}>
-                <NodeLink themeId={themeId} id={`page:${page}`} />
+                <a className="node" href={formatRoute({ name: "flow", themeId, page })} title={`Cây render của trang ${page}`}>
+                  {page}
+                </a>
               </li>
             ))}
           </ul>

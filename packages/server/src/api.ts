@@ -48,6 +48,22 @@ export interface ApiError {
 /** Một theme trong danh sách, kèm mã dùng trong đường dẫn API. */
 export interface ApiTheme extends ListedTheme {
   id: string;
+  // Vì sao đồ thị của theme không mở được (graph.db không còn, hỏng, hoặc do
+  // một bản ThemeGraph cũ ghi), kèm cách chữa; null khi mở được. Có ở đây để
+  // màn chọn theme báo ngay, thay vì để người dùng bấm vào rồi mới gặp lỗi.
+  problem: string | null;
+}
+
+/** Thử mở đồ thị của một theme; trả thông báo lỗi nếu không mở được. */
+function problemOf(themePath: string): string | null {
+  try {
+    // Mở chỉ đọc bảng meta (vài chục byte), nên làm cho mọi theme cũng nhanh.
+    openGraph(themePath).close();
+    return null;
+  } catch (error) {
+    if (error instanceof GraphNotReadyError) return error.message;
+    throw error;
+  }
 }
 
 /** Lỗi do tham số của request, thành mã 400. */
@@ -177,7 +193,11 @@ export async function handleApi(request: ApiRequest): Promise<ApiResponse> {
 
   try {
     if (segments.length === 2) {
-      const themes: ApiTheme[] = listThemes().map((theme) => ({ id: themeId(theme.path), ...theme }));
+      const themes: ApiTheme[] = listThemes().map((theme) => ({
+        id: themeId(theme.path),
+        ...theme,
+        problem: problemOf(theme.path),
+      }));
       return { status: 200, body: themes };
     }
 

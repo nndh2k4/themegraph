@@ -1,9 +1,11 @@
 import type {
   ContextResult,
   DeadCodeResult,
+  ExportedGraph,
   ImpactResult,
   ListedTheme,
   OverviewResult,
+  RenderFlowResult,
   SearchResult,
   StatusResult,
 } from "@themegraph/core";
@@ -17,6 +19,7 @@ import type {
 
 export interface ApiTheme extends ListedTheme {
   id: string;
+  problem: string | null; // vì sao đồ thị không mở được; null khi mở được
 }
 
 export interface OverviewResponse {
@@ -98,6 +101,9 @@ export function createApi(fetcher: Fetcher) {
       getJson<SearchResult>(apiUrl(theme(id, "search"), { q, kind, limit: "100" }), fetcher),
     deadCode: (id: string) => getJson<DeadCodeResult>(theme(id, "dead-code"), fetcher),
     file: (id: string, path: string) => getJson<FileResponse>(apiUrl(theme(id, "file"), { path }), fetcher),
+    // Chỉ file và loại trang; khoá dịch và setting không được vẽ.
+    graph: (id: string) => getJson<ExportedGraph>(theme(id, "graph"), fetcher),
+    flow: (id: string, page: string) => getJson<RenderFlowResult>(apiUrl(theme(id, "flow"), { page }), fetcher),
   };
 }
 

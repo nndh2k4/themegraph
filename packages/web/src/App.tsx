@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import type { Api } from "./api.js";
 import { FileDetail } from "./pages/FileDetail.js";
+import { Flow } from "./pages/Flow.js";
+import { GraphView } from "./pages/Graph.js";
 import { Overview } from "./pages/Overview.js";
 import { Search } from "./pages/Search.js";
 import { ThemeList } from "./pages/ThemeList.js";
@@ -29,11 +31,15 @@ export function App({ api }: { api: Api }) {
   return (
     <>
       <Header api={api} themeId={themeId} />
-      <main>
+      <main className={route.name === "graph" ? "wide" : undefined}>
         {route.name === "themes" && <ThemeList api={api} />}
         {route.name === "overview" && <Overview api={api} themeId={route.themeId} />}
         {route.name === "search" && <Search api={api} themeId={route.themeId} q={route.q} kind={route.kind} />}
         {route.name === "file" && <FileDetail api={api} themeId={route.themeId} path={route.path} />}
+        {route.name === "graph" && (
+          <GraphView api={api} themeId={route.themeId} kinds={route.kinds} node={route.node} near={route.near} />
+        )}
+        {route.name === "flow" && <Flow api={api} themeId={route.themeId} page={route.page} />}
         {route.name === "not_found" && (
           <div className="panel">
             <h1>Không có trang này</h1>
@@ -64,6 +70,10 @@ function Header({ api, themeId }: { api: Api; themeId: string | null }) {
           <a className="current-theme" href={formatRoute({ name: "overview", themeId })}>
             {theme?.name ?? themeId}
           </a>
+          <nav>
+            <a href={formatRoute({ name: "graph", themeId, kinds: "", node: "", near: false })}>Đồ thị</a>
+            <a href={formatRoute({ name: "flow", themeId, page: "" })}>Cây render</a>
+          </nav>
           <form
             className="quick-search"
             onSubmit={(event) => {

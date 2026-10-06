@@ -51,6 +51,12 @@ describe('formatRoute', () => {
     { name: 'file', themeId: 'ab12', path: 'page:customers/login' },
     { name: 'file', themeId: 'ab12', path: 'setting:sections/a.liquid#section.title' },
     { name: 'file', themeId: 'ab12', path: 't:a.b?c&d=e' },
+    { name: 'graph', themeId: 'ab12', kinds: '', node: '', near: false },
+    { name: 'graph', themeId: 'ab12', kinds: 'section,snippet', node: '', near: false },
+    { name: 'graph', themeId: 'ab12', kinds: '', node: 'snippets/card.liquid', near: false },
+    { name: 'graph', themeId: 'ab12', kinds: 'asset', node: 'page:customers/login', near: true },
+    { name: 'flow', themeId: 'ab12', page: '' },
+    { name: 'flow', themeId: 'ab12', page: 'customers/login' },
   ];
 
   it('đọc lại được đúng route đã viết ra, với mọi ký tự đặc biệt', () => {
@@ -63,6 +69,25 @@ describe('formatRoute', () => {
     expect(formatRoute({ name: 'search', themeId: 'ab12', q: '', kind: '' })).toBe('#/t/ab12/search');
     expect(formatRoute({ name: 'search', themeId: 'ab12', q: 'card', kind: '' })).toBe('#/t/ab12/search?q=card');
     expect(formatRoute({ name: 'not_found' })).toBe('#/');
+  });
+
+  it('màn đồ thị và cây render: địa chỉ gọn khi không có tham số', () => {
+    expect(formatRoute({ name: 'graph', themeId: 'ab12', kinds: '', node: '', near: false })).toBe('#/t/ab12/graph');
+    expect(formatRoute({ name: 'graph', themeId: 'ab12', kinds: 'asset', node: '', near: false })).toBe('#/t/ab12/graph?kinds=asset');
+    expect(formatRoute({ name: 'graph', themeId: 'ab12', kinds: '', node: 'snippets/a.liquid', near: true })).toBe(
+      '#/t/ab12/graph?node=snippets%2Fa.liquid&near=1',
+    );
+    expect(formatRoute({ name: 'flow', themeId: 'ab12', page: '' })).toBe('#/t/ab12/flow');
+    expect(formatRoute({ name: 'flow', themeId: 'ab12', page: 'product' })).toBe('#/t/ab12/flow?page=product');
+  });
+
+  it('near chỉ có nghĩa khi có node: không có node thì không ghi ra và không đọc vào', () => {
+    expect(formatRoute({ name: 'graph', themeId: 'ab12', kinds: '', node: '', near: true })).toBe('#/t/ab12/graph');
+    expect(parseRoute('#/t/ab12/graph?near=1')).toEqual({ name: 'graph', themeId: 'ab12', kinds: '', node: '', near: false });
+    // Chỉ đúng giá trị "1" mới bật.
+    expect(parseRoute('#/t/ab12/graph?node=a&near=0')).toMatchObject({ node: 'a', near: false });
+    expect(parseRoute('#/t/ab12/graph?node=a&near=true')).toMatchObject({ near: false });
+    expect(parseRoute('#/t/ab12/graph?node=a&near=1')).toMatchObject({ near: true });
   });
 
   it('mã hoá dấu # trong id của setting, để nó không cắt ngang hash', () => {
@@ -198,9 +223,13 @@ describe('createApi', () => {
     await api.search('ab12', 'card product', 'snippet');
     await api.search('ab12', '', '');
     await api.file('ab12', 'setting:sections/a.liquid#section.title');
+    await api.graph('ab12');
+    await api.flow('ab12', 'customers/login');
     await api.deadCode('ab12');
 
     expect(urls.pop()).toBe('/api/themes/ab12/dead-code');
+    expect(urls.pop()).toBe('/api/themes/ab12/flow?page=customers%2Flogin');
+    expect(urls.pop()).toBe('/api/themes/ab12/graph');
     expect(urls).toEqual([
       '/api/themes',
       '/api/themes/ab12/overview',

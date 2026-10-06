@@ -11,6 +11,7 @@
   --fail-bg: #fde8e8;
   --fail-line: #d98080;
   --tag-bg: #e9edf3;
+  --edge: #9aa4b2;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -26,6 +27,7 @@
     --fail-bg: #3b1f1f;
     --fail-line: #8a4545;
     --tag-bg: #2a323f;
+    --edge: #5b6676;
   }
 }
 
@@ -287,4 +289,223 @@ select:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+/* ---- thanh trên cùng: liên kết sang các màn của theme ---- */
+
+header nav {
+  display: flex;
+  gap: 14px;
+}
+
+/* ---- màn đồ thị ---- */
+
+/* Màn đồ thị dùng hết chiều ngang của cửa sổ. */
+main.wide {
+  max-width: none;
+  padding-bottom: 20px;
+}
+
+.graph-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 24px;
+  margin-bottom: 12px;
+}
+
+.graph-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.graph-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.graph-kind input,
+.graph-near input {
+  padding: 0;
+}
+
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.graph-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.graph-legend .line {
+  display: inline-block;
+  width: 26px;
+  margin-left: 8px;
+  border-top: 2px solid var(--edge);
+}
+
+.graph-legend .line.dashed {
+  border-top-style: dashed;
+}
+
+.graph-body {
+  display: flex;
+  gap: 12px;
+  /* Chiều cao còn lại của cửa sổ sau thanh trên cùng và thanh bộ lọc. */
+  height: calc(100vh - 190px);
+  min-height: 360px;
+}
+
+.graph-canvas {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.graph-stage {
+  position: absolute;
+  inset: 0;
+}
+
+.graph-zoom {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  gap: 4px;
+}
+
+.graph-empty {
+  flex: 1;
+  padding: 24px;
+}
+
+.graph-panel {
+  position: relative;
+  width: 340px;
+  flex-shrink: 0;
+  margin-bottom: 0;
+  overflow-y: auto;
+}
+
+.graph-panel h3 {
+  font-size: 13px;
+  margin: 14px 0 4px;
+}
+
+.graph-panel p {
+  margin: 4px 0;
+}
+
+.graph-panel-title {
+  font-size: 15px;
+  padding-right: 28px;
+  overflow-wrap: anywhere;
+}
+
+.graph-panel-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 0 8px;
+  line-height: 1.6;
+}
+
+.graph-near {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+  cursor: pointer;
+}
+
+.graph-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.graph-links li {
+  padding: 1px 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 800px) {
+  .graph-body {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .graph-canvas {
+    height: 60vh;
+    flex: none;
+  }
+
+  .graph-panel {
+    width: auto;
+  }
+}
+
+/* ---- màn cây render ---- */
+
+.flow-pages {
+  margin-bottom: 16px;
+}
+
+.flow-pages .current {
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.flow-tree,
+.flow-tree ul {
+  list-style: none;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.flow-tree {
+  padding-left: 0;
+}
+
+.flow-tree ul {
+  border-left: 1px solid var(--line);
+  margin-left: 5px;
+}
+
+.flow-tree li {
+  padding: 1px 0;
+}
+
+.flow-tree summary {
+  cursor: pointer;
+}
+
+/* Dòng không có con thụt vào bằng đúng chỗ của mũi tên gập mở. */
+.flow-tree .flow-leaf {
+  padding-left: 15px;
+}
+
+.flow-to-graph {
+  margin-left: 8px;
+  visibility: hidden;
+}
+
+.flow-line:hover .flow-to-graph,
+.flow-to-graph:focus-visible {
+  visibility: visible;
 }

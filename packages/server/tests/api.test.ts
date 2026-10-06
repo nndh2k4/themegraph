@@ -1,6 +1,7 @@
 import { cp, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 
 import {
   analyze,
@@ -82,8 +83,40 @@ describe('GET /api/themes', () => {
     const response = await get('/api/themes');
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual(listThemes().map((theme) => ({ id: themeId(theme.path), ...theme })));
+    expect(response.body).toEqual(listThemes().map((theme) => ({ id: themeId(theme.path), ...theme, problem: null })));
     expect((response.body as ApiTheme[])[0]).toMatchObject({ id, name: 'mini-theme', path: themeRoot, present: true });
+  });
+
+  it('báo trước theme không mở được, kèm cách chữa, và vẫn liệt kê nó', async () => {
+    const dbPath = path.join(themeRoot, '.themegraph', 'graph.db');
+
+    // graph.db do một bản ThemeGraph cũ ghi.
+    const db = new DatabaseSync(dbPath);
+    db.prepare("UPDATE meta SET value = '1' WHERE key = 'schema_version'").run();
+    db.close();
+    const outdated = ((await get('/api/themes')).body as ApiTheme[])[0];
+
+    // graph.db không phải database.
+    await writeFile(dbPath, 'khong phai database');
+    const unreadable = ((await get('/api/themes')).body as ApiTheme[])[0];
+
+    // Thư mục .themegraph bị xoá tay.
+    await rm(path.join(themeRoot, '.themegraph'), { recursive: true });
+    const missing = ((await get('/api/themes')).body as ApiTheme[])[0];
+
+    expect(outdated).toMatchObject({ id, present: true });
+    expect(outdated?.problem).toContain('lược đồ phiên bản 1');
+    expect(outdated?.problem).toContain('themegraph analyze');
+    expect(unreadable?.problem).toContain('Không đọc được');
+    expect(missing).toMatchObject({ id, present: false });
+    expect(missing?.problem).toContain('themegraph analyze');
+  });
+
+  it('không giữ graph.db mở sau khi liệt kê theme', async () => {
+    await get('/api/themes');
+
+    // Nếu database còn mở, Windows sẽ từ chối xoá file này.
+    await expect(rm(path.join(themeRoot, '.themegraph', 'graph.db'))).resolves.toBeUndefined();
   });
 
   it('trả mảng rỗng khi chưa có theme nào', async () => {

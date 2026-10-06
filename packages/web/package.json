@@ -10,14 +10,18 @@
     "build": "vite build"
   },
   "dependencies": {
+    "graphology": "^0.26.0",
+    "graphology-layout-forceatlas2": "^0.10.1",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "sigma": "^3.0.3"
   },
   "devDependencies": {
     "@themegraph/core": "workspace:*",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^6.0.0",
+    "graphology-types": "^0.24.8",
     "vite": "^8.0.0"
   }
 }

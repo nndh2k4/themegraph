@@ -26,8 +26,8 @@ export function ThemeList({ api }: { api: Api }) {
       <h1>Theme đã phân tích</h1>
       <ul className="themes">
         {themes.data.map((theme) => (
-          <li key={theme.id} className={theme.present ? "panel" : "panel missing"}>
-            {theme.present ? (
+          <li key={theme.id} className={theme.problem === null ? "panel" : "panel missing"}>
+            {theme.problem === null ? (
               <a className="theme-name" href={formatRoute({ name: "overview", themeId: theme.id })}>
                 {theme.name}
               </a>
@@ -44,6 +44,8 @@ export function ThemeList({ api }: { api: Api }) {
                 <code>themegraph clean --theme "{theme.path}"</code> để gỡ khỏi danh sách.
               </p>
             )}
+            {/* graph.db còn đó nhưng không dùng được: hỏng, hoặc do bản ThemeGraph cũ ghi. */}
+            {theme.present && theme.problem !== null && <p className="warning">{theme.problem}</p>}
           </li>
         ))}
       </ul>
