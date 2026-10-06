@@ -29,6 +29,8 @@ describe('parseRoute', () => {
 
   it('giữ nguyên dấu ? và & nằm trong giá trị đã mã hoá', () => {
     expect(parseRoute('#/t/x/search?q=a%3Fb%26c')).toMatchObject({ q: 'a?b&c' });
+    // Người dùng gõ tay địa chỉ có dấu ? chưa mã hoá: chỉ dấu ? đầu tiên ngăn phần tham số.
+    expect(parseRoute('#/t/x/search?q=a?b')).toMatchObject({ q: 'a?b' });
   });
 
   it('không nhận ra thì là not_found', () => {

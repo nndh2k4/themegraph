@@ -1,0 +1,434 @@
+[
+ [
+  "packages/server/src/api.ts",
+  "id phan biet hoa thuong tren windows",
+  "process.platform === \"win32\" ? resolved.toLowerCase() : resolved",
+  "resolved"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "id khong resolve",
+  "const resolved = path.resolve(themeRoot);",
+  "const resolved = themeRoot;"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "id dai 8",
+  ".slice(0, 12);",
+  ".slice(0, 8);"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "nhan POST",
+  "if (request.method !== \"GET\" && request.method !== \"HEAD\") {",
+  "if (false) {"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "khong nhan HEAD",
+  "request.method !== \"GET\" && request.method !== \"HEAD\"",
+  "request.method !== \"GET\""
+ ],
+ [
+  "packages/server/src/api.ts",
+  "required nhan chuoi rong",
+  "if (value === null || value.trim() === \"\") throw",
+  "if (value === null) throw"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "int nhan 1e3",
+  "if (!/^\\d+$/.test(value) || Number(value) < min) {",
+  "if (Number.isNaN(Number(value)) || Number(value) < min) {"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "int bo min",
+  "if (!/^\\d+$/.test(value) || Number(value) < min) {",
+  "if (!/^\\d+$/.test(value)) {"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "list khong kiem gia tri",
+  "if (unknown !== undefined) {",
+  "if (false) {"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "khong dong graph",
+  "  } finally {\n    graph.close();\n  }\n}\n\n/** Các route",
+  "  } finally {\n  }\n}\n\n/** Các route"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "overview bo status",
+  "status: await themeStatus(summary.themeRoot) };",
+  "status: null };"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "search bo kinds",
+  "search(graph, query.get(\"q\") ?? \"\", { kinds, ...",
+  "search(graph, query.get(\"q\") ?? \"\", { ..."
+ ],
+ [
+  "packages/server/src/api.ts",
+  "search bo limit",
+  "...(limit === undefined ? {} : { limit }) }),",
+  "}),"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "search bo q",
+  "search(graph, query.get(\"q\") ?? \"\",",
+  "search(graph, \"\","
+ ],
+ [
+  "packages/server/src/api.ts",
+  "file bo impact",
+  "impact: impact(graph, target) }));",
+  "impact: null }));"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "flow bo depth",
+  "renderFlow(graph, page, maxDepth === undefined ? {} : { maxDepth })",
+  "renderFlow(graph, page, {})"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "flow depth nhan 0",
+  "optionalInt(query, \"depth\", 1)",
+  "optionalInt(query, \"depth\", 0)"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "graph bo include",
+  "exportGraph(graph, { include })",
+  "exportGraph(graph, {})"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "nhan duong dan thua",
+  "handler === undefined || segments.length !== 4",
+  "handler === undefined"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "danh sach theme bo id",
+  "({ id: themeId(theme.path), ...theme })",
+  "({ ...theme, id: \"\" })"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "node not found thanh 500",
+  "    if (error instanceof NodeNotFoundError) {\n",
+  "    if (false) {\n"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "bo goi y",
+  "message: error.message, suggestions: error.suggestions });",
+  "message: error.message });"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "graph not ready thanh 500",
+  "    if (error instanceof GraphNotReadyError) {\n",
+  "    if (false) {\n"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "bo reason",
+  "message: error.message, reason: error.reason });",
+  "message: error.message });"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "range error thanh 500",
+  "if (error instanceof RangeError) return",
+  "if (false) return"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "theme not found thanh 500",
+  "if (error instanceof ThemeNotFound) return",
+  "if (false) return"
+ ],
+ [
+  "packages/server/src/api.ts",
+  "ngoai api van xu ly",
+  "if (segments[0] !== \"api\" || segments[1] !== \"themes\") return notFound;",
+  "if (segments[1] !== \"themes\") return notFound;"
+ ],
+ [
+  "packages/server/src/static.ts",
+  "khong kiem ngoai thu muc",
+  "if (!inside) return html(404, \"Không có trang này.\");",
+  ""
+ ],
+ [
+  "packages/server/src/static.ts",
+  "tien to thu muc khong co dau phan cach",
+  "requested.startsWith(root + path.sep)",
+  "requested.startsWith(root)"
+ ],
+ [
+  "packages/server/src/static.ts",
+  "file thieu tra index",
+  "if (path.extname(decoded) !== \"\") return html(404, \"Không có file này.\");",
+  ""
+ ],
+ [
+  "packages/server/src/static.ts",
+  "chua build tra 200",
+  "if (!existsSync(indexFile)) return html(503, NOT_BUILT);",
+  "if (!existsSync(indexFile)) return html(200, NOT_BUILT);"
+ ],
+ [
+  "packages/server/src/static.ts",
+  "assets khong giu lau",
+  "const immutable = decoded.startsWith(\"/assets/\");",
+  "const immutable = false;"
+ ],
+ [
+  "packages/server/src/static.ts",
+  "moi file giu lau",
+  "const immutable = decoded.startsWith(\"/assets/\");",
+  "const immutable = true;"
+ ],
+ [
+  "packages/server/src/static.ts",
+  "kieu mac dinh sai",
+  "?? \"application/octet-stream\"",
+  "?? \"text/html\""
+ ],
+ [
+  "packages/server/src/static.ts",
+  "khong bat loi giai ma",
+  "  } catch {\n    return html(404, \"Không có trang này.\");\n  }",
+  "  } catch {\n    decoded = \"/\";\n  }"
+ ],
+ [
+  "packages/server/src/static.ts",
+  "thu muc coi la file",
+  "existsSync(requested) && statSync(requested).isFile()",
+  "existsSync(requested)"
+ ],
+ [
+  "packages/server/src/static.ts",
+  "js sai kieu",
+  "\".js\": \"text/javascript; charset=utf-8\",",
+  "\".js\": \"text/plain\","
+ ],
+ [
+  "packages/server/src/index.ts",
+  "bo kiem host",
+  "if (!isLocalHost(request.headers.host)) {",
+  "if (false) {"
+ ],
+ [
+  "packages/server/src/index.ts",
+  "host khop tien to",
+  "return name === \"localhost\" || name === \"127.0.0.1\" || name === \"[::1]\";",
+  "return name.startsWith(\"localhost\") || name.startsWith(\"127.0.0.1\") || name === \"[::1]\";"
+ ],
+ [
+  "packages/server/src/index.ts",
+  "host undefined duoc qua",
+  "if (host === undefined) return false;",
+  "if (host === undefined) return true;"
+ ],
+ [
+  "packages/server/src/index.ts",
+  "bo ipv6 trong host",
+  "|| name === \"[::1]\";",
+  ";"
+ ],
+ [
+  "packages/server/src/index.ts",
+  "bo nosniff",
+  "const COMMON_HEADERS = { \"x-content-type-options\": \"nosniff\" };",
+  "const COMMON_HEADERS = {};"
+ ],
+ [
+  "packages/server/src/index.ts",
+  "json duoc cache",
+  "\"cache-control\": \"no-store\" },",
+  "\"cache-control\": \"max-age=60\" },"
+ ],
+ [
+  "packages/server/src/index.ts",
+  "HEAD van gui than",
+  "response.end(headOnly ? undefined : body);",
+  "response.end(body);"
+ ],
+ [
+  "packages/server/src/index.ts",
+  "static nhan POST",
+  "    if (method !== \"GET\" && method !== \"HEAD\") {\n      sendJson(response, 405,",
+  "    if (false) {\n      sendJson(response, 405,"
+ ],
+ [
+  "packages/server/src/index.ts",
+  "api chi khop tien to",
+  "url.pathname === \"/api\" || url.pathname.startsWith(\"/api/\")",
+  "url.pathname.startsWith(\"/apix\")"
+ ],
+ [
+  "packages/server/src/index.ts",
+  "khong nghe ipv6",
+  "await listen(v6, port, \"::1\").catch(() => undefined);",
+  ""
+ ],
+ [
+  "packages/server/src/index.ts",
+  "close khong dung v6",
+  "await Promise.all([stop(v4), stop(v6)]);",
+  "await stop(v4);"
+ ],
+ [
+  "packages/server/src/index.ts",
+  "close khong dung v4",
+  "await Promise.all([stop(v4), stop(v6)]);",
+  "await stop(v6);"
+ ],
+ [
+  "packages/server/src/index.ts",
+  "nghe moi dia chi",
+  "export const HOST = \"127.0.0.1\";",
+  "export const HOST = \"0.0.0.0\";"
+ ],
+ [
+  "packages/cli/src/run.ts",
+  "serve bo --port",
+  "const port = flags.port ?? DEFAULT_PORT;",
+  "const port = DEFAULT_PORT;"
+ ],
+ [
+  "packages/cli/src/run.ts",
+  "serve cong ban nem loi",
+  "if ((error as NodeJS.ErrnoException).code === \"EADDRINUSE\") {",
+  "if (false) {"
+ ],
+ [
+  "packages/cli/src/run.ts",
+  "serve nhan tham so thua",
+  "const rejected = rejectPositionals(\"serve\", positionals, io);\n  if (rejected !== null) return rejected;",
+  "void positionals;"
+ ],
+ [
+  "packages/cli/src/run.ts",
+  "serve sai webRoot",
+  "new URL(\"../../web/dist\", import.meta.url)",
+  "new URL(\"../../web/src\", import.meta.url)"
+ ],
+ [
+  "packages/cli/src/run.ts",
+  "port nhan 70000",
+  "if (port === null || (port !== undefined && port > 65535)) {",
+  "if (port === null) {"
+ ],
+ [
+  "packages/web/src/route.ts",
+  "file thieu path van mo",
+  "return path === null || path === \"\" ? { name: \"not_found\" }",
+  "return path === null ? { name: \"not_found\" }"
+ ],
+ [
+  "packages/web/src/route.ts",
+  "nhan doan thua",
+  "if (prefix !== \"t\" || themeId === undefined || extra.length > 0) return",
+  "if (prefix !== \"t\" || themeId === undefined) return"
+ ],
+ [
+  "packages/web/src/route.ts",
+  "cat sai o dau hoi thu hai",
+  "raw.split(/\\?(.*)/s)",
+  "raw.split(\"?\")"
+ ],
+ [
+  "packages/web/src/route.ts",
+  "search khong bo tham so rong",
+  "if (route.q !== \"\") query.set(\"q\", route.q);",
+  "query.set(\"q\", route.q);"
+ ],
+ [
+  "packages/web/src/route.ts",
+  "search bo kind",
+  "if (route.kind !== \"\") query.set(\"kind\", route.kind);",
+  ""
+ ],
+ [
+  "packages/web/src/route.ts",
+  "file khong ma hoa path",
+  "`#/t/${route.themeId}/file?${new URLSearchParams({ path: route.path }).toString()}`",
+  "`#/t/${route.themeId}/file?path=${route.path}`"
+ ],
+ [
+  "packages/web/src/labels.ts",
+  "displayName bo tien to o giua",
+  "if (id.startsWith(prefix)) return id.slice(prefix.length);",
+  "if (id.includes(prefix)) return id.slice(id.indexOf(prefix) + prefix.length);"
+ ],
+ [
+  "packages/web/src/labels.ts",
+  "sortedCounts tang dan",
+  "b - a || (nameA < nameB ? -1 : 1)",
+  "a - b || (nameA < nameB ? -1 : 1)"
+ ],
+ [
+  "packages/web/src/labels.ts",
+  "sortedCounts bang nhau khong xep",
+  "b - a || (nameA < nameB ? -1 : 1)",
+  "b - a || (nameA < nameB ? 1 : -1)"
+ ],
+ [
+  "packages/web/src/labels.ts",
+  "formatTime thang lech",
+  "two(date.getMonth() + 1)",
+  "two(date.getMonth())"
+ ],
+ [
+  "packages/web/src/labels.ts",
+  "linesText rong van in",
+  "return lines.length === 0 ? \"\" : `dòng ${lines.join(\", \")}`;",
+  "return `dòng ${lines.join(\", \")}`;"
+ ],
+ [
+  "packages/web/src/api.ts",
+  "apiUrl giu tham so rong",
+  "if (value !== \"\") query.set(name, value);",
+  "query.set(name, value);"
+ ],
+ [
+  "packages/web/src/api.ts",
+  "loi server khong nem",
+  "if (!response.ok) {",
+  "if (false) {"
+ ],
+ [
+  "packages/web/src/api.ts",
+  "mat goi y",
+  "error?.suggestions ?? [],",
+  "[],"
+ ],
+ [
+  "packages/web/src/api.ts",
+  "mat ma loi",
+  "error?.code ?? \"unknown\",",
+  "\"unknown\","
+ ],
+ [
+  "packages/web/src/api.ts",
+  "khong ma hoa id theme",
+  "`/api/themes/${encodeURIComponent(id)}/${route}`",
+  "`/api/theme/${id}/${route}`"
+ ],
+ [
+  "packages/web/src/api.ts",
+  "search bo kind",
+  "{ q, kind, limit: \"100\" }",
+  "{ q, limit: \"100\" }"
+ ]
+]

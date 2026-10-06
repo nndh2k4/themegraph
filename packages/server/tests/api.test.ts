@@ -68,6 +68,10 @@ describe('themeId', () => {
     expect(themeId(themeRoot)).not.toBe(themeId(path.join(tmp, 'other')));
   });
 
+  it('đường dẫn tương đối và đường dẫn đầy đủ của cùng một thư mục cho cùng một mã', () => {
+    expect(themeId('theme-nao-do')).toBe(themeId(path.resolve('theme-nao-do')));
+  });
+
   it.runIf(process.platform === 'win32')('trên Windows không phân biệt hoa thường', () => {
     expect(themeId(themeRoot.toUpperCase())).toBe(themeId(themeRoot.toLowerCase()));
   });
@@ -260,7 +264,7 @@ describe('lỗi', () => {
   });
 
   it('404 not_found với đường dẫn không có', async () => {
-    for (const url of ['/api', '/api/khac', `/api/themes/${id}`, `/api/themes/${id}/khong-co`, `/api/themes/${id}/search/thua`]) {
+    for (const url of ['/api', '/api/khac', '/khac/themes', `/khac/themes/${id}/overview`, `/api/themes/${id}`, `/api/themes/${id}/khong-co`, `/api/themes/${id}/search/thua`]) {
       const response = await get(url);
 
       expect(response.status).toBe(404);

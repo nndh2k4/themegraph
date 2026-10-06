@@ -1,0 +1,450 @@
+{
+  "tests": [
+    "packages/server/tests",
+    "packages/web/tests",
+    "packages/cli/tests/run.test.ts"
+  ],
+  "timeoutMs": 180000,
+  "totals": {
+    "tong": 72,
+    "bat": 62,
+    "bienDich": 0,
+    "lot": 10,
+    "quaGio": 0,
+    "khongThay": 0
+  },
+  "results": [
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "id phan biet hoa thuong tren windows",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "id khong resolve",
+      "outcome": "LOT",
+      "summary": "196 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "id dai 8",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "nhan POST",
+      "outcome": "bat",
+      "summary": "2 failed | 194 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "khong nhan HEAD",
+      "outcome": "bat",
+      "summary": "2 failed | 194 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "required nhan chuoi rong",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "int nhan 1e3",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "int bo min",
+      "outcome": "LOT",
+      "summary": "196 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "list khong kiem gia tri",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "khong dong graph",
+      "outcome": "bat",
+      "summary": "11 failed | 185 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "overview bo status",
+      "outcome": "bat",
+      "summary": "2 failed | 194 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "search bo kinds",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "search bo limit",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "search bo q",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "file bo impact",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "flow bo depth",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "flow depth nhan 0",
+      "outcome": "LOT",
+      "summary": "196 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "graph bo include",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "nhan duong dan thua",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "danh sach theme bo id",
+      "outcome": "bat",
+      "summary": "3 failed | 193 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "node not found thanh 500",
+      "outcome": "bat",
+      "summary": "2 failed | 194 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "bo goi y",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "graph not ready thanh 500",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "bo reason",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "range error thanh 500",
+      "outcome": "LOT",
+      "summary": "196 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "theme not found thanh 500",
+      "outcome": "bat",
+      "summary": "2 failed | 194 passed (196)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "ngoai api van xu ly",
+      "outcome": "LOT",
+      "summary": "196 passed (196)"
+    },
+    {
+      "file": "packages/server/src/static.ts",
+      "name": "khong kiem ngoai thu muc",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/static.ts",
+      "name": "tien to thu muc khong co dau phan cach",
+      "outcome": "LOT",
+      "summary": "196 passed (196)"
+    },
+    {
+      "file": "packages/server/src/static.ts",
+      "name": "file thieu tra index",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/static.ts",
+      "name": "chua build tra 200",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/static.ts",
+      "name": "assets khong giu lau",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/static.ts",
+      "name": "moi file giu lau",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/static.ts",
+      "name": "kieu mac dinh sai",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/static.ts",
+      "name": "khong bat loi giai ma",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/static.ts",
+      "name": "thu muc coi la file",
+      "outcome": "bat",
+      "summary": "4 failed | 192 passed (196)"
+    },
+    {
+      "file": "packages/server/src/static.ts",
+      "name": "js sai kieu",
+      "outcome": "bat",
+      "summary": "2 failed | 194 passed (196)"
+    },
+    {
+      "file": "packages/server/src/index.ts",
+      "name": "bo kiem host",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/index.ts",
+      "name": "host khop tien to",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/index.ts",
+      "name": "host undefined duoc qua",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/index.ts",
+      "name": "bo ipv6 trong host",
+      "outcome": "bat",
+      "summary": "2 failed | 194 passed (196)"
+    },
+    {
+      "file": "packages/server/src/index.ts",
+      "name": "bo nosniff",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/index.ts",
+      "name": "json duoc cache",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/index.ts",
+      "name": "HEAD van gui than",
+      "outcome": "LOT",
+      "summary": "196 passed (196)"
+    },
+    {
+      "file": "packages/server/src/index.ts",
+      "name": "static nhan POST",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/server/src/index.ts",
+      "name": "api chi khop tien to",
+      "outcome": "bat",
+      "summary": "4 failed | 192 passed (196)"
+    },
+    {
+      "file": "packages/server/src/index.ts",
+      "name": "khong nghe ipv6",
+      "outcome": "LOT",
+      "summary": "196 passed (196)"
+    },
+    {
+      "file": "packages/server/src/index.ts",
+      "name": "close khong dung v6",
+      "outcome": "bat",
+      "summary": "2 failed | 194 passed (196)"
+    },
+    {
+      "file": "packages/server/src/index.ts",
+      "name": "close khong dung v4",
+      "outcome": "bat",
+      "summary": "2 failed | 194 passed (196)"
+    },
+    {
+      "file": "packages/server/src/index.ts",
+      "name": "nghe moi dia chi",
+      "outcome": "LOT",
+      "summary": "196 passed (196)"
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "serve bo --port",
+      "outcome": "bat",
+      "summary": "3 failed | 193 passed (196)"
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "serve cong ban nem loi",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "serve nhan tham so thua",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "serve sai webRoot",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "port nhan 70000",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "file thieu path van mo",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "nhan doan thua",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "cat sai o dau hoi thu hai",
+      "outcome": "LOT",
+      "summary": "196 passed (196)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "search khong bo tham so rong",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "search bo kind",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "file khong ma hoa path",
+      "outcome": "bat",
+      "summary": "2 failed | 194 passed (196)"
+    },
+    {
+      "file": "packages/web/src/labels.ts",
+      "name": "displayName bo tien to o giua",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/web/src/labels.ts",
+      "name": "sortedCounts tang dan",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/web/src/labels.ts",
+      "name": "sortedCounts bang nhau khong xep",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/web/src/labels.ts",
+      "name": "formatTime thang lech",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/web/src/labels.ts",
+      "name": "linesText rong van in",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/web/src/api.ts",
+      "name": "apiUrl giu tham so rong",
+      "outcome": "bat",
+      "summary": "2 failed | 194 passed (196)"
+    },
+    {
+      "file": "packages/web/src/api.ts",
+      "name": "loi server khong nem",
+      "outcome": "bat",
+      "summary": "2 failed | 194 passed (196)"
+    },
+    {
+      "file": "packages/web/src/api.ts",
+      "name": "mat goi y",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/web/src/api.ts",
+      "name": "mat ma loi",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/web/src/api.ts",
+      "name": "khong ma hoa id theme",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    },
+    {
+      "file": "packages/web/src/api.ts",
+      "name": "search bo kind",
+      "outcome": "bat",
+      "summary": "1 failed | 195 passed (196)"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { request as httpRequest } from 'node:http';
+import { createServer, request as httpRequest } from 'node:http';
 import { cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -6,7 +6,7 @@ import path from 'node:path';
 import { analyze, readRegistry, unregisterTheme } from '@themegraph/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { isLocalHost, serveStatic, startServer, themeId } from '../src/index.js';
+import { HOST, isLocalHost, serveStatic, startServer, themeId } from '../src/index.js';
 import type { RunningServer } from '../src/index.js';
 
 const FIXTURE = path.join(import.meta.dirname, '../../core/tests/fixtures/mini-theme');
@@ -147,6 +147,8 @@ describe('startServer', () => {
   it('nghe trên một cổng trống của 127.0.0.1 và báo địa chỉ', () => {
     expect(server?.port).toBeGreaterThan(0);
     expect(server?.url).toBe(`http://localhost:${server?.port}`);
+    // Không bao giờ là 0.0.0.0: server không được mở ra mạng.
+    expect(HOST).toBe('127.0.0.1');
   });
 
   it('phục vụ API và giao diện web trên cùng một cổng', async () => {
@@ -227,8 +229,20 @@ describe('startServer', () => {
   });
 });
 
+/** Máy này có nghe được trên ::1 không; hỏi độc lập với startServer. */
+function hasIpv6Loopback(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const probe = createServer();
+    probe.once('error', () => resolve(false));
+    probe.listen(0, '::1', () => probe.close(() => resolve(true)));
+  });
+}
+
 describe('startServer — IPv6 nội bộ', () => {
   it('cũng trả lời trên [::1] cùng cổng khi máy có IPv6, và close() dừng cả hai', async () => {
+    // Máy không có IPv6 thì server chỉ nghe ở 127.0.0.1; khi đó không có gì để kiểm.
+    if (!(await hasIpv6Loopback())) return;
+
     server = await startServer({ port: 0, webRoot });
     const port = server.port;
 
@@ -236,9 +250,7 @@ describe('startServer — IPv6 nội bộ', () => {
       (response) => response.status,
       () => null,
     );
-    // Máy không có IPv6 thì server chỉ nghe ở 127.0.0.1; khi đó không có gì để kiểm.
-    if (viaV6 === null) return;
-
+    // Cổng do hệ điều hành chọn ở 127.0.0.1 hiếm khi đang bận ở ::1.
     expect(viaV6).toBe(200);
 
     await server.close();
