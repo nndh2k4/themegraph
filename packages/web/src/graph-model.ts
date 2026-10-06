@@ -29,22 +29,23 @@ export const DRAWN_KINDS: readonly NodeKind[] = [
 export const DEFAULT_KINDS: readonly NodeKind[] = DRAWN_KINDS.filter((kind) => kind !== "asset");
 
 /**
- * Màu của từng loại node. Chọn để hai loại hay đứng cạnh nhau (section và
- * snippet, section và block) khác hẳn nhau, và đọc được trên cả nền sáng lẫn tối.
+ * Màu của từng loại node, cho nền tối. Chọn để hai loại hay đứng cạnh nhau
+ * (section và snippet, section và block) khác hẳn nhau; asset màu xám vì nó
+ * nhiều và ít quan trọng nhất.
  */
 export const KIND_COLORS: Record<string, string> = {
-  page_type: "#d9480f",
-  template: "#e8a013",
-  layout: "#7048e8",
-  section_group: "#0c8599",
-  section: "#1c7ed6",
-  block: "#37b24d",
-  snippet: "#c2255c",
-  asset: "#868e96",
+  page_type: "#f43f5e",
+  template: "#f59e0b",
+  layout: "#a855f7",
+  section_group: "#14b8a6",
+  section: "#3b82f6",
+  block: "#10b981",
+  snippet: "#ec4899",
+  asset: "#64748b",
 };
 
 /** Màu cho loại node không có trong bảng (không nên xảy ra; để khỏi vẽ node vô hình). */
-const UNKNOWN_COLOR = "#495057";
+const UNKNOWN_COLOR = "#475569";
 
 export function kindColor(kind: string): string {
   return KIND_COLORS[kind] ?? UNKNOWN_COLOR;
@@ -78,6 +79,38 @@ export function formatKinds(kinds: readonly NodeKind[]): string {
   const isDefault = ordered.length === DEFAULT_KINDS.length && ordered.every((kind, index) => kind === DEFAULT_KINDS[index]);
 
   return isDefault ? "" : ordered.join(",");
+}
+
+/**
+ * Các loại quan hệ giữa file với file, theo thứ tự hiện trong bộ lọc: đi từ
+ * trang xuống. Quan hệ tới khoá dịch và setting không có ở đây vì hai loại
+ * node đó không được vẽ.
+ */
+export const DRAWN_EDGE_TYPES: readonly EdgeType[] = ["USES_TEMPLATE", "USES_LAYOUT", "RENDERS", "LOADS_SECTION", "USES_ASSET"];
+
+/**
+ * Đọc tham số `edges` của địa chỉ thành danh sách loại quan hệ. Vắng mặt
+ * hoặc rỗng là tất cả; loại lạ thì bỏ (nên "none" ra danh sách rỗng).
+ */
+export function parseEdgeTypes(text: string): EdgeType[] {
+  if (text.trim() === "") return [...DRAWN_EDGE_TYPES];
+
+  const asked = new Set(text.split(",").map((item) => item.trim()));
+  return DRAWN_EDGE_TYPES.filter((type) => asked.has(type));
+}
+
+/** Ngược với parseEdgeTypes. Đủ mọi loại viết thành chuỗi rỗng; không loại nào là "none". */
+export function formatEdgeTypes(types: readonly EdgeType[]): string {
+  const ordered = DRAWN_EDGE_TYPES.filter((type) => types.includes(type));
+  if (ordered.length === 0) return NO_KINDS;
+
+  return ordered.length === DRAWN_EDGE_TYPES.length ? "" : ordered.join(",");
+}
+
+/** Bật hoặc tắt một loại quan hệ trong danh sách đang chọn. */
+export function toggleEdgeType(types: readonly EdgeType[], type: EdgeType): EdgeType[] {
+  const next = types.includes(type) ? types.filter((entry) => entry !== type) : [...types, type];
+  return DRAWN_EDGE_TYPES.filter((entry) => next.includes(entry));
 }
 
 /** Bật hoặc tắt một loại trong danh sách đang chọn. */
@@ -135,6 +168,8 @@ export interface DrawGraph {
 
 export interface DrawOptions {
   kinds: readonly NodeKind[];
+  // Chỉ vẽ quan hệ thuộc các loại này; không nêu thì vẽ mọi loại.
+  edgeTypes?: readonly EdgeType[];
   // Chỉ giữ node này và những gì cách nó nhiều nhất `depth` bước, theo cả hai
   // chiều. Node này luôn được vẽ, kể cả khi loại của nó đang tắt.
   center?: string;
@@ -193,8 +228,9 @@ export function neighborhood(edges: readonly { from: string; to: string }[], cen
  * Chọn ra phần của đồ thị sẽ được vẽ.
  *
  *   1. Giữ node thuộc loại đang chọn (và node tâm, nếu có).
- *   2. Giữ cạnh có cả hai đầu còn lại; bỏ cạnh tự trỏ vào chính nó (snippet
- *      tự gọi mình), vì nó không có chiều dài để vẽ.
+ *   2. Giữ cạnh thuộc loại quan hệ đang chọn và có cả hai đầu còn lại; bỏ
+ *      cạnh tự trỏ vào chính nó (snippet tự gọi mình), vì nó không có chiều
+ *      dài để vẽ.
  *   3. Gộp các cạnh cùng hai đầu thành một.
  *   4. Nếu có node tâm: chỉ giữ lân cận của nó.
  */
@@ -207,8 +243,10 @@ export function drawGraph(exported: ExportedGraph, options: DrawOptions): DrawGr
   const available = exported.nodes.filter((node) => kinds.has(node.kind)).length;
 
   const merged = new Map<string, DrawEdge>();
+  const edgeTypes = options.edgeTypes === undefined ? null : new Set<string>(options.edgeTypes);
 
   for (const edge of exported.edges) {
+    if (edgeTypes !== null && !edgeTypes.has(edge.type)) continue;
     if (edge.from === edge.to || !shown.has(edge.from) || !shown.has(edge.to)) continue;
 
     const key = `${edge.from}\n${edge.to}`;
@@ -309,4 +347,105 @@ export function searchNodes(nodes: readonly { id: string; kind: NodeKind }[], qu
   return hits
     .sort((a, b) => a.rank - b.rank || a.label.length - b.label.length || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     .map(({ id, kind, label }) => ({ id, kind, label }));
+}
+
+/** Một dòng của cây file ở panel trái: thư mục (có `children`) hoặc file (có `id`). */
+export interface FileTreeNode {
+  name: string; // tên hiển thị của dòng này: tên thư mục, hoặc tên file kèm đuôi
+  path: string; // đường dẫn từ gốc, dùng làm key và để nhớ thư mục nào đang mở
+  id: string | null; // id của node trong đồ thị; null với thư mục
+  kind: NodeKind | null; // loại của node; null với thư mục
+  children: FileTreeNode[]; // thư mục trước, rồi file; trong mỗi nhóm xếp theo tên
+  files: number; // số file nằm dưới dòng này (với file thì là 1)
+}
+
+/** Tên thư mục ảo chứa các loại trang: chúng không phải file nên không có thư mục thật. */
+export const PAGES_FOLDER = "trang";
+
+/**
+ * Xếp các node vẽ được thành cây thư mục, giống cách chúng nằm trong theme:
+ * layout/, templates/ (có thể có thư mục con như customers/), sections/...
+ * Các loại trang nằm trong một thư mục ảo đứng đầu cây.
+ */
+export function buildFileTree(nodes: readonly { id: string; kind: NodeKind }[]): FileTreeNode[] {
+  const drawn = new Set<string>(DRAWN_KINDS);
+  const root: FileTreeNode = { name: "", path: "", id: null, kind: null, children: [], files: 0 };
+
+  for (const node of nodes) {
+    if (!drawn.has(node.kind)) continue;
+
+    // Tên trang có thể có thư mục (customers/login), giống template của nó.
+    const parts = node.kind === "page_type" ? [PAGES_FOLDER, ...node.id.slice("page:".length).split("/")] : node.id.split("/");
+    let folder = root;
+
+    // Mọi phần trừ phần cuối là thư mục; tạo nếu chưa có.
+    for (const part of parts.slice(0, -1)) {
+      const path = folder.path === "" ? part : `${folder.path}/${part}`;
+      let next = folder.children.find((child) => child.id === null && child.name === part);
+
+      if (next === undefined) {
+        next = { name: part, path, id: null, kind: null, children: [], files: 0 };
+        folder.children.push(next);
+      }
+      next.files++;
+      folder = next;
+    }
+
+    const name = parts.at(-1) ?? node.id;
+    folder.children.push({ name, path: node.id, id: node.id, kind: node.kind, children: [], files: 1 });
+  }
+
+  const sort = (folder: FileTreeNode): void => {
+    folder.children.sort(
+      (a, b) =>
+        // Thư mục ảo "trang" đứng đầu, rồi thư mục, rồi file; cùng nhóm thì theo tên.
+        Number(b.path === PAGES_FOLDER) - Number(a.path === PAGES_FOLDER) ||
+        Number(a.id !== null) - Number(b.id !== null) ||
+        (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
+    );
+    for (const child of folder.children) sort(child);
+  };
+  sort(root);
+
+  return root.children;
+}
+
+/**
+ * Lọc cây file theo từ khoá: giữ file có đường dẫn chứa mọi từ (không phân
+ * biệt hoa thường), và các thư mục còn file bên dưới. Từ khoá rỗng thì trả
+ * nguyên cây.
+ */
+export function filterFileTree(tree: readonly FileTreeNode[], query: string): FileTreeNode[] {
+  const words = query.toLowerCase().split(/\s+/).filter((word) => word !== "");
+  if (words.length === 0) return [...tree];
+
+  const keep = (node: FileTreeNode): FileTreeNode | null => {
+    if (node.id !== null) {
+      const path = node.path.toLowerCase();
+      return words.every((word) => path.includes(word)) ? node : null;
+    }
+
+    const children = node.children.map(keep).filter((child) => child !== null);
+    if (children.length === 0) return null;
+
+    return { ...node, children, files: children.reduce((total, child) => total + child.files, 0) };
+  };
+
+  return tree.map(keep).filter((node) => node !== null);
+}
+
+/**
+ * Trộn một màu với màu nền: `amount` = 1 là giữ nguyên màu, 0 là thành màu
+ * nền. Cả hai màu viết dạng #rrggbb.
+ */
+export function dimColor(color: string, background: string, amount: number): string {
+  const mix = (at: number): string => {
+    const value = parseInt(color.slice(at, at + 2), 16);
+    const base = parseInt(background.slice(at, at + 2), 16);
+    return Math.round(base + (value - base) * amount)
+      .toString(16)
+      .padStart(2, "0");
+  };
+
+  return `#${mix(1)}${mix(3)}${mix(5)}`;
 }

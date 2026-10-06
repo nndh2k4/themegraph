@@ -1,0 +1,77 @@
+{
+  "tests": [
+    "packages/web/tests",
+    "packages/server/tests/api.test.ts"
+  ],
+  "timeoutMs": 180000,
+  "totals": {
+    "tong": 10,
+    "bat": 7,
+    "bienDich": 0,
+    "lot": 3,
+    "quaGio": 0,
+    "khongThay": 0
+  },
+  "results": [
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route: depth nhan nhieu chu so",
+      "outcome": "bat",
+      "summary": "1 failed | 133 passed (134)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "canh: khong trim tung muc",
+      "outcome": "bat",
+      "summary": "1 failed | 133 passed (134)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "cay: thu muc gop theo ten bo qua file",
+      "outcome": "bat",
+      "summary": "1 failed | 133 passed (134)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "cay loc: tu khoa rong loc het",
+      "outcome": "LOT",
+      "summary": "134 passed (134)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "cay loc: phan biet hoa thuong",
+      "outcome": "bat",
+      "summary": "1 failed | 133 passed (134)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: canh giua theo hang day",
+      "outcome": "bat",
+      "summary": "1 failed | 133 passed (134)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: tang duoi khong lui theo so hang",
+      "outcome": "bat",
+      "summary": "1 failed | 133 passed (134)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: neo theo node dau thay vi trung binh",
+      "outcome": "bat",
+      "summary": "1 failed | 133 passed (134)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: khong xep theo id khi hoa",
+      "outcome": "LOT",
+      "summary": "134 passed (134)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "problemOf nuot moi loi",
+      "outcome": "LOT",
+      "summary": "134 passed (134)"
+    }
+  ]
+}

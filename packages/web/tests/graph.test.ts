@@ -1,19 +1,28 @@
 import type { EdgeType, ExportedGraph, FlowNode, NodeKind } from '@themegraph/core';
+import type { FileTreeNode } from '../src/graph-model.js';
 import { describe, expect, it } from 'vitest';
 
 import { deepestFile, defaultPage, flowStats, OPEN_DEPTH, opensByDefault } from '../src/flow-model.js';
-import { layoutGraph } from '../src/graph-layout.js';
+import { KIND_LAYERS, layeredPositions, layoutGraph, MAX_PER_ROW, TREE_SIZE_SCALE } from '../src/graph-layout.js';
 import {
+  buildFileTree,
   DEFAULT_KINDS,
+  dimColor,
   drawGraph,
+  DRAWN_EDGE_TYPES,
   DRAWN_KINDS,
+  filterFileTree,
+  formatEdgeTypes,
   formatKinds,
   kindColor,
   neighborhood,
   nodeLabel,
   nodeSize,
+  PAGES_FOLDER,
+  parseEdgeTypes,
   parseKinds,
   searchNodes,
+  toggleEdgeType,
   toggleKind,
 } from '../src/graph-model.js';
 
@@ -420,7 +429,7 @@ describe('layoutGraph', () => {
       return Math.hypot(from.x - to.x, from.y - to.y);
     };
     // 0 vòng: giữ nguyên vòng tròn ban đầu.
-    const before = layoutGraph(draw, 0);
+    const before = layoutGraph(draw, 'force', 0);
     const after = layoutGraph(draw);
 
     // page:index và templates/index.json nằm xa nhau trên vòng tròn (thứ tự theo id) nhưng có cạnh nối.
@@ -428,7 +437,7 @@ describe('layoutGraph', () => {
   });
 
   it('0 vòng thì các node nằm trên một vòng tròn quanh gốc toạ độ', () => {
-    const graph = layoutGraph(draw, 0);
+    const graph = layoutGraph(draw, 'force', 0);
     const radii = graph.mapNodes((_, attributes) => Math.hypot(attributes.x, attributes.y));
 
     for (const radius of radii) expect(radius).toBeCloseTo(radii[0]!, 6);
@@ -603,5 +612,351 @@ describe('searchNodes', () => {
     searchNodes(NODES, 'card');
 
     expect(JSON.stringify(NODES)).toBe(before);
+  });
+});
+
+describe('loại quan hệ của màn đồ thị', () => {
+  it('parseEdgeTypes: rỗng là tất cả; còn lại giữ loại hợp lệ theo thứ tự chuẩn', () => {
+    expect(DRAWN_EDGE_TYPES).toEqual(['USES_TEMPLATE', 'USES_LAYOUT', 'RENDERS', 'LOADS_SECTION', 'USES_ASSET']);
+    expect(parseEdgeTypes('')).toEqual(DRAWN_EDGE_TYPES);
+    expect(parseEdgeTypes('  ')).toEqual(DRAWN_EDGE_TYPES);
+    expect(parseEdgeTypes('USES_ASSET,RENDERS,RENDERS')).toEqual(['RENDERS', 'USES_ASSET']);
+    expect(parseEdgeTypes(' USES_ASSET , RENDERS ')).toEqual(['RENDERS', 'USES_ASSET']);
+    expect(parseEdgeTypes('RENDERS,READS_SETTING,khong-co')).toEqual(['RENDERS']);
+    expect(parseEdgeTypes('none')).toEqual([]);
+  });
+
+  it('parseEdgeTypes trả một mảng mới mỗi lần', () => {
+    parseEdgeTypes('').pop();
+
+    expect(parseEdgeTypes('')).toEqual(DRAWN_EDGE_TYPES);
+  });
+
+  it('formatEdgeTypes: đủ mọi loại là chuỗi rỗng, không loại nào là "none"', () => {
+    expect(formatEdgeTypes(DRAWN_EDGE_TYPES)).toBe('');
+    expect(formatEdgeTypes([...DRAWN_EDGE_TYPES].reverse())).toBe('');
+    expect(formatEdgeTypes(['USES_ASSET', 'RENDERS'])).toBe('RENDERS,USES_ASSET');
+    expect(formatEdgeTypes(DRAWN_EDGE_TYPES.slice(1))).toBe('USES_LAYOUT,RENDERS,LOADS_SECTION,USES_ASSET');
+    expect(formatEdgeTypes([])).toBe('none');
+  });
+
+  it('formatEdgeTypes và parseEdgeTypes đọc lại được nhau', () => {
+    for (const types of [DRAWN_EDGE_TYPES, ['RENDERS'], ['USES_TEMPLATE', 'USES_ASSET'], []] as EdgeType[][]) {
+      expect(parseEdgeTypes(formatEdgeTypes(types))).toEqual(types);
+    }
+  });
+
+  it('toggleEdgeType bật loại đang tắt, tắt loại đang bật, giữ thứ tự chuẩn', () => {
+    expect(toggleEdgeType(['RENDERS', 'USES_ASSET'], 'RENDERS')).toEqual(['USES_ASSET']);
+    expect(toggleEdgeType(['USES_ASSET'], 'USES_TEMPLATE')).toEqual(['USES_TEMPLATE', 'USES_ASSET']);
+  });
+
+  it('drawGraph chỉ vẽ quan hệ thuộc loại đang chọn; không nêu thì vẽ mọi loại', () => {
+    const all = drawGraph(SAMPLE, { kinds: DRAWN_KINDS });
+    const rendersOnly = drawGraph(SAMPLE, { kinds: DRAWN_KINDS, edgeTypes: ['RENDERS'] });
+    const none = drawGraph(SAMPLE, { kinds: DRAWN_KINDS, edgeTypes: [] });
+
+    expect(pairs(drawGraph(SAMPLE, { kinds: DRAWN_KINDS, edgeTypes: DRAWN_EDGE_TYPES }))).toEqual(pairs(all));
+    expect(pairs(rendersOnly)).toEqual([
+      'sections/hero.liquid -> snippets/badge.liquid',
+      'sections/hero.liquid -> snippets/card.liquid',
+      'snippets/card.liquid -> snippets/price.liquid',
+      'templates/index.json -> sections/hero.liquid',
+    ]);
+    // Node vẫn còn đủ; chỉ cạnh mất.
+    expect(ids(rendersOnly)).toEqual(ids(all));
+    expect(none.edges).toEqual([]);
+    expect(ids(none)).toEqual(ids(all));
+  });
+
+  it('lọc loại quan hệ xảy ra trước khi gộp: cạnh gộp chỉ mang loại còn lại', () => {
+    const draw = drawGraph(SAMPLE, { kinds: DRAWN_KINDS, edgeTypes: ['LOADS_SECTION'] });
+
+    // hero -> card có hai quan hệ; chỉ còn quan hệ tải bằng JavaScript, vốn có điều kiện.
+    expect(draw.edges).toEqual([
+      {
+        key: 'sections/hero.liquid\nsnippets/card.liquid',
+        from: 'sections/hero.liquid',
+        to: 'snippets/card.liquid',
+        types: ['LOADS_SECTION'],
+        conditional: true,
+      },
+    ]);
+  });
+
+  it('lân cận của một node tính trên các quan hệ đang chọn', () => {
+    const draw = drawGraph(SAMPLE, { kinds: DRAWN_KINDS, edgeTypes: ['USES_ASSET'], center: 'layout/theme.liquid' });
+
+    // Với mọi loại quan hệ thì còn templates/index.json; ở đây chỉ còn asset nó dùng.
+    expect(ids(draw)).toEqual(['assets/base.css', 'layout/theme.liquid']);
+  });
+});
+
+describe('dimColor', () => {
+  it('trộn màu với nền theo tỉ lệ', () => {
+    expect(dimColor('#ffffff', '#000000', 1)).toBe('#ffffff');
+    expect(dimColor('#ffffff', '#000000', 0)).toBe('#000000');
+    expect(dimColor('#ff8000', '#000000', 0.5)).toBe('#804000');
+    // Nền không đen: mỗi kênh đi từ nền về phía màu.
+    expect(dimColor('#f43f5e', '#06060a', 0.25)).toBe('#42141f');
+    // Kênh nhỏ vẫn đủ hai chữ số.
+    expect(dimColor('#0a0000', '#000000', 0.5)).toBe('#050000');
+  });
+});
+
+describe('buildFileTree', () => {
+  const NODES = [
+    node('assets/base.css', 'asset'),
+    node('config/settings_schema.json', 'config'),
+    node('layout/theme.liquid', 'layout'),
+    node('page:customers/login', 'page_type'),
+    node('page:index', 'page_type'),
+    node('sections/hero.liquid', 'section'),
+    node('snippets/card.liquid', 'snippet'),
+    node('templates/customers/login.json', 'template'),
+    node('templates/index.json', 'template'),
+    node('templates/404.json', 'template'),
+  ];
+  /** Viết cây thành các dòng thụt lề: "thư mục/ (số file)" hoặc "file". */
+  const outline = (tree: readonly FileTreeNode[], level = 0): string[] =>
+    tree.flatMap((entry) => [
+      '  '.repeat(level) + (entry.id === null ? `${entry.name}/ (${entry.files})` : entry.name),
+      ...outline(entry.children, level + 1),
+    ]);
+
+  it('xếp file theo thư mục của theme; thư mục ảo của các trang đứng đầu; thư mục trước file', () => {
+    expect(outline(buildFileTree(NODES))).toEqual([
+      'trang/ (2)',
+      '  customers/ (1)',
+      '    login',
+      '  index',
+      'assets/ (1)',
+      '  base.css',
+      'layout/ (1)',
+      '  theme.liquid',
+      'sections/ (1)',
+      '  hero.liquid',
+      'snippets/ (1)',
+      '  card.liquid',
+      'templates/ (3)',
+      '  customers/ (1)',
+      '    login.json',
+      '  404.json',
+      '  index.json',
+    ]);
+    expect(PAGES_FOLDER).toBe('trang');
+  });
+
+  it('dòng file mang id và loại của node; dòng thư mục thì không', () => {
+    const tree = buildFileTree(NODES);
+    const pages = tree[0];
+    const templates = tree.find((entry) => entry.name === 'templates');
+
+    expect(pages).toMatchObject({ name: 'trang', path: 'trang', id: null, kind: null, files: 2 });
+    expect(pages?.children[1]).toEqual({ name: 'index', path: 'page:index', id: 'page:index', kind: 'page_type', children: [], files: 1 });
+    expect(templates?.children[0]).toMatchObject({ name: 'customers', path: 'templates/customers', id: null });
+    expect(templates?.children[0]?.children[0]).toMatchObject({ id: 'templates/customers/login.json', kind: 'template' });
+  });
+
+  it('bỏ loại không vẽ được; không phụ thuộc thứ tự đầu vào; danh sách rỗng ra cây rỗng', () => {
+    expect(outline(buildFileTree(NODES)).join('\n')).not.toContain('config');
+    expect(buildFileTree([...NODES].reverse())).toEqual(buildFileTree(NODES));
+    expect(buildFileTree([])).toEqual([]);
+  });
+
+  it('hai thư mục cùng tên ở hai nơi là hai thư mục riêng', () => {
+    const tree = buildFileTree(NODES);
+    const underPages = tree[0]?.children[0];
+    const underTemplates = tree.find((entry) => entry.name === 'templates')?.children[0];
+
+    expect(underPages?.path).toBe('trang/customers');
+    expect(underTemplates?.path).toBe('templates/customers');
+  });
+
+  it('filterFileTree: giữ file có đường dẫn chứa mọi từ, và thư mục còn file bên dưới', () => {
+    const tree = buildFileTree(NODES);
+
+    expect(outline(filterFileTree(tree, 'LOGIN'))).toEqual([
+      'trang/ (1)',
+      '  customers/ (1)',
+      '    login',
+      'templates/ (1)',
+      '  customers/ (1)',
+      '    login.json',
+    ]);
+    // Từ khoá khớp cả tên thư mục: "templates index" chỉ ra file trong templates/.
+    expect(outline(filterFileTree(tree, 'templates  index'))).toEqual(['templates/ (1)', '  index.json']);
+    expect(filterFileTree(tree, 'khong-co')).toEqual([]);
+  });
+
+  it('một trang và một thư mục trang cùng tên đứng cạnh nhau, không gộp vào nhau', () => {
+    const tree = buildFileTree([node('page:blog', 'page_type'), node('page:blog/tagged', 'page_type')]);
+
+    expect(outline(tree)).toEqual(['trang/ (2)', '  blog/ (1)', '    tagged', '  blog']);
+  });
+
+  it('filterFileTree không phân biệt hoa thường ở cả từ khoá lẫn tên file', () => {
+    const tree = buildFileTree([node('snippets/Card-Big.liquid', 'snippet'), node('snippets/price.liquid', 'snippet')]);
+
+    expect(outline(filterFileTree(tree, 'card-big'))).toEqual(['snippets/ (1)', '  Card-Big.liquid']);
+    expect(outline(filterFileTree(tree, 'CARD'))).toEqual(['snippets/ (1)', '  Card-Big.liquid']);
+  });
+
+  it('filterFileTree: từ khoá rỗng trả nguyên cây, và không sửa cây gốc', () => {
+    const tree = buildFileTree(NODES);
+    const before = JSON.stringify(tree);
+
+    expect(filterFileTree(tree, '   ')).toEqual(tree);
+    filterFileTree(tree, 'login');
+    expect(JSON.stringify(tree)).toBe(before);
+  });
+});
+
+describe('bố cục theo tầng', () => {
+  const draw = drawGraph(SAMPLE, { kinds: DRAWN_KINDS });
+  const positions = layeredPositions(draw);
+  const at = (id: string) => positions.get(id) ?? { x: NaN, y: NaN };
+
+  it('mỗi loại node một tầng, đi từ trang xuống asset', () => {
+    expect(KIND_LAYERS).toEqual({ page_type: 0, template: 1, layout: 2, section_group: 2, section: 3, block: 4, snippet: 5, asset: 6 });
+    expect(positions.size).toBe(draw.nodes.length);
+
+    const order = ['page:index', 'templates/index.json', 'layout/theme.liquid', 'sections/hero.liquid', 'snippets/card.liquid', 'assets/base.css'];
+    for (let i = 1; i < order.length; i++) expect(at(order[i]!).y).toBeGreaterThan(at(order[i - 1]!).y);
+  });
+
+  it('các node cùng loại nằm trên cùng một hàng, cách đều, canh giữa quanh 0', () => {
+    const snippets = draw.nodes.filter((entry) => entry.kind === 'snippet').map((entry) => at(entry.id));
+    const xs = snippets.map((position) => position.x).sort((a, b) => a - b);
+
+    expect(new Set(snippets.map((position) => position.y)).size).toBe(1);
+    expect(xs.length).toBe(5);
+    expect(xs[0]! + xs[4]!).toBeCloseTo(0, 6);
+    for (let i = 1; i < xs.length; i++) expect(xs[i]! - xs[i - 1]!).toBeCloseTo(xs[1]! - xs[0]!, 6);
+    expect(xs[1]! - xs[0]!).toBeGreaterThan(0);
+  });
+
+  it('node được xếp gần những node gọi nó ở tầng trên; node không ai gọi đứng cuối tầng, theo id', () => {
+    // badge và card được hero gọi; price được card gọi (cùng tầng, chưa đặt nên không tính);
+    // alone, menu, price không có ai ở tầng trên gọi.
+    const order = draw.nodes
+      .filter((entry) => entry.kind === 'snippet')
+      .sort((a, b) => at(a.id).x - at(b.id).x)
+      .map((entry) => entry.id);
+
+    expect(order).toEqual(['snippets/badge.liquid', 'snippets/card.liquid', 'snippets/alone.liquid', 'snippets/menu.liquid', 'snippets/price.liquid']);
+  });
+
+  it('con của node bên trái đứng bên trái con của node bên phải', () => {
+    const two: ExportedGraph = {
+      nodes: [
+        node('sections/a.liquid', 'section'),
+        node('sections/b.liquid', 'section'),
+        node('snippets/x.liquid', 'snippet'),
+        node('snippets/y.liquid', 'snippet'),
+      ],
+      // x là con của b (bên phải), y là con của a (bên trái): thứ tự theo id bị đảo.
+      edges: [edge('sections/b.liquid', 'snippets/x.liquid'), edge('sections/a.liquid', 'snippets/y.liquid')],
+    };
+    const placed = layeredPositions(drawGraph(two, { kinds: DRAWN_KINDS }));
+
+    expect(placed.get('sections/a.liquid')!.x).toBeLessThan(placed.get('sections/b.liquid')!.x);
+    expect(placed.get('snippets/y.liquid')!.x).toBeLessThan(placed.get('snippets/x.liquid')!.x);
+  });
+
+  it('tầng đông hơn MAX_PER_ROW thì chia đều thành nhiều hàng, và tầng dưới lùi xuống theo', () => {
+    const many: ExportedGraph = {
+      nodes: [
+        ...Array.from({ length: MAX_PER_ROW + 2 }, (_, i) => node(`sections/s${String(i).padStart(3, '0')}.liquid`, 'section')),
+        node('snippets/x.liquid', 'snippet'),
+      ],
+      edges: [],
+    };
+    const placed = layeredPositions(drawGraph(many, { kinds: DRAWN_KINDS }));
+    const sections = [...placed].filter(([id]) => id.startsWith('sections/')).map(([, position]) => position);
+    const rows = [...new Set(sections.map((position) => position.y))].sort((a, b) => a - b);
+    const perRow = rows.map((y) => sections.filter((position) => position.y === y).length);
+
+    expect(MAX_PER_ROW).toBe(32);
+    // 34 node chia hai hàng 17 và 17, không phải 32 và 2.
+    expect(perRow).toEqual([17, 17]);
+    expect(placed.get('snippets/x.liquid')!.y).toBeGreaterThan(rows[1]!);
+    // Hàng trong một tầng sát nhau hơn khoảng cách giữa hai tầng.
+    expect(rows[1]! - rows[0]!).toBeLessThan(placed.get('snippets/x.liquid')!.y - rows[1]!);
+    // Không hai node nào trùng chỗ.
+    expect(new Set(sections.map((position) => `${position.x},${position.y}`)).size).toBe(MAX_PER_ROW + 2);
+  });
+
+  it('hàng cuối ít node hơn vẫn được canh giữa; tầng dưới cách hàng cuối đúng một khoảng tầng', () => {
+    const sectionsOf = (count: number): ExportedGraph => ({
+      nodes: [
+        ...Array.from({ length: count }, (_, i) => node(`sections/s${String(i).padStart(3, '0')}.liquid`, 'section')),
+        node('snippets/x.liquid', 'snippet'),
+      ],
+      edges: [],
+    });
+    const place = (count: number) => layeredPositions(drawGraph(sectionsOf(count), { kinds: DRAWN_KINDS }));
+
+    // 33 node: hai hàng 17 và 16.
+    const placed = place(MAX_PER_ROW + 1);
+    const sections = [...placed].filter(([id]) => id.startsWith('sections/')).map(([, position]) => position);
+    const lastRowY = Math.max(...sections.map((position) => position.y));
+    const lastRow = sections.filter((position) => position.y === lastRowY).map((position) => position.x);
+
+    expect(lastRow).toHaveLength(16);
+    expect(Math.min(...lastRow) + Math.max(...lastRow)).toBeCloseTo(0, 6);
+
+    // Khoảng cách tới tầng dưới giống hệt trường hợp tầng trên chỉ có một hàng.
+    const single = place(3);
+    const layerGap = single.get('snippets/x.liquid')!.y - single.get('sections/s000.liquid')!.y;
+    expect(placed.get('snippets/x.liquid')!.y - lastRowY).toBe(layerGap);
+  });
+
+  it('node có nhiều nơi gọi được đặt theo vị trí TRUNG BÌNH của chúng', () => {
+    const fan: ExportedGraph = {
+      nodes: [
+        node('sections/a.liquid', 'section'),
+        node('sections/b.liquid', 'section'),
+        node('sections/c.liquid', 'section'),
+        node('snippets/p.liquid', 'snippet'),
+        node('snippets/q.liquid', 'snippet'),
+      ],
+      // p được a (trái nhất) và c (phải nhất) gọi: trung bình ở giữa. q chỉ được a gọi: nằm bên trái.
+      edges: [edge('sections/a.liquid', 'snippets/p.liquid'), edge('sections/c.liquid', 'snippets/p.liquid'), edge('sections/a.liquid', 'snippets/q.liquid')],
+    };
+    const placed = layeredPositions(drawGraph(fan, { kinds: DRAWN_KINDS }));
+
+    expect(placed.get('snippets/q.liquid')!.x).toBeLessThan(placed.get('snippets/p.liquid')!.x);
+  });
+
+  it('đúng MAX_PER_ROW node thì vẫn là một hàng', () => {
+    const full: ExportedGraph = {
+      nodes: Array.from({ length: MAX_PER_ROW }, (_, i) => node(`sections/s${String(i).padStart(3, '0')}.liquid`, 'section')),
+      edges: [],
+    };
+    const placed = layeredPositions(drawGraph(full, { kinds: DRAWN_KINDS }));
+
+    expect(new Set([...placed.values()].map((position) => position.y)).size).toBe(1);
+  });
+
+  it('đồ thị rỗng ra bảng vị trí rỗng', () => {
+    expect(layeredPositions(drawGraph(SAMPLE, { kinds: [] })).size).toBe(0);
+  });
+
+  it('layoutGraph ở chế độ tầng: dùng đúng các vị trí đó, y đảo dấu, node vẽ nhỏ lại', () => {
+    const graph = layoutGraph(draw, 'tree');
+    const card = graph.getNodeAttributes('snippets/card.liquid');
+
+    expect(card.x).toBe(at('snippets/card.liquid').x);
+    expect(card.y).toBe(-at('snippets/card.liquid').y);
+    // Trang nằm trên cùng: Sigma vẽ trục y hướng lên, nên y của nó lớn nhất.
+    expect(graph.getNodeAttribute('page:index', 'y')).toBeGreaterThan(graph.getNodeAttribute('assets/base.css', 'y'));
+    expect(card.size).toBeCloseTo(nodeSize(1) * TREE_SIZE_SCALE, 6);
+    expect(layoutGraph(draw, 'force').getNodeAttribute('snippets/card.liquid', 'size')).toBe(nodeSize(1));
+    expect(graph.size).toBe(draw.edges.length);
+  });
+
+  it('layoutGraph ở chế độ tầng cho cùng một hình mỗi lần', () => {
+    expect(layoutGraph(draw, 'tree').export()).toEqual(layoutGraph(draw, 'tree').export());
   });
 });

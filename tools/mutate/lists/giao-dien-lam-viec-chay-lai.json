@@ -1,0 +1,12 @@
+[
+ ["packages/web/src/route.ts","route: depth nhan nhieu chu so","/^\\d$/.test(text)","/^\\d+$/.test(text)"],
+ ["packages/web/src/graph-model.ts","canh: khong trim tung muc","const asked = new Set(text.split(\",\").map((item) => item.trim()));\n  return DRAWN_EDGE_TYPES","const asked = new Set(text.split(\",\"));\n  return DRAWN_EDGE_TYPES"],
+ ["packages/web/src/graph-model.ts","cay: thu muc gop theo ten bo qua file","child.id === null && child.name === part","child.name === part"],
+ ["packages/web/src/graph-model.ts","cay loc: tu khoa rong loc het","  if (words.length === 0) return [...tree];\n\n  const keep","  const keep"],
+ ["packages/web/src/graph-model.ts","cay loc: phan biet hoa thuong","const path = node.path.toLowerCase();\n      return words.every","const path = node.path;\n      return words.every"],
+ ["packages/web/src/graph-layout.ts","tang: canh giua theo hang day","const inRow = Math.min(perRow, ordered.length - row * perRow);","const inRow = perRow;"],
+ ["packages/web/src/graph-layout.ts","tang: tang duoi khong lui theo so hang","y += (rows - 1) * GAP_ROW + GAP_LAYER;","y += GAP_LAYER;"],
+ ["packages/web/src/graph-layout.ts","tang: neo theo node dau thay vi trung binh","placed.reduce((total, x) => total + x, 0) / placed.length;","(placed[0] ?? 0);"],
+ ["packages/web/src/graph-layout.ts","tang: khong xep theo id khi hoa","|| (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);\n    });\n\n    const rows",";\n    });\n\n    const rows"],
+ ["packages/server/src/api.ts","problemOf nuot moi loi","if (error instanceof GraphNotReadyError) return error.message;\n    throw error;\n  }\n}","return String(error);\n  }\n}"]
+]

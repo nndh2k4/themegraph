@@ -1,31 +1,75 @@
 /**
  * Định tuyến bằng phần hash của địa chỉ (sau dấu #).
  *
- * Vài màn hình không đáng để thêm một thư viện định tuyến. Dùng hash thay vì
- * đường dẫn thật thì server không cần biết gì về các màn hình, và nút
- * Back / Forward của trình duyệt vẫn chạy đúng.
+ * Giao diện chỉ có hai màn: chọn theme, và màn làm việc của một theme. Mọi
+ * trạng thái của màn làm việc (bộ lọc, node đang chọn, tab đang mở...) nằm
+ * trong địa chỉ, nên nút Back đưa về đúng trạng thái trước, và một đường dẫn
+ * chép cho người khác mở ra đúng cái đang xem.
  *
- *   #/                              danh sách theme
- *   #/t/<id>                        tổng quan của một theme
- *   #/t/<id>/search?q=...&kind=...  tìm kiếm
- *   #/t/<id>/file?path=...          chi tiết một file (hoặc trang, khoá dịch, setting)
- *   #/t/<id>/graph?kinds=...&node=...&near=1
- *                                   đồ thị: loại node đang hiện, node đang chọn,
- *                                   và có thu về lân cận của node đó hay không
- *   #/t/<id>/flow?page=...          cây render của một loại trang
+ *   #/                 chọn theme
+ *   #/t/<id>?...       màn làm việc của một theme, với các tham số:
+ *     kinds=a,b        loại node đang hiện           (vắng mặt: bộ mặc định)
+ *     edges=a,b        loại quan hệ đang hiện        (vắng mặt: tất cả)
+ *     node=<id>        node đang chọn
+ *     depth=1|2|3      chỉ hiện những gì cách node đang chọn chừng đó bước
+ *     layout=tree      bố cục theo tầng              (vắng mặt: bố cục lực)
+ *     tab=detail|flow  tab đang mở ở panel phải      (vắng mặt: tổng quan)
+ *     page=<tên>       trang đang xem ở tab luồng trang
+ *
+ * Các địa chỉ của giao diện cũ (nhiều màn rời) vẫn đọc được, và được hiểu
+ * thành trạng thái tương ứng của màn làm việc:
+ *
+ *   #/t/<id>/graph?kinds&node&near=1   ->  node, depth=1
+ *   #/t/<id>/file?path=<id>            ->  node=<id>, tab=detail
+ *   #/t/<id>/flow?page=<tên>           ->  tab=flow, page=<tên>
+ *   #/t/<id>/search?...                ->  màn làm việc (ô tìm kiếm nay ở thanh trên)
  */
-export type Route =
-  | { name: "themes" }
-  | { name: "overview"; themeId: string }
-  | { name: "search"; themeId: string; q: string; kind: string }
-  | { name: "file"; themeId: string; path: string }
-  // kinds: danh sách loại cách nhau bằng dấu phẩy, rỗng là bộ mặc định (xem
-  // parseKinds). node: id của node đang chọn, rỗng là không chọn. near chỉ có
-  // nghĩa khi có node.
-  | { name: "graph"; themeId: string; kinds: string; node: string; near: boolean }
-  // page: tên loại trang, rỗng là để màn hình tự chọn trang đầu tiên.
-  | { name: "flow"; themeId: string; page: string }
-  | { name: "not_found" };
+
+/** Cách xếp node trên vùng vẽ. */
+export type GraphLayout = "force" | "tree";
+
+/** Tab của panel bên phải. */
+export type PanelTab = "overview" | "detail" | "flow";
+
+export interface WorkspaceRoute {
+  name: "workspace";
+  themeId: string;
+  kinds: string; // danh sách loại node, rỗng là bộ mặc định (xem parseKinds)
+  edges: string; // danh sách loại quan hệ, rỗng là tất cả (xem parseEdgeTypes)
+  node: string; // id của node đang chọn, rỗng là không chọn
+  depth: number; // 0: hiện cả đồ thị; 1 tới 3: lân cận của node đang chọn
+  layout: GraphLayout;
+  tab: PanelTab;
+  page: string; // tên loại trang ở tab luồng trang, rỗng là chưa chọn
+}
+
+export type Route = { name: "themes" } | WorkspaceRoute | { name: "not_found" };
+
+/** Độ sâu lân cận lớn nhất giao diện cho chọn. */
+export const MAX_DEPTH = 3;
+
+/** Màn làm việc của một theme ở trạng thái ban đầu, ghi đè bằng `changes`. */
+export function workspaceRoute(themeId: string, changes: Partial<Omit<WorkspaceRoute, "name" | "themeId">> = {}): WorkspaceRoute {
+  return {
+    name: "workspace",
+    themeId,
+    kinds: "",
+    edges: "",
+    node: "",
+    depth: 0,
+    layout: "force",
+    tab: "overview",
+    page: "",
+    ...changes,
+  };
+}
+
+/** Đọc tham số depth: chỉ nhận số nguyên từ 1 tới MAX_DEPTH, còn lại là 0. */
+function parseDepth(text: string | null): number {
+  if (text === null || !/^\d$/.test(text)) return 0;
+  const depth = Number(text);
+  return depth <= MAX_DEPTH ? depth : 0;
+}
 
 /** Đọc một hash (có hay không có dấu # ở đầu) thành Route. */
 export function parseRoute(hash: string): Route {
@@ -39,54 +83,57 @@ export function parseRoute(hash: string): Route {
   const [prefix, themeId, screen, ...extra] = segments;
   if (prefix !== "t" || themeId === undefined || extra.length > 0) return { name: "not_found" };
 
-  if (screen === undefined) return { name: "overview", themeId };
-  if (screen === "search") {
-    return { name: "search", themeId, q: query.get("q") ?? "", kind: query.get("kind") ?? "" };
+  if (screen === undefined) {
+    const node = query.get("node") ?? "";
+    const tab = query.get("tab");
+
+    return workspaceRoute(themeId, {
+      kinds: query.get("kinds") ?? "",
+      edges: query.get("edges") ?? "",
+      node,
+      depth: parseDepth(query.get("depth")),
+      layout: query.get("layout") === "tree" ? "tree" : "force",
+      tab: tab === "detail" || tab === "flow" ? tab : "overview",
+      page: query.get("page") ?? "",
+    });
+  }
+
+  // ---- địa chỉ của giao diện cũ ----
+  if (screen === "graph") {
+    const node = query.get("node") ?? "";
+
+    return workspaceRoute(themeId, {
+      kinds: query.get("kinds") ?? "",
+      node,
+      depth: node !== "" && query.get("near") === "1" ? 1 : 0,
+      tab: node === "" ? "overview" : "detail",
+    });
   }
   if (screen === "file") {
     const path = query.get("path");
     // Thiếu path thì không biết mở file nào.
-    return path === null || path === "" ? { name: "not_found" } : { name: "file", themeId, path };
+    return path === null || path === "" ? { name: "not_found" } : workspaceRoute(themeId, { node: path, tab: "detail" });
   }
-  if (screen === "graph") {
-    const node = query.get("node") ?? "";
-    // near=1 mà không có node thì không có gì để thu về.
-    return { name: "graph", themeId, kinds: query.get("kinds") ?? "", node, near: node !== "" && query.get("near") === "1" };
-  }
-  if (screen === "flow") {
-    return { name: "flow", themeId, page: query.get("page") ?? "" };
-  }
+  if (screen === "flow") return workspaceRoute(themeId, { tab: "flow", page: query.get("page") ?? "" });
+  if (screen === "search") return workspaceRoute(themeId);
+
   return { name: "not_found" };
 }
 
 /** Đổi một Route thành hash để gán vào href. Ngược với parseRoute. */
 export function formatRoute(route: Route): string {
-  switch (route.name) {
-    case "themes":
-    case "not_found":
-      return "#/";
-    case "overview":
-      return `#/t/${route.themeId}`;
-    case "search": {
-      const query = new URLSearchParams();
-      if (route.q !== "") query.set("q", route.q);
-      if (route.kind !== "") query.set("kind", route.kind);
-      const text = query.toString();
-      return `#/t/${route.themeId}/search${text === "" ? "" : `?${text}`}`;
-    }
-    case "file":
-      return `#/t/${route.themeId}/file?${new URLSearchParams({ path: route.path }).toString()}`;
-    case "graph": {
-      const query = new URLSearchParams();
-      if (route.kinds !== "") query.set("kinds", route.kinds);
-      if (route.node !== "") query.set("node", route.node);
-      if (route.node !== "" && route.near) query.set("near", "1");
-      const text = query.toString();
-      return `#/t/${route.themeId}/graph${text === "" ? "" : `?${text}`}`;
-    }
-    case "flow": {
-      const text = route.page === "" ? "" : `?${new URLSearchParams({ page: route.page }).toString()}`;
-      return `#/t/${route.themeId}/flow${text}`;
-    }
-  }
+  if (route.name !== "workspace") return "#/";
+
+  // Chỉ ghi tham số khác giá trị ban đầu, để địa chỉ gọn.
+  const query = new URLSearchParams();
+  if (route.kinds !== "") query.set("kinds", route.kinds);
+  if (route.edges !== "") query.set("edges", route.edges);
+  if (route.node !== "") query.set("node", route.node);
+  if (route.depth > 0) query.set("depth", String(route.depth));
+  if (route.layout !== "force") query.set("layout", route.layout);
+  if (route.tab !== "overview") query.set("tab", route.tab);
+  if (route.page !== "") query.set("page", route.page);
+
+  const text = query.toString();
+  return `#/t/${route.themeId}${text === "" ? "" : `?${text}`}`;
 }

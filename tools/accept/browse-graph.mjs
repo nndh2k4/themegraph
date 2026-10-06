@@ -1,9 +1,11 @@
-// Bấm thử màn đồ thị và màn cây render trong một trình duyệt thật (Microsoft
-// Edge chạy không cửa sổ), điều khiển qua cổng gỡ lỗi của nó. Khác với ảnh
-// chụp, script này gửi sự kiện chuột thật: bấm ô lọc, bấm vào node trên vùng
-// vẽ, bấm nền, bấm liên kết, bấm Back.
+// Bấm thử giao diện của ThemeGraph trong một trình duyệt thật (Microsoft Edge
+// chạy không cửa sổ), điều khiển qua cổng gỡ lỗi của nó. Khác với ảnh chụp,
+// script này gửi sự kiện chuột và bàn phím thật, đi qua mọi vùng của màn làm
+// việc: màn chọn theme, bộ lọc, vùng vẽ, ô tìm kiếm, cây file, các tab của
+// panel phải, nút Back của trình duyệt.
 //
-// Không kiểm được bằng mắt: hình có đẹp không, kéo và lăn chuột có mượt không.
+// Không kiểm được: hình có đẹp không, kéo và lăn chuột có mượt không (Edge
+// không cửa sổ vẽ WebGL bằng phần mềm), và rê chuột lên node.
 //
 // Đặt biến môi trường SHOT_DIR để script lưu ảnh chụp ở vài bước vào thư mục đó.
 //
@@ -46,7 +48,7 @@ const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
  * Màu của các loại node trên hình (KIND_COLORS trong packages/web/src/graph-model.ts),
  * trừ asset: màu xám của nó gần với màu cạnh.
  */
-const NODE_COLORS = ["#d9480f", "#e8a013", "#7048e8", "#0c8599", "#1c7ed6", "#37b24d", "#c2255c"].map((hex) => [
+const NODE_COLORS = ["#f43f5e", "#f59e0b", "#a855f7", "#14b8a6", "#3b82f6", "#10b981", "#ec4899"].map((hex) => [
   parseInt(hex.slice(1, 3), 16),
   parseInt(hex.slice(3, 5), 16),
   parseInt(hex.slice(5, 7), 16),
@@ -211,216 +213,269 @@ try {
   await send("Page.enable");
   await send("Runtime.enable");
 
-  // ---- màn đồ thị ----
-  await send("Page.navigate", { url: `${base}/#/t/${themeId}/graph` });
-  await until(() => page('document.querySelector(".graph-stage canvas") !== null'), "vùng vẽ của đồ thị hiện ra");
-  check("Màn đồ thị tải và có vùng vẽ WebGL", true);
+  const key = async (name, code, text) => {
+    await send("Input.dispatchKeyEvent", { type: "keyDown", key: name, code: name, windowsVirtualKeyCode: code, ...(text ? { text } : {}) });
+    await send("Input.dispatchKeyEvent", { type: "keyUp", key: name, code: name, windowsVirtualKeyCode: code });
+  };
+  const count = (selector) => page("document.querySelectorAll(" + JSON.stringify(selector) + ").length");
+  const text = (selector) => page("document.querySelector(" + JSON.stringify(selector) + ")?.textContent ?? null");
+  const param = async (name) => new URLSearchParams((await hash()).split("?")[1] ?? "").get(name);
+  /** Số node đang vẽ, đọc từ thanh dưới ("đang vẽ 114 node, 149 cạnh"). */
+  const drawn = async () => {
+    const found = /đang vẽ (\d+) node, (\d+) cạnh/.exec((await text('[data-testid="counts"]')) ?? "");
+    return found === null ? null : { nodes: Number(found[1]), edges: Number(found[2]) };
+  };
+  /** Chờ số node hoặc số cạnh đang vẽ khác với \`before\`, rồi trả về số mới. */
+  const drawnChanged = (before, what) =>
+    until(async () => {
+      const now = await drawn();
+      return now !== null && (now.nodes !== before.nodes || now.edges !== before.edges) ? now : null;
+    }, what);
+  /** Bấm phần tử đầu tiên khớp \`selector\` mà chữ của nó đúng bằng \`label\`. */
+  const clickText = async (selector, label) => {
+    const index = await page(
+      "[...document.querySelectorAll(" + JSON.stringify(selector) + ")].findIndex((el) => el.textContent.trim() === " + JSON.stringify(label) + ")",
+    );
+    if (index < 0) throw new Error("Không thấy " + selector + ' có chữ "' + label + '"');
+    await clickOn(selector, index);
+  };
+  const type = async (value) => {
+    await clickOn(".search-field input");
+    await send("Input.insertText", { text: value });
+  };
+  const hitCount = () => count(".search-hit");
 
-  const summary = () => page('document.querySelector(".graph-legend span:last-child").textContent');
-  const before = await summary();
+  // ---- màn chọn theme ----
+  await send("Page.navigate", { url: base + "/#/" });
+  await until(async () => (await count(".landing-theme")) > 0, "màn chọn theme hiện ra");
+  await snap("1-chon-theme");
+  const themeLink = await page(
+    "[...document.querySelectorAll('a.landing-theme')].findIndex((a) => a.getAttribute('href') === " + JSON.stringify("#/t/" + themeId) + ")",
+  );
+  check("Màn chọn theme liệt kê theme, có liên kết tới theme đang thử", themeLink >= 0);
+  await clickOn("a.landing-theme", themeLink);
+  await until(async () => (await hash()) === "#/t/" + themeId, "bấm thẻ theme mở màn làm việc");
 
-  // Bật asset: ô cuối cùng trong thanh lọc.
-  const boxes = await page('document.querySelectorAll(".graph-kind input").length');
-  await clickOn(".graph-kind input", boxes - 1);
-  await until(async () => (await hash()).includes("kinds="), "địa chỉ ghi lại bộ lọc");
-  // Địa chỉ đổi trước, hình vẽ lại sau một nhịp: chờ tới khi dòng tóm tắt đổi.
-  const withAsset = await until(async () => {
-    const text = await summary();
-    return text !== before ? text : null;
-  }, "hình vẽ lại với asset");
-  check("Bấm ô asset: địa chỉ đổi và số node tăng", withAsset !== before && (await hash()).includes("asset"), `${before.trim()} -> ${withAsset.trim()}`);
+  // ---- màn làm việc ----
+  await until(async () => (await count(".canvas-stage canvas")) > 0, "vùng vẽ của đồ thị hiện ra");
+  const start = await until(drawn, "thanh dưới ghi số node đang vẽ");
+  check("Bấm thẻ theme: màn làm việc mở, có vùng vẽ WebGL và năm vùng", (await count(".topbar, .left, .workspace-canvas, .right, .statusbar")) === 5, start.nodes + " node, " + start.edges + " cạnh");
+  await until(async () => ((await text('[data-testid="status"]')) ?? "").includes("Đồ thị"), "thanh dưới ghi trạng thái đồ thị");
+  check("Thanh dưới báo trạng thái đồ thị so với file trên đĩa", true, ((await text('[data-testid="status"]')) ?? "").trim());
+  await sleep(600);
+  await snap("2-man-lam-viec");
 
-  // Nút Back của trình duyệt đưa về bộ lọc trước.
+  // ---- tab bộ lọc: loại node ----
+  await clickText('.left [role="tab"]', "Bộ lọc");
+  await until(async () => (await count(".toggle")) > 0, "tab bộ lọc hiện ra");
+  await clickOn('.toggle[data-kind="asset"]');
+  const withAsset = await drawnChanged(start, "hình vẽ lại với asset");
+  check("Bật loại asset: địa chỉ đổi và số node tăng", withAsset.nodes > start.nodes && ((await param("kinds")) ?? "").includes("asset"), start.nodes + " -> " + withAsset.nodes + " node");
+
   await page("history.back()");
-  await until(async () => !(await hash()).includes("kinds="), "Back bỏ bộ lọc");
-  await until(async () => (await summary()) === before, "hình vẽ lại như trước");
+  await until(async () => (await param("kinds")) === null && (await drawn())?.nodes === start.nodes, "Back bỏ bộ lọc và vẽ lại");
   check("Back đưa về bộ lọc trước, hình vẽ lại", true);
 
-  // Bấm vào một node trên vùng vẽ. Vị trí của node không đọc được từ ngoài,
-  // nên script chụp màn hình, tìm một vùng mang màu của node, rồi bấm đúng
-  // một lần vào đó.
-  //
-  // Không bấm dò theo lưới điểm: Sigma coi hai lần bấm cách nhau dưới 300 ms
-  // là bấm đúp và phóng to, nên bấm dò liên tiếp sẽ đẩy camera vào một góc
-  // trống của đồ thị.
-  const stage = await page('(() => { const r = document.querySelector(".graph-stage").getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; })()');
-  await sleep(600); // chờ hình vẽ xong sau lần đổi bộ lọc
+  // ---- tab bộ lọc: loại quan hệ ----
+  await clickOn('.toggle[data-edge="RENDERS"]');
+  const noRenders = await drawnChanged(start, "hình vẽ lại không có quan hệ render");
+  check("Tắt quan hệ render: số cạnh giảm, số node giữ nguyên", noRenders.edges < start.edges && noRenders.nodes === start.nodes && (await param("edges")) !== null, start.edges + " -> " + noRenders.edges + " cạnh");
+  await clickOn('.toggle[data-edge="RENDERS"]');
+  await until(async () => (await param("edges")) === null && (await drawn())?.edges === start.edges, "bật lại quan hệ render");
+
+  // ---- bấm vào một node trên vùng vẽ ----
+  // Vị trí của node không đọc được từ ngoài, nên script chụp màn hình, tìm một
+  // vùng mang màu của node, rồi bấm đúng một lần vào đó. Không bấm dò theo
+  // lưới điểm: Sigma coi hai lần bấm cách nhau dưới 300 ms là bấm đúp và phóng
+  // to, nên bấm dò liên tiếp sẽ đẩy camera vào một góc trống của đồ thị.
+  const stage = await page('(() => { const r = document.querySelector(".canvas-stage").getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; })()');
+  await sleep(600);
   const shot = await send("Page.captureScreenshot", { format: "png" });
   const spot = findNodeIn(decodePng(Buffer.from(shot.data, "base64")), {
     x: stage.x + 10,
-    y: stage.y + 10,
-    w: stage.w - 20,
-    // Chừa góc dưới, nơi có các nút phóng to.
-    h: stage.h - 70,
+    // Chừa phía trên (nút chuyển bố cục) và góc dưới phải (nút phóng to).
+    y: stage.y + 110,
+    w: stage.w - 70,
+    h: stage.h - 130,
   });
 
-  let hit = null;
+  let clicked = null;
   if (spot !== null) {
     await click(spot.x, spot.y);
-    await sleep(200);
-    if ((await hash()).includes("node=")) hit = spot;
+    await sleep(300);
+    clicked = await param("node");
   }
-  if (hit === null) {
-    await snap("khong-bam-trung-node");
-    // Trạng thái của các canvas, để biết vùng vẽ trắng vì đâu.
-    const canvases = await page(`[...document.querySelectorAll(".graph-stage canvas")].map((canvas) => {
-      const box = canvas.getBoundingClientRect();
-      let state = "2d";
-      try {
-        const gl = canvas.getContext("webgl2") ?? canvas.getContext("webgl");
-        if (gl !== null) state = gl.isContextLost() ? "webgl MAT CONTEXT" : "webgl";
-      } catch (error) {
-        state = String(error);
-      }
-      return canvas.className + " " + Math.round(box.width) + "x" + Math.round(box.height) + " " + state;
-    })`);
-    console.log("      canvas:", canvases.join(" | "));
-  }
-  check("Bấm vào một node trên vùng vẽ thì node đó được chọn", hit !== null, hit === null ? "" : decodeURIComponent(await hash()));
+  check("Bấm vào một node trên vùng vẽ: node được chọn, tab chi tiết mở", clicked !== null && (await param("tab")) === "detail", clicked ?? "không tìm thấy node trên ảnh chụp");
 
-  if (hit !== null) {
-    const selected = new URLSearchParams((await hash()).split("?")[1]).get("node");
-    const title = await until(() => page('document.querySelector(".graph-panel-title")?.textContent ?? null'), "panel hiện ra");
-    check("Panel bên cạnh hiện đúng node vừa bấm", selected.endsWith(title) || title.endsWith(selected.replace(/^page:/, "")), title);
+  if (clicked !== null) {
+    const title = await until(() => text(".detail-title"), "tab chi tiết hiện tên node");
+    check("Tab chi tiết và nhãn trên vùng vẽ hiện đúng node vừa bấm", clicked.endsWith(title) && ((await text(".canvas-pill .pill-name")) ?? "") === title, title);
 
-    // Bấm nền (góc trên bên trái của vùng vẽ, nơi không có node) thì bỏ chọn.
     await sleep(400); // để Sigma không coi đây là lần thứ hai của một cú bấm đúp
-    await click(stage.x + 6, stage.y + 6);
-    await until(async () => !(await hash()).includes("node="), "bấm nền bỏ chọn");
-    check("Bấm vào nền thì bỏ chọn node", true);
-
-    // Node vừa bấm trúng có thể không có quan hệ nào đang hiện, nên các bước
-    // sau dùng một file chắc chắn có nơi gọi.
-    const linkedHash = `#/t/${themeId}/graph?node=${encodeURIComponent(linkedNode)}`;
-    await page(`location.hash = ${JSON.stringify(linkedHash)}`);
-    await until(() => page('document.querySelectorAll(".graph-links a").length > 0'), "panel của file có quan hệ");
-
-    // Bật "chỉ hiện lân cận".
-    await clickOn(".graph-near input");
-    const near = await until(async () => {
-      const text = await summary();
-      return text.includes("lân cận") ? text : null;
-    }, "hình thu về lân cận");
-    check("Bật lân cận: hình thu về quanh node, địa chỉ có near=1", (await hash()).includes("near=1") && near !== before, near.trim());
-
-    // Bấm một liên kết trong panel: chuyển node đang chọn mà vẫn ở màn đồ thị.
-    const next = await page('document.querySelector(".graph-links a").textContent');
-    await clickOn(".graph-links a");
-    await until(async () => new URLSearchParams((await hash()).split("?")[1]).get("node") !== linkedNode, "node đang chọn đổi");
-    check(
-      "Bấm một file trong panel: chuyển sang node đó, vẫn ở chế độ lân cận",
-      decodeURIComponent(await hash()).includes(next) && (await hash()).includes("near=1"),
-      next,
-    );
-
-    // Đóng panel.
-    await clickOn(".graph-panel-close");
-    await until(async () => !(await hash()).includes("node="), "bỏ chọn");
-    check("Nút đóng panel bỏ chọn node và thoát chế độ lân cận", !(await hash()).includes("near="));
+    await click(stage.x + 8, stage.y + stage.h - 8);
+    // Địa chỉ đổi trước, giao diện vẽ lại sau một nhịp.
+    await until(async () => (await param("node")) === null && (await count(".canvas-pill:not(.hover)")) === 0, "bấm nền bỏ chọn");
+    check("Bấm vào nền thì bỏ chọn node, nhãn trên vùng vẽ biến mất", true);
   }
 
-  // ---- ô tìm kiếm trên đồ thị ----
-  const key = async (name, code) => {
-    await send("Input.dispatchKeyEvent", { type: "keyDown", key: name, code: name, windowsVirtualKeyCode: code });
-    await send("Input.dispatchKeyEvent", { type: "keyUp", key: name, code: name, windowsVirtualKeyCode: code });
-  };
-  const type = async (text) => {
-    await clickOn(".graph-search input");
-    await send("Input.insertText", { text });
-  };
-  const selectedNode = async () => new URLSearchParams((await hash()).split("?")[1] ?? "").get("node");
+  // ---- ô tìm kiếm ----
+  await page("document.activeElement?.blur()");
+  await key("/", 191, "/");
+  check('Phím "/" đưa con trỏ vào ô tìm kiếm', (await page('document.activeElement === document.querySelector(".search-field input")')) === true);
 
   await type("card");
   const shownHits = await until(async () => {
-    const count = await page('document.querySelectorAll(".graph-hit").length');
-    return count > 0 ? count : null;
+    const found = await hitCount();
+    return found > 0 ? found : null;
   }, "danh sách kết quả hiện ra");
-  const firstHit = await page('document.querySelector(".graph-hit .node").textContent');
-  check("Gõ vào ô tìm kiếm: danh sách kết quả hiện ra", shownHits > 0, `${shownHits} kết quả, đầu tiên là ${firstHit}`);
+  const firstHit = await text(".search-hit .node");
+  check("Gõ vào ô tìm kiếm: danh sách kết quả hiện ra", shownHits > 0, shownHits + " kết quả, đầu tiên là " + firstHit);
   await sleep(300);
-  await snap("tim-kiem-dang-go");
+  await snap("3-tim-kiem-dang-go");
 
-  // Enter chọn kết quả đầu tiên.
   await key("Enter", 13);
-  await until(async () => (await selectedNode()) !== null, "Enter chọn một node");
-  const byEnter = await selectedNode();
-  check(
-    "Enter chọn kết quả đầu tiên, ô tìm kiếm được xoá",
-    byEnter.includes(firstHit) && (await page('document.querySelector(".graph-search input").value')) === "",
-    byEnter,
-  );
+  await until(async () => (await param("node")) !== null, "Enter chọn một node");
+  const byEnter = await param("node");
+  check("Enter chọn kết quả đầu tiên, ô tìm kiếm được xoá", byEnter.includes(firstHit) && (await page('document.querySelector(".search-field input").value')) === "", byEnter);
 
-  // Mũi tên xuống rồi Enter chọn kết quả thứ hai.
   await type("card");
-  await until(() => page('document.querySelectorAll(".graph-hit").length > 1'), "có ít nhất hai kết quả");
-  const secondHit = await page('document.querySelectorAll(".graph-hit .node")[1].textContent');
+  await until(async () => (await hitCount()) > 1, "có ít nhất hai kết quả");
+  const secondHit = await page('document.querySelectorAll(".search-hit .node")[1].textContent');
   await key("ArrowDown", 40);
   await key("Enter", 13);
-  await until(async () => (await selectedNode()) !== byEnter, "mũi tên xuống rồi Enter đổi node");
-  check("Mũi tên xuống rồi Enter chọn kết quả thứ hai", (await selectedNode()).includes(secondHit), await selectedNode());
+  await until(async () => (await param("node")) !== byEnter, "mũi tên xuống rồi Enter đổi node");
+  check("Mũi tên xuống rồi Enter chọn kết quả thứ hai", (await param("node")).includes(secondHit), await param("node"));
 
-  // Bấm chuột vào một kết quả.
   // Gõ cả tên thư mục: nhiều theme có block và snippet trùng tên.
   await type(linkedNode.replace("/", " ").replace(/\.liquid$/, ""));
-  await until(() => page('document.querySelectorAll(".graph-hit").length > 0'), "kết quả cho file có quan hệ");
-  await clickOn(".graph-hit");
-  await until(async () => (await selectedNode()) === linkedNode, "bấm chuột chọn kết quả");
+  await until(async () => (await hitCount()) > 0, "kết quả cho file có quan hệ");
+  await clickOn(".search-hit");
+  await until(async () => (await param("node")) === linkedNode, "bấm chuột chọn kết quả");
   check("Bấm chuột vào một kết quả thì node đó được chọn", true, linkedNode);
   await sleep(800); // chờ camera bay xong
-  await snap("tim-kiem-da-chon");
+  await snap("4-chi-tiet-node");
 
-  // Tìm một asset trong khi ô asset đang tắt: loại đó tự bật.
   await type(".css");
-  await until(() => page('document.querySelectorAll(".graph-hit").length > 0'), "kết quả là asset");
+  await until(async () => (await hitCount()) > 0, "kết quả là asset");
   await key("Enter", 13);
-  await until(async () => ((await selectedNode()) ?? "").endsWith(".css"), "chọn một asset");
-  check("Chọn một asset khi ô asset đang tắt: loại asset tự bật", (await hash()).includes("asset"), decodeURIComponent(await hash()));
+  await until(async () => ((await param("node")) ?? "").endsWith(".css"), "chọn một asset");
+  check("Chọn một asset khi loại asset đang tắt: loại đó tự bật", ((await param("kinds")) ?? "").includes("asset"), await param("node"));
 
-  // Escape xoá từ khoá, không đổi node đang chọn.
-  const beforeEscape = await selectedNode();
+  const beforeEscape = await param("node");
   await type("card");
-  await until(() => page('document.querySelectorAll(".graph-hit").length > 0'), "kết quả trước khi Escape");
+  await until(async () => (await hitCount()) > 0, "kết quả trước khi Escape");
   await key("Escape", 27);
   await sleep(200);
-  check(
-    "Escape xoá từ khoá và đóng danh sách, giữ nguyên node đang chọn",
-    (await page('document.querySelectorAll(".graph-hits").length')) === 0 && (await selectedNode()) === beforeEscape,
-  );
+  check("Escape xoá từ khoá và đóng danh sách, giữ nguyên node đang chọn", (await count(".search-results")) === 0 && (await param("node")) === beforeEscape);
 
-  // Từ khoá không khớp gì.
   await type("zzz-khong-co-file-nao");
-  await until(() => page('document.querySelector(".graph-hits")?.textContent.includes("Không có file nào khớp") ?? false'), "thông báo không khớp");
-  check("Từ khoá không khớp: báo không có file nào", true);
+  await until(async () => ((await text(".search-results")) ?? "").includes("Không có gì khớp"), "thông báo không khớp");
+  check("Từ khoá không khớp: báo không có gì khớp", true);
   await key("Escape", 27);
 
-  // Trả màn đồ thị về trạng thái ban đầu cho các bước sau.
-  await page(`location.hash = "#/t/${themeId}/graph"`);
-  await until(async () => (await selectedNode()) === null, "về trạng thái ban đầu");
+  // ---- độ sâu lân cận ----
+  await page("location.hash = " + JSON.stringify("#/t/" + themeId + "?node=" + encodeURIComponent(linkedNode) + "&tab=detail"));
+  await until(async () => (await count(".chip-button")) > 0 && (await drawn())?.nodes === start.nodes, "tab chi tiết của file có quan hệ");
+  await clickOn(".chip-button");
+  const near1 = await drawnChanged(start, "hình thu về lân cận một bước");
+  check('Nút "Chỉ hiện lân cận": hình thu về quanh node, địa chỉ có depth=1', (await param("depth")) === "1" && near1.nodes < start.nodes, near1.nodes + " node, " + near1.edges + " cạnh");
 
-  // Nút phóng to không được làm hỏng trang.
-  await clickOn(".graph-zoom button", 0);
-  await clickOn(".graph-zoom button", 2);
+  await clickText(".depths button", "2 bước");
+  const near2 = await drawnChanged(near1, "hình mở rộng ra hai bước");
+  check("Chọn 2 bước ở tab bộ lọc: lân cận rộng hơn", (await param("depth")) === "2" && near2.nodes > near1.nodes, near1.nodes + " -> " + near2.nodes + " node");
+
+  // Bấm một file trong tab chi tiết: chuyển node, giữ nguyên độ sâu.
+  const nextNode = await text(".right .section .plain .node");
+  await clickOn(".right .section .plain .node");
+  await until(async () => (await param("node")) !== linkedNode, "node đang chọn đổi");
+  check("Bấm một file trong tab chi tiết: chuyển sang node đó, giữ nguyên độ sâu", (await param("depth")) === "2", nextNode);
+
+  await clickText(".depths button", "Tất cả");
+  await until(async () => (await param("depth")) === null && (await drawn())?.nodes === start.nodes, "về hiện cả đồ thị");
+
+  // ---- chuyển bố cục ----
+  await clickText(".canvas-modes button", "Tầng");
+  await until(async () => (await param("layout")) === "tree", "địa chỉ ghi bố cục theo tầng");
+  await sleep(700);
+  check("Chuyển sang bố cục theo tầng: vùng vẽ còn nguyên, số node không đổi", (await count(".canvas-stage canvas")) > 0 && (await drawn()).nodes === start.nodes);
+  await snap("5-bo-cuc-tang");
+  await clickText(".canvas-modes button", "Lực");
+  await until(async () => (await param("layout")) === null, "về bố cục lực");
+
+  // ---- cây file ----
+  await clickText('.left [role="tab"]', "Tệp");
+  await until(async () => (await count(".tree-row")) > 0, "cây file hiện ra");
+  const filesBefore = await count(".tree-row.file");
+  await clickText(".tree-row .tree-name", "snippets");
+  await until(async () => (await count(".tree-row.file")) > filesBefore, "mở thư mục snippets");
+  check("Bấm một thư mục trong cây file thì nó mở ra", true, filesBefore + " -> " + (await count(".tree-row.file")) + " dòng file");
+
+  const fileName = linkedNode.split("/").pop();
+  await clickText(".tree-row.file .tree-name", fileName);
+  await until(async () => (await param("node")) === linkedNode, "bấm file trong cây chọn node");
+  check("Bấm một file trong cây: node đó được chọn, dòng của nó được tô", (await count(".tree-row.file.selected")) === 1, linkedNode);
+
+  await clickOn(".panel-search input");
+  await send("Input.insertText", { text: "theme" });
+  await until(async () => {
+    const names = await page('[...document.querySelectorAll(".tree-row.file .tree-name")].map((el) => el.textContent)');
+    return names.length > 0 && names.every((name) => name.includes("theme")) ? names : null;
+  }, "cây file lọc theo từ khoá");
+  check("Lọc cây file: chỉ còn file có tên khớp", true, (await count(".tree-row.file")) + " file");
+
+  // ---- thu gọn và mở lại hai panel ----
+  await clickOn(".left .panel-tabs .icon-button");
+  await until(async () => (await count(".left.rail")) === 1, "panel trái thu về dải icon");
+  await clickOn(".left.rail .icon-button", 0);
+  await until(async () => (await count(".left.rail")) === 0, "panel trái mở lại");
+  await clickOn(".topbar-right .icon-button");
+  await until(async () => (await count(".right")) === 0, "panel phải ẩn");
+  await clickOn(".topbar-right .icon-button");
+  await until(async () => (await count(".right")) === 1, "panel phải hiện lại");
+  check("Thu gọn và mở lại panel trái, ẩn và hiện panel phải", true);
+
+  // ---- tab luồng trang ----
+  await clickOn('.right [data-tab="flow"]');
+  await until(async () => (await param("tab")) === "flow" && (await count(".pages .page")) > 0, "tab luồng trang liệt kê các trang");
+  await clickText(".pages .page", "product");
+  await until(async () => (await param("page")) === "product" && (await count(".flow-tree")) === 1, "chọn trang product");
+  const openBefore = await count(".flow-tree details[open]");
+  const closedBefore = await count(".flow-tree details:not([open])");
+  check("Chọn trang product: cây luồng hiện ra, mở sẵn các tầng trên", openBefore >= 2 && closedBefore > 0, openBefore + " mở, " + closedBefore + " gập");
+  await sleep(500);
+  await snap("6-luong-trang");
+
+  // Bấm vào mũi tên ở đầu dòng: giữa dòng là tên file, bấm vào đó là chọn node.
+  const arrow = await page('(() => { const el = document.querySelector(".flow-tree details:not([open]) > summary"); el.scrollIntoView({ block: "center" }); const r = el.getBoundingClientRect(); return { x: r.x + 5, y: r.y + r.height / 2 }; })()');
+  await click(arrow.x, arrow.y);
+  await until(async () => (await count(".flow-tree details[open]")) === openBefore + 1, "một nhánh mở ra");
+  check("Bấm một nhánh đang gập thì nó mở ra", true, openBefore + " -> " + (openBefore + 1));
+
+  await clickText(".pages .page", "product");
+  await until(async () => (await param("page")) === null && (await count(".flow-tree")) === 0, "bấm lại trang đang chọn thì bỏ chọn");
+  check("Bấm lại trang đang chọn thì bỏ chọn", true);
+
+  // ---- tab tổng quan và nút đổi theme ----
+  await clickOn('.right [data-tab="overview"]');
+  await until(async () => (await count(".stat")) >= 6, "tab tổng quan hiện các con số");
+  check("Tab tổng quan hiện số liệu của theme", true, ((await text(".stat")) ?? "").replace(/(\d)(\D)/, "$1 $2"));
+
+  await clickOn(".switcher-button");
+  await until(async () => (await count(".switcher-list li")) > 0, "danh sách theme mở ra");
+  check("Nút đổi theme mở danh sách các theme đã phân tích", true, (await count(".switcher-list li")) + " theme");
+  await clickOn(".switcher-button");
+
+  // ---- nút phóng to ----
+  await clickOn(".canvas-zoom button", 0);
+  await clickOn(".canvas-zoom button", 2);
   await sleep(400);
-  check("Nút phóng to và vừa khung: trang không báo lỗi", (await page('document.querySelector(".graph-stage canvas") !== null')) === true);
+  check("Nút phóng to và vừa khung: vùng vẽ còn nguyên", (await count(".canvas-stage canvas")) > 0);
 
-  // ---- màn cây render ----
-  await send("Page.navigate", { url: `${base}/#/t/${themeId}/flow?page=product` });
-  await until(() => page('document.querySelector(".flow-tree") !== null'), "cây render hiện ra");
-  const openBefore = await page('document.querySelectorAll(".flow-tree details[open]").length');
-  const closed = await page('document.querySelectorAll(".flow-tree details:not([open])").length');
-  check("Cây render của trang product hiện ra, mở sẵn các tầng trên", openBefore >= 2 && closed > 0, `${openBefore} mở, ${closed} gập`);
+  // ---- địa chỉ của giao diện cũ ----
+  await page("location.hash = " + JSON.stringify("#/t/" + themeId + "/file?path=" + encodeURIComponent(linkedNode)));
+  await until(async () => (await text(".detail-title")) === linkedNode, "địa chỉ cũ mở tab chi tiết");
+  check("Địa chỉ của giao diện cũ (/file?path=) vẫn mở đúng node", true);
 
-  await clickOn(".flow-tree details:not([open]) > summary");
-  await sleep(200);
-  const openAfter = await page('document.querySelectorAll(".flow-tree details[open]").length');
-  check("Bấm một nhánh đang gập thì nó mở ra", openAfter === openBefore + 1, `${openBefore} -> ${openAfter}`);
-
-  // Chuyển sang trang khác bằng danh sách trang.
-  const other = await page('[...document.querySelectorAll(".flow-pages a")].find((a) => !a.classList.contains("current")).textContent');
-  await page('[...document.querySelectorAll(".flow-pages a")].find((a) => !a.classList.contains("current")).click()');
-  await until(async () => decodeURIComponent(await hash()).endsWith(`page=${other}`), "chuyển trang");
-  await until(() => page(`document.querySelector(".flow-tree .node")?.textContent === ${JSON.stringify(other)}`), "cây của trang mới");
-  check("Chọn trang khác: cây đổi theo", true, other);
 } catch (error) {
   check("Script chạy hết", false, error instanceof Error ? error.message : String(error));
 } finally {

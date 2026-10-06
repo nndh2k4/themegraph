@@ -1,0 +1,845 @@
+{
+  "tests": [
+    "packages/web/tests",
+    "packages/server/tests/api.test.ts"
+  ],
+  "timeoutMs": 180000,
+  "totals": {
+    "tong": 138,
+    "bat": 128,
+    "bienDich": 0,
+    "lot": 10,
+    "quaGio": 0,
+    "khongThay": 0
+  },
+  "results": [
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route: depth nhan moi so mot chu so",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route: depth nhan nhieu chu so",
+      "outcome": "LOT",
+      "summary": "130 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route: depth khong kiem dinh dang",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route: layout la tree khi co tham so",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route: tab nhan gia tri la",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route: tab khong nhan flow",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route: khong doc edges",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route: khong doc page",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route cu: near khong can node",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route cu: near nhan moi gia tri",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route cu: graph khong mo tab chi tiet",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route cu: graph mat kinds",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route cu: file thieu path van mo",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route cu: file khong mo tab chi tiet",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route cu: flow khong mo tab luong",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route cu: flow mat trang",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route cu: search thanh not_found",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route: khong ghi kinds",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route: khong ghi edges",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route: khong ghi node",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route: khong ghi depth",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route: khong ghi layout",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route: khong ghi tab",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route: khong ghi page",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route: luon ghi tab",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "route: not_found khong ve trang dau",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "canh: rong khong ve tat ca",
+      "outcome": "bat",
+      "summary": "3 failed | 127 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "canh: tra chinh mang chuan",
+      "outcome": "bat",
+      "summary": "4 failed | 126 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "canh: khong trim tung muc",
+      "outcome": "LOT",
+      "summary": "130 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "canh: khong co none",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "canh: khong rut gon khi du",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "canh: format khong xep",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "canh: toggle chi them",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "canh: toggle khong xep",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "canh: khong loc theo loai",
+      "outcome": "bat",
+      "summary": "3 failed | 127 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "canh: khong neu thi khong ve gi",
+      "outcome": "bat",
+      "summary": "19 failed | 111 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "mau: bo qua mau nen",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "mau: khong du hai chu so",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "mau: lech kenh",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "cay: ca loai khong ve duoc",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "cay: trang khong vao thu muc ao",
+      "outcome": "bat",
+      "summary": "4 failed | 126 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "cay: ten trang khong tach thu muc",
+      "outcome": "bat",
+      "summary": "3 failed | 127 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "cay: thu muc gop theo ten bo qua file",
+      "outcome": "LOT",
+      "summary": "130 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "cay: duong dan thu muc khong noi cha",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "cay: khong dem file cua thu muc",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "cay: thu muc ao khong dung dau",
+      "outcome": "bat",
+      "summary": "4 failed | 126 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "cay: file dung truoc thu muc",
+      "outcome": "bat",
+      "summary": "3 failed | 127 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "cay: khong xep theo ten",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "cay: khong xep thu muc con",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "cay loc: tu khoa rong loc het",
+      "outcome": "LOT",
+      "summary": "130 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "cay loc: phan biet hoa thuong",
+      "outcome": "LOT",
+      "summary": "130 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "cay loc: chi can mot tu",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "cay loc: giu thu muc rong",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "cay loc: khong dem lai so file",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: layout cung tang voi template",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: khong chia hang",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: hang day truoc roi moi xuong",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: khong canh giua hang",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: canh giua theo hang day",
+      "outcome": "LOT",
+      "summary": "130 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: moi hang cung mot y",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: tang duoi khong lui theo so hang",
+      "outcome": "LOT",
+      "summary": "130 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: khong xep theo node goi",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: node khong ai goi dung dau",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: neo theo node dau thay vi trung binh",
+      "outcome": "LOT",
+      "summary": "130 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: khong xep theo id khi hoa",
+      "outcome": "LOT",
+      "summary": "130 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: xep tang nguoc",
+      "outcome": "bat",
+      "summary": "5 failed | 125 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: y khong dao dau",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: van chay forceatlas",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: node khong nho lai",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "tang: luc cung dung vi tri tang",
+      "outcome": "bat",
+      "summary": "4 failed | 126 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "tim: tu khoa rong tra het",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "tim: chi can mot tu khop",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "tim: chi so tren ten ngan",
+      "outcome": "bat",
+      "summary": "3 failed | 127 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "tim: khong uu tien ten bat dau bang",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "tim: khong tach hang ten va hang thu muc",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "tim: khong xep theo hang",
+      "outcome": "bat",
+      "summary": "3 failed | 127 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "tim: khong xep theo do dai ten",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "tim: khong xep theo id",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "tim: hang so tren ten con hoa",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "mac dinh gom ca asset",
+      "outcome": "bat",
+      "summary": "5 failed | 125 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "parseKinds rong khong ve mac dinh",
+      "outcome": "bat",
+      "summary": "3 failed | 127 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "parseKinds khong trim ca chuoi",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "parseKinds tra chinh mang mac dinh",
+      "outcome": "bat",
+      "summary": "10 failed | 120 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "formatKinds khong rut gon mac dinh",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "formatKinds chi so do dai",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "formatKinds khong so do dai",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "formatKinds khong xep",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "toggle chi them",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "toggle khong xep",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "nhan trang giu tien to",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "nhan cat o gach cheo cuoi",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "nhan asset bo duoi",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "nhan bo duoi o giua ten",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "co khong co tran",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "co tuyen tinh",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "lan can chi di xuoi",
+      "outcome": "bat",
+      "summary": "8 failed | 122 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "lan can chi di nguoc",
+      "outcome": "bat",
+      "summary": "6 failed | 124 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "lan can di them mot buoc",
+      "outcome": "bat",
+      "summary": "6 failed | 124 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "lan can khong gom tam",
+      "outcome": "bat",
+      "summary": "11 failed | 119 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "lan can khong danh dau da ghe",
+      "outcome": "bat",
+      "summary": "9 failed | 121 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "tam khong can co trong theme",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "tam khong duoc ep hien",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "available tinh ca tam",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "giu canh tu tro",
+      "outcome": "bat",
+      "summary": "10 failed | 120 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "giu canh mat dau nguon",
+      "outcome": "bat",
+      "summary": "3 failed | 127 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "giu canh mat dau dich",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "gop bo huong",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "gop: dieu kien la HOAC",
+      "outcome": "bat",
+      "summary": "3 failed | 127 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "gop: khong cap nhat dieu kien",
+      "outcome": "bat",
+      "summary": "4 failed | 126 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "gop: khong gom loai",
+      "outcome": "bat",
+      "summary": "4 failed | 126 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "khong thu ve lan can",
+      "outcome": "bat",
+      "summary": "7 failed | 123 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "do sau mac dinh la 2",
+      "outcome": "bat",
+      "summary": "4 failed | 126 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "lan can khong loc canh",
+      "outcome": "bat",
+      "summary": "5 failed | 125 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "lan can khong loc node",
+      "outcome": "bat",
+      "summary": "7 failed | 123 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "dem noi goi theo dau nguon",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "node khong xep",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "canh khong xep",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-model.ts",
+      "name": "loai canh khong xep",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "moi node cung mot cho",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "ban kinh bang 0",
+      "outcome": "bat",
+      "summary": "3 failed | 127 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "canh mat thuoc tinh dieu kien",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/graph-layout.ts",
+      "name": "canh nguoc chieu",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/flow-model.ts",
+      "name": "trang mac dinh luon la trang dau",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/flow-model.ts",
+      "name": "mo ca node khong con",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/flow-model.ts",
+      "name": "mo them mot tang",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/flow-model.ts",
+      "name": "khong dem dong lap",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/flow-model.ts",
+      "name": "khong dem dieu kien",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/flow-model.ts",
+      "name": "khong di xuong con",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/flow-model.ts",
+      "name": "sau nhat lay gia tri cuoi",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/flow-model.ts",
+      "name": "sau nhat lay gia tri nho nhat",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "near nhan moi gia tri",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "khong ghi kinds",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/route.ts",
+      "name": "khong ghi node",
+      "outcome": "bat",
+      "summary": "2 failed | 128 passed (130)"
+    },
+    {
+      "file": "packages/web/src/api.ts",
+      "name": "graph goi sai route",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/web/src/api.ts",
+      "name": "flow khong gui trang",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "problem luon null",
+      "outcome": "bat",
+      "summary": "1 failed | 129 passed (130)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "problemOf khong dong database",
+      "outcome": "bat",
+      "summary": "4 failed | 126 passed (130)"
+    },
+    {
+      "file": "packages/server/src/api.ts",
+      "name": "problemOf nuot moi loi",
+      "outcome": "LOT",
+      "summary": "130 passed (130)"
+    }
+  ]
+}
