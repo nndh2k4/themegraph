@@ -65,7 +65,7 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
 export function extractLiquid(file: ThemeFile, content: string): Extraction {
   // Chỉ file .liquid mới chứa mã Liquid. Asset (.css, .js) có thể chứa chuỗi
   // trông giống tag nhưng Shopify không chạy Liquid trong đó.
-  if (file.ext !== "liquid") return { refs: [], schema: null, translationKeys: [], settings: [] };
+  if (file.ext !== "liquid") return { refs: [], schema: null, translationKeys: [], settings: [], elements: [] };
 
   let ast;
   try {
@@ -377,5 +377,5 @@ export function extractLiquid(file: ThemeFile, content: string): Extraction {
     }
   });
 
-  return { refs, schema, translationKeys: [], settings };
+  return { refs, schema, translationKeys: [], settings, elements: [] };
 }

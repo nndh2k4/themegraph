@@ -39,6 +39,9 @@ export function Overview({ api, themeId }: { api: Api; themeId: string }) {
         <Stat value={overview.brokenRefs} label="tham chiếu hỏng" alert={overview.brokenRefs > 0} />
         <Stat value={overview.unused.certain} label="file chắc chắn không dùng" alert={overview.unused.certain > 0} />
         <Stat value={overview.unused.review} label="file cần xem lại" />
+        {overview.unused.notLoaded > 0 && (
+          <Stat value={overview.unused.notLoaded} label="file JavaScript dùng mà không nạp" alert />
+        )}
       </div>
 
       <div className="columns">
@@ -75,7 +78,7 @@ export function Overview({ api, themeId }: { api: Api; themeId: string }) {
         </Section>
       </div>
 
-      <Unused api={api} themeId={themeId} total={overview.unused.certain + overview.unused.review} />
+      <Unused api={api} themeId={themeId} total={overview.unused.certain + overview.unused.review + overview.unused.notLoaded} />
 
       <div className="columns">
         <Section title="Node theo loại" count={overview.nodes}>
@@ -147,25 +150,57 @@ function Unused({ api, themeId, total }: { api: Api; themeId: string; total: num
   );
 
   return (
-    <div className="columns">
-      <Section
-        title="Không trang nào dùng: chắc chắn"
-        count={certain.length}
-        empty="Không có file nào ở mức này."
-      >
-        <p className="muted">Đồ thị không thấy cách dùng nào. Vẫn nên tìm tên file một lượt trước khi xoá.</p>
-        {rows(certain)}
-      </Section>
-      <Section title="Không trang nào dùng: cần xem lại" count={review.length} empty="Không có file nào ở mức này.">
-        <p className="muted">
-          Section có thể được JavaScript tải bằng tên là biến; asset có thể được gọi bằng tên ghép lúc chạy.
-        </p>
-        <details>
-          <summary>Hiện {review.length} file</summary>
-          {rows(review)}
-        </details>
-      </Section>
-    </div>
+    <>
+      {loaded.data.notLoaded.length > 0 && (
+        <Section title="Có nơi dùng thẻ nhưng không trang nào nạp file" count={loaded.data.notLoaded.length} empty="">
+          <p className="muted">
+            File định nghĩa một custom element mà theme đang viết ra, nhưng không thẻ &lt;script&gt; nào nạp nó: thẻ
+            hiện trên trang mà JavaScript của nó không chạy. Cách chữa là nạp file, không phải xoá.
+          </p>
+          <table>
+            <tbody>
+              {loaded.data.notLoaded.flatMap((asset) =>
+                asset.elements.map((element) => (
+                  <tr key={`${asset.id} ${element.name}`}>
+                    <td>
+                      <NodeLink themeId={themeId} id={asset.id} />
+                    </td>
+                    <td>
+                      <code>&lt;{element.name}&gt;</code> được viết ở{" "}
+                      {element.usedBy.map((id, index) => (
+                        <span key={id}>
+                          {index > 0 && ", "}
+                          <NodeLink themeId={themeId} id={id} />
+                        </span>
+                      ))}
+                    </td>
+                  </tr>
+                )),
+              )}
+            </tbody>
+          </table>
+        </Section>
+      )}
+      <div className="columns">
+        <Section
+          title="Không trang nào dùng: chắc chắn"
+          count={certain.length}
+          empty="Không có file nào ở mức này."
+        >
+          <p className="muted">Đồ thị không thấy cách dùng nào. Vẫn nên tìm tên file một lượt trước khi xoá.</p>
+          {rows(certain)}
+        </Section>
+        <Section title="Không trang nào dùng: cần xem lại" count={review.length} empty="Không có file nào ở mức này.">
+          <p className="muted">
+            Section có thể được JavaScript tải bằng tên là biến; asset có thể được gọi bằng tên ghép lúc chạy.
+          </p>
+          <details>
+            <summary>Hiện {review.length} file</summary>
+            {rows(review)}
+          </details>
+        </Section>
+      </div>
+    </>
   );
 }
 

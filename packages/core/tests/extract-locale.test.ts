@@ -84,7 +84,7 @@ describe('extractFile với file locale', () => {
   it('trả khoá dịch của locale mặc định, không có ref nào', () => {
     const result = extractFile(DEFAULT, JSON.stringify({ a: { b: 'x' } }));
 
-    expect(result).toEqual({ refs: [], schema: null, translationKeys: ['a.b'], settings: [] });
+    expect(result).toEqual({ refs: [], schema: null, translationKeys: ['a.b'], settings: [], elements: [] });
   });
 
   it('không đọc khoá của các file locale khác', () => {

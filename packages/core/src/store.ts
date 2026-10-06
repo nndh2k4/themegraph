@@ -8,10 +8,10 @@ import { VERSION } from "./version.js";
 /**
  * Phiên bản của lược đồ bảng bên dưới. Tăng số này mỗi khi đổi cấu trúc bảng,
  * hoặc khi analyze bắt đầu ghi thêm một loại quan hệ (bản 5: cạnh
- * LOADS_SECTION và hash của file .js), để công cụ đọc biết một graph.db cũ
- * có còn dùng được hay phải analyze lại.
+ * LOADS_SECTION và hash của file .js; bản 6: bảng elements), để công cụ đọc
+ * biết một graph.db cũ có còn dùng được hay phải analyze lại.
  */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 /** Thư mục công cụ ghi dữ liệu vào, nằm ngay trong thư mục theme. */
 const DATA_DIR = ".themegraph";
@@ -34,6 +34,12 @@ const DATA_DIR = ".themegraph";
  *
  * file_hashes: hash nội dung của từng file analyze đã đọc. Lệnh status so nó
  * với nội dung hiện có trên đĩa để biết đồ thị còn khớp hay không.
+ *
+ * elements: file nào định nghĩa và file nào dùng mỗi custom element. Để ở
+ * bảng riêng chứ không thành cạnh, vì "file này viết thẻ <cart-drawer>" không
+ * phải là "file này gọi assets/cart-drawer.js": thẻ chỉ chạy khi có một thẻ
+ * <script> nạp file kia, và chính chỗ lệch giữa hai điều đó là thứ dead-code
+ * cần tìm.
  */
 const SCHEMA_SQL = `
 CREATE TABLE meta (
@@ -82,6 +88,14 @@ CREATE TABLE schemas (
 CREATE TABLE file_hashes (
   file TEXT PRIMARY KEY REFERENCES nodes (id),
   hash TEXT NOT NULL
+) STRICT, WITHOUT ROWID;
+
+CREATE TABLE elements (
+  name TEXT    NOT NULL,
+  role TEXT    NOT NULL CHECK (role IN ('define', 'use')),
+  file TEXT    NOT NULL REFERENCES nodes (id),
+  line INTEGER NOT NULL,
+  PRIMARY KEY (name, role, file)
 ) STRICT, WITHOUT ROWID;
 `;
 
@@ -138,6 +152,8 @@ export function saveGraph(themeRoot: string, graph: ThemeGraph, options: SaveGra
       "INSERT INTO schemas (file, presets, accepts_theme_blocks) VALUES (?, ?, ?)",
     );
 
+    const insertElement = db.prepare("INSERT INTO elements (name, role, file, line) VALUES (?, ?, ?, ?)");
+
     // Một transaction cho toàn bộ: nhanh hơn nhiều so với để mỗi INSERT tự
     // commit, và nếu có lỗi giữa chừng thì không dòng nào được ghi.
     db.exec("BEGIN");
@@ -181,6 +197,10 @@ export function saveGraph(themeRoot: string, graph: ThemeGraph, options: SaveGra
 
       for (const entry of graph.fileHashes) {
         insertFileHash.run(entry.file, entry.hash);
+      }
+
+      for (const entry of graph.elements) {
+        insertElement.run(entry.name, entry.role, entry.file, entry.line);
       }
 
       db.exec("COMMIT");

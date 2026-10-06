@@ -420,6 +420,7 @@ describe('extractLiquid — dữ kiện schema', () => {
       schema: null,
       translationKeys: [],
       settings: [],
+      elements: [],
     });
   });
 
@@ -451,6 +452,7 @@ describe('extractLiquid — dữ kiện schema', () => {
       schema: { presets: 0, acceptsThemeBlocks: false },
       translationKeys: [],
       settings: [],
+      elements: [],
     });
   });
 

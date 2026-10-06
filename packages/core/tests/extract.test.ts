@@ -61,6 +61,7 @@ describe('extractFile', () => {
       schema: null,
       translationKeys: [],
       settings: [],
+      elements: [],
     });
   });
 });

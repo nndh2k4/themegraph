@@ -248,6 +248,7 @@ describe('section do JavaScript tải — tầng trích và resolver', () => {
       schema: null,
       translationKeys: [],
       settings: [],
+      elements: [],
     });
   });
 

@@ -77,7 +77,7 @@ describe('extractFile với file config', () => {
   it('trả setting toàn cục của settings_schema.json, không có ref nào', () => {
     const result = extractFile(CONFIG, JSON.stringify([{ settings: [{ type: 'color', id: 'accent' }] }]));
 
-    expect(result).toEqual({ refs: [], schema: null, translationKeys: [], settings: ['setting:settings.accent'] });
+    expect(result).toEqual({ refs: [], schema: null, translationKeys: [], settings: ['setting:settings.accent'], elements: [] });
   });
 
   it('không đọc setting từ settings_data.json', () => {

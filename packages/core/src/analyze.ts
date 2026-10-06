@@ -7,7 +7,7 @@ import { hashContent } from "./hash.js";
 import { scanThemeDir } from "./scanner.js";
 import { registerTheme } from "./registry.js";
 import { graphDbPath, saveGraph } from "./store.js";
-import type { FileHash, FileSchema, RawRef, ResolvedRef } from "./types.js";
+import type { FileElement, FileHash, FileSchema, RawRef, ResolvedRef } from "./types.js";
 
 /** Một file không phân tích được, kèm lý do. */
 export interface AnalyzeError {
@@ -87,6 +87,7 @@ export async function analyze(themeRoot: string): Promise<AnalyzeResult> {
   const translationKeys: string[] = [];
   const settings: string[] = [];
   const fileHashes: FileHash[] = [];
+  const elements: FileElement[] = [];
   const errors: AnalyzeError[] = [];
 
   for (const file of files) {
@@ -105,6 +106,7 @@ export async function analyze(themeRoot: string): Promise<AnalyzeResult> {
       rawRefs.push(...extraction.refs);
       translationKeys.push(...extraction.translationKeys);
       settings.push(...extraction.settings);
+      for (const mention of extraction.elements) elements.push({ file: file.path, ...mention });
       if (extraction.schema !== null) {
         schemas.push({ file: file.path, ...extraction.schema });
       }
@@ -119,7 +121,7 @@ export async function analyze(themeRoot: string): Promise<AnalyzeResult> {
   }
 
   // Bước 4: dựng đồ thị (phân giải tên thô thành file, gộp cạnh, thêm loại trang).
-  const graph = buildGraph(files, rawRefs, { schemas, translationKeys, settings, fileHashes });
+  const graph = buildGraph(files, rawRefs, { schemas, translationKeys, settings, fileHashes, elements });
 
   // Bước 5: ghi xuống đĩa. Cùng một thời điểm được ghi vào graph.db và vào
   // sổ đăng ký, để hai nơi không bao giờ lệch nhau.

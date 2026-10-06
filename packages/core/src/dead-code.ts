@@ -27,14 +27,36 @@ export interface DeadFile {
   kind: NodeKind;
   confidence: DeadConfidence;
   reason: DeadReason;
-  usedBy: string[]; // các file gọi trực tiếp tới nó (đều nằm trong danh sách)
+  usedBy: string[]; // các file gọi trực tiếp tới nó (đều là file không dùng)
+}
+
+/** Một custom element mà file JavaScript định nghĩa, và những file đang dùng thẻ đó. */
+export interface NeededElement {
+  name: string; // tên thẻ, ví dụ 'disclosures-close'
+  usedBy: string[]; // các file ĐANG DÙNG có viết thẻ này, xếp theo id
+}
+
+/**
+ * Một asset không trang nào nạp, nhưng lại định nghĩa custom element mà một
+ * file đang dùng viết ra. Đây không phải mã chết mà là một lỗi của theme:
+ * thiếu thẻ <script> nạp file, nên thẻ hiện ra mà hành vi không chạy.
+ */
+export interface NotLoadedAsset {
+  id: string;
+  elements: NeededElement[]; // xếp theo tên thẻ
+  usedBy: string[]; // các file gọi nó; đều là file không dùng, thường là rỗng
 }
 
 /** Kết quả của deadCode(). */
 export interface DeadCodeResult {
-  files: DeadFile[]; // mức certain trước, rồi review; trong mỗi mức xếp theo id
+  // Mức certain trước, rồi review; trong mỗi mức xếp theo id. Không gồm các
+  // asset ở `notLoaded`.
+  files: DeadFile[];
   certain: number;
   review: number;
+  // Asset không trang nào nạp nhưng có nơi cần tới (xem NotLoadedAsset), xếp
+  // theo id. Tách khỏi `files` vì lời khuyên ngược hẳn: không xoá, mà nạp nó.
+  notLoaded: NotLoadedAsset[];
   // Theme có file ĐANG DÙNG nào nhận mọi theme block qua "@theme" hay không.
   // Nếu có, block công khai không bao giờ bị báo, vì merchant thêm được chúng
   // vào file đó. Một file nhận "@theme" mà chính nó không ai dùng thì không
@@ -108,6 +130,59 @@ WHERE kind IN (${CANDIDATE_KINDS.map((kind) => `'${kind}'`).join(", ")})
 ORDER BY id`;
 
 /**
+ * Mọi cặp (file định nghĩa một thẻ, file khác dùng thẻ đó). Câu này không lọc
+ * theo việc file nào đang dùng; deadCode() lọc sau, khi đã có tập không dùng.
+ */
+const ELEMENT_PAIRS_SQL = `
+SELECT d.file AS definer, d.name AS name, u.file AS user
+FROM elements d
+JOIN elements u ON u.name = d.name AND u.role = 'use' AND u.file <> d.file
+WHERE d.role = 'define'
+ORDER BY d.file, d.name, u.file`;
+
+/**
+ * Tìm các asset không dùng mà thật ra có nơi cần: nó định nghĩa một custom
+ * element, và một file ĐANG DÙNG viết thẻ đó.
+ *
+ * Một thẻ không được tính nếu còn một file đang dùng khác cũng định nghĩa
+ * nó: khi đó thẻ vẫn chạy nhờ file kia, và asset này đúng là bản thừa.
+ *
+ * Giới hạn: hàm chỉ xét asset mà KHÔNG trang nào nạp. Một asset được nạp ở
+ * trang này nhưng thẻ của nó được viết ở trang khác thì không bị phát hiện.
+ */
+function findNotLoaded(graph: GraphHandle, unused: ReadonlyMap<string, NodeKind>): Map<string, NeededElement[]> {
+  const definersOf = new Map<string, string[]>();
+  for (const row of graph.db.prepare("SELECT name, file FROM elements WHERE role = 'define'").all()) {
+    const name = String(row.name);
+    definersOf.set(name, [...(definersOf.get(name) ?? []), String(row.file)]);
+  }
+
+  const result = new Map<string, NeededElement[]>();
+
+  for (const row of graph.db.prepare(ELEMENT_PAIRS_SQL).all()) {
+    const definer = String(row.definer);
+    const name = String(row.name);
+    const user = String(row.user);
+
+    if (unused.get(definer) !== "asset") continue;
+    // File dùng thẻ mà chính nó không trang nào dùng thì không ai thấy thẻ đó.
+    if (unused.has(user)) continue;
+    if ((definersOf.get(name) ?? []).some((file) => !unused.has(file))) continue;
+
+    const elements = result.get(definer) ?? [];
+    const last = elements.at(-1);
+
+    // Các dòng đã xếp theo (definer, name, user), nên cùng một thẻ đi liền nhau.
+    if (last !== undefined && last.name === name) last.usedBy.push(user);
+    else elements.push({ name, usedBy: [user] });
+
+    result.set(definer, elements);
+  }
+
+  return result;
+}
+
+/**
  * Trả lời câu hỏi: "file nào trong theme không còn được dùng?"
  *
  * Một file được coi là không dùng khi không điểm vào nào đi tới được nó (xem
@@ -121,6 +196,9 @@ ORDER BY id`;
  *     cũng `review`, cùng lý do. Nếu file đó hoá ra đang được dùng thì
  *     merchant thêm được block vào nó.
  *   - Còn lại là `certain`.
+ *
+ * Riêng asset định nghĩa một custom element mà file đang dùng có viết thì
+ * không vào danh sách trên mà vào `notLoaded` (xem findNotLoaded).
  */
 export function deadCode(graph: GraphHandle): DeadCodeResult {
   const unused = graph.db
@@ -186,17 +264,31 @@ export function deadCode(graph: GraphHandle): DeadCodeResult {
     }
   }
 
-  const files: DeadFile[] = unused.map((node) => {
-    const usedBy = callersOf.get(node.id) ?? [];
+  const neededElements = findNotLoaded(graph, new Map(unused.map((node) => [node.id, node.kind])));
 
-    return {
+  const notLoaded: NotLoadedAsset[] = unused
+    .filter((node) => neededElements.has(node.id))
+    .map((node) => ({
       id: node.id,
-      kind: node.kind,
-      confidence: needsReview.has(node.id) ? "review" : "certain",
-      reason: usedBy.length === 0 ? "unreferenced" : "only_used_by_unused",
-      usedBy,
-    };
-  });
+      elements: neededElements.get(node.id) ?? [],
+      usedBy: callersOf.get(node.id) ?? [],
+    }));
+
+  // Những gì một asset như vậy gọi (ví dụ section nó tải) vẫn ở lại danh
+  // sách: chừng nào asset chưa được nạp thì chúng vẫn không được dùng.
+  const files: DeadFile[] = unused
+    .filter((node) => !neededElements.has(node.id))
+    .map((node) => {
+      const usedBy = callersOf.get(node.id) ?? [];
+
+      return {
+        id: node.id,
+        kind: node.kind,
+        confidence: needsReview.has(node.id) ? "review" : "certain",
+        reason: usedBy.length === 0 ? "unreferenced" : "only_used_by_unused",
+        usedBy,
+      };
+    });
 
   // `unused` đã xếp theo id; sort của JavaScript giữ nguyên thứ tự đó giữa
   // các phần tử cùng mức.
@@ -228,6 +320,7 @@ export function deadCode(graph: GraphHandle): DeadCodeResult {
     files,
     certain: files.length - review,
     review,
+    notLoaded,
     acceptsThemeBlocks,
     unusedTranslationKeys,
     unusedSettings,

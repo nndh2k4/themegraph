@@ -474,8 +474,26 @@ function unusedSettingLines(settings: readonly string[], options: FormatOptions)
   ];
 }
 
+/** Mục asset có nơi cần mà không trang nào nạp; rỗng khi không có. */
+function notLoadedLines(assets: DeadCodeResult["notLoaded"], options: FormatOptions): string[] {
+  if (assets.length === 0) return [];
+
+  const rows = assets.flatMap((asset) =>
+    asset.elements.map((element) => `  ${asset.id}  định nghĩa <${element.name}>, được viết ở ${element.usedBy.join(", ")}`),
+  );
+
+  return [
+    "",
+    `Có nơi dùng thẻ nhưng không trang nào nạp file (${assets.length}), KHÔNG xoá:`,
+    ...capped(rows, options, "dòng"),
+    "  File định nghĩa một custom element mà theme đang viết ra, nhưng không thẻ <script> nào nạp nó:",
+    "  thẻ hiện trên trang mà JavaScript của nó không chạy. Cách chữa là nạp file, không phải xoá.",
+  ];
+}
+
 export function formatDeadCode(result: DeadCodeResult, options: FormatOptions = {}): string[] {
   const extras = [
+    ...notLoadedLines(result.notLoaded, options),
     ...unusedKeyLines(result.unusedTranslationKeys, options),
     ...unusedSettingLines(result.unusedSettings, options),
   ];
@@ -616,6 +634,7 @@ export function formatOverview(result: OverviewResult): string[] {
         ["Trang", `${result.pages.length}  (${result.pages.join(", ")})`],
         ["Tham chiếu hỏng", String(result.brokenRefs)],
         ["File không dùng", `${unused.certain} chắc chắn, ${unused.review} cần xem lại`],
+        ...(unused.notLoaded > 0 ? [["Dùng mà không nạp", `${unused.notLoaded} file JavaScript`]] : []),
         ["Không thấy dùng", `${unused.translationKeys} khoá dịch, ${unused.settings} setting`],
       ],
       "",

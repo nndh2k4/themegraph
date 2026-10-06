@@ -57,7 +57,15 @@ export type { BrokenRef, ContextLink, ContextResult } from './context.js';
 
 // Truy vấn: file nào không còn được dùng.
 export { deadCode } from './dead-code.js';
-export type { DeadCodeResult, DeadConfidence, DeadFile, DeadReason } from './dead-code.js';
+export type {
+  DeadCodeResult,
+  DeadConfidence,
+  DeadFile,
+  DeadReason,
+  NeededElement,
+  NotLoadedAsset,
+} from './dead-code.js';
+export { extractElements } from './extract-elements.js';
 
 // Tổng quan của cả theme, và xuất đồ thị cho giao diện vẽ.
 export { overview } from './overview.js';

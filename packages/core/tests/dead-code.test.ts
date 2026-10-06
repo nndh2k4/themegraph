@@ -177,6 +177,7 @@ describe('deadCode — từng quy tắc', () => {
       acceptsThemeBlocks: false,
       unusedTranslationKeys: [],
       unusedSettings: [],
+      notLoaded: [],
     });
   });
 

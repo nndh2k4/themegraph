@@ -895,6 +895,28 @@ describe('themegraph dead-code', () => {
     ]);
   });
 
+  it('tách file JavaScript có nơi dùng thẻ mà không ai nạp thành mục riêng, ở cả dead-code lẫn overview', async () => {
+    await writeFile(path.join(themeRoot, 'assets', 'x.js'), 'customElements.define("x-el", class extends HTMLElement {});');
+    await appendFile(path.join(themeRoot, 'sections', 'hero.liquid'), '\n<x-el></x-el>\n');
+    await runCli(['analyze', themeRoot]);
+
+    const dead = await runCli(['dead-code', '-t', themeRoot]);
+    const json = await runCli(['dead-code', '-t', themeRoot, '--json']);
+    const summary = await runCli(['overview', '-t', themeRoot]);
+
+    expect(dead.stdout.split('\n').slice(0, 4)).toEqual([
+      'Không tìm thấy file nào không được dùng.',
+      '',
+      'Có nơi dùng thẻ nhưng không trang nào nạp file (1), KHÔNG xoá:',
+      '  assets/x.js  định nghĩa <x-el>, được viết ở sections/hero.liquid',
+    ]);
+    expect(JSON.parse(json.stdout)).toMatchObject({
+      files: [],
+      notLoaded: [{ id: 'assets/x.js', elements: [{ name: 'x-el', usedBy: ['sections/hero.liquid'] }], usedBy: [] }],
+    });
+    expect(summary.stdout).toMatch(/Dùng mà không nạp\s+1 file JavaScript/);
+  });
+
   it('chỉ in mục có file, và chỉ in lý do của loại file có mặt', async () => {
     await writeFile(path.join(themeRoot, 'assets', 'old.png'), '');
     await runCli(['analyze', themeRoot]);

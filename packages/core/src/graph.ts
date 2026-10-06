@@ -76,6 +76,9 @@ function pageTypeOf(templatePath: string): { page: string; alternate: boolean } 
  *     node, để ref loại translation có đích mà trỏ tới
  *   - settings: id node của các setting theme định nghĩa
  *   - fileHashes: hash nội dung của các file đã đọc; chỉ được giữ lại và sắp xếp
+ *   - elements: custom element từng file định nghĩa và dùng; không thành node
+ *     hay cạnh nào. Lần dùng một thẻ mà không file nào định nghĩa bị bỏ: đó
+ *     là thẻ của một app, của Shopify, hoặc một kết quả tìm thừa
  *
  * Hàm thuần: không đọc đĩa, không phụ thuộc thứ tự đầu vào. Cùng một tập file
  * và ref luôn cho ra đúng một kết quả, đã sắp xếp.
@@ -85,7 +88,7 @@ export function buildGraph(
   rawRefs: readonly RawRef[],
   facts: GraphFacts = {},
 ): ThemeGraph {
-  const { schemas = [], translationKeys = [], settings = [], fileHashes = [] } = facts;
+  const { schemas = [], translationKeys = [], settings = [], fileHashes = [], elements = [] } = facts;
 
   const filePaths = new Set(files.map((file) => file.path));
 
@@ -300,6 +303,11 @@ export function buildGraph(
     edge.sources = [...(sourcesOf.get(key) ?? [])].sort().join(",");
   }
 
+  // Tên các thẻ mà một file CỦA THEME định nghĩa.
+  const definedElements = new Set(
+    elements.filter((entry) => entry.role === "define" && filePaths.has(entry.file)).map((entry) => entry.name),
+  );
+
   return {
     nodes: [...nodes.values()].sort((a, b) => compareText(a.id, b.id)),
     edges: [...edges.values()].sort(
@@ -329,5 +337,10 @@ export function buildGraph(
     fileHashes: fileHashes
       .filter((entry) => filePaths.has(entry.file))
       .sort((a, b) => compareText(a.file, b.file)),
+    elements: elements
+      .filter((entry) => filePaths.has(entry.file) && (entry.role === "define" || definedElements.has(entry.name)))
+      .sort(
+        (a, b) => compareText(a.name, b.name) || compareText(a.role, b.role) || compareText(a.file, b.file),
+      ),
   };
 }

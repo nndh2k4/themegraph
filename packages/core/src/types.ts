@@ -101,6 +101,25 @@ export interface SchemaInfo {
   acceptsThemeBlocks: boolean;
 }
 
+/**
+ * Vai trò của một file với một custom element:
+ * - define: file gọi customElements.define("ten", ...)
+ * - use:    file viết thẻ <ten>, thuộc tính is="ten", hoặc createElement("ten")
+ */
+export type ElementRole = "define" | "use";
+
+/** Một custom element được nhắc tới trong một file (xem extractElements). */
+export interface ElementMention {
+  name: string; // tên thẻ, ví dụ 'cart-drawer'
+  role: ElementRole;
+  line: number; // dòng đầu tiên nó xuất hiện với vai trò này, đếm từ 1
+}
+
+/** Một ElementMention kèm file chứa nó, dạng lưu trong đồ thị. */
+export interface FileElement extends ElementMention {
+  file: string; // cùng định dạng với ThemeFile.path
+}
+
 /** Mọi thứ tầng parse rút ra được từ một file. */
 export interface Extraction {
   refs: RawRef[];
@@ -111,6 +130,9 @@ export interface Extraction {
   // Id node của các setting file này ĐỊNH NGHĨA: trong {% schema %} của nó,
   // hoặc trong config/settings_schema.json với setting toàn cục.
   settings: string[];
+  // Các custom element file này định nghĩa và dùng. Chỉ file .liquid và .js
+  // mới có; mọi file khác trả mảng rỗng.
+  elements: ElementMention[];
 }
 
 /** Dữ kiện schema của một file cụ thể, dạng lưu trong đồ thị. */
@@ -136,6 +158,8 @@ export interface GraphFacts {
   settings?: readonly string[];
   // Hash nội dung của các file đã đọc, để status biết file nào đã đổi.
   fileHashes?: readonly FileHash[];
+  // Custom element từng file định nghĩa và dùng (xem extractElements).
+  elements?: readonly FileElement[];
 }
 
 /**
@@ -274,4 +298,7 @@ export interface ThemeGraph {
   refs: ResolvedRef[];
   schemas: FileSchema[];
   fileHashes: FileHash[];
+  // Mọi định nghĩa custom element, và những lần dùng một thẻ mà theme có
+  // định nghĩa. Lần dùng thẻ không ai định nghĩa thì không được giữ.
+  elements: FileElement[];
 }

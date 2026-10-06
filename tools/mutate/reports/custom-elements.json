@@ -1,0 +1,351 @@
+{
+  "tests": [
+    "packages/core/tests/extract-elements.test.ts",
+    "packages/core/tests/elements.test.ts",
+    "packages/core/tests/dead-code.test.ts",
+    "packages/core/tests/graph.test.ts",
+    "packages/core/tests/overview-export.test.ts",
+    "packages/core/tests/store.test.ts"
+  ],
+  "timeoutMs": 180000,
+  "totals": {
+    "tong": 55,
+    "bat": 53,
+    "bienDich": 0,
+    "lot": 2,
+    "quaGio": 0,
+    "khongThay": 0
+  },
+  "results": [
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "ten khong can gach ngang",
+      "outcome": "bat",
+      "summary": "6 failed | 147 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "ten nhan chu hoa",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "define khong nhan khoang trang quanh dau cham",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "define khong nhan xuong dong sau ngoac",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "the mo khong doi ket thuc ten",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "the mo khong nhan dau gach cheo",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "tinh ca the dong",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "is khong co lookbehind",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "is chi nhan nhay kep",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "bo mau is",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "bo mau createElement",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "bo mau the mo",
+      "outcome": "bat",
+      "summary": "7 failed | 146 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "khong xoa chu thich",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "xoa chu thich lam mat xuong dong",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "khong xoa chu thich html",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "chu thich liquid khong nhan dau tru",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "khong bo define sau //",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "// tinh tren ca file",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "define ghi vai tro use",
+      "outcome": "bat",
+      "summary": "8 failed | 145 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "khong xep theo vi tri",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "khong gop trung",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "gop theo ten bo vai tro",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract-elements.ts",
+      "name": "dong lech mot",
+      "outcome": "bat",
+      "summary": "13 failed | 140 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract.ts",
+      "name": "liquid khong trich element",
+      "outcome": "bat",
+      "summary": "2 failed | 151 passed (153)"
+    },
+    {
+      "file": "packages/core/src/extract.ts",
+      "name": "js khong trich element",
+      "outcome": "bat",
+      "summary": "2 failed | 151 passed (153)"
+    },
+    {
+      "file": "packages/core/src/analyze.ts",
+      "name": "analyze khong gom element",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/analyze.ts",
+      "name": "analyze khong dua element vao do thi",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/graph.ts",
+      "name": "giu ca lan dung the khong ai dinh nghia",
+      "outcome": "bat",
+      "summary": "2 failed | 151 passed (153)"
+    },
+    {
+      "file": "packages/core/src/graph.ts",
+      "name": "giu dong cua file ngoai theme",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/graph.ts",
+      "name": "dinh nghia ngoai theme van tinh",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/graph.ts",
+      "name": "bo dinh nghia khong ai dung",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/graph.ts",
+      "name": "element khong xep theo ten",
+      "outcome": "bat",
+      "summary": "2 failed | 151 passed (153)"
+    },
+    {
+      "file": "packages/core/src/graph.ts",
+      "name": "element khong xep theo file",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/store.ts",
+      "name": "khong ghi element",
+      "outcome": "bat",
+      "summary": "9 failed | 144 passed (153)"
+    },
+    {
+      "file": "packages/core/src/store.ts",
+      "name": "ghi sai cot dong",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "tach ca file khong phai asset",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "tach ca asset dang dung",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "tinh ca file dung the ma khong ai dung",
+      "outcome": "bat",
+      "summary": "2 failed | 151 passed (153)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "bo qua dinh nghia dang dung khac",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "dinh nghia khac bat ky deu chan",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "tinh ca tu dung",
+      "outcome": "LOT",
+      "summary": "153 passed (153)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "cap khong loc vai tro use",
+      "outcome": "LOT",
+      "summary": "153 passed (153)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "cap khong loc vai tro define",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "khong gop cung the",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "gop moi the vao the dau",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "cap khong xep",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "khong loai khoi files",
+      "outcome": "bat",
+      "summary": "7 failed | 146 passed (153)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "notLoaded mat usedBy",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/dead-code.ts",
+      "name": "notLoaded rong",
+      "outcome": "bat",
+      "summary": "8 failed | 145 passed (153)"
+    },
+    {
+      "file": "packages/core/src/overview.ts",
+      "name": "overview khong dem",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "format khong in nhom",
+      "outcome": "bat",
+      "summary": "3 failed | 150 passed (153)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "format dem dong thay vi file",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "format khong cat",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "overview luon in dong",
+      "outcome": "bat",
+      "summary": "2 failed | 151 passed (153)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "format chi in file dau",
+      "outcome": "bat",
+      "summary": "1 failed | 152 passed (153)"
+    }
+  ]
+}

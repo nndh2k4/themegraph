@@ -86,11 +86,15 @@ describe('overview', () => {
     expect(unused).toEqual({
       certain: dead.certain,
       review: dead.review,
+      notLoaded: dead.notLoaded.length,
       translationKeys: dead.unusedTranslationKeys.length,
       settings: dead.unusedSettings.length,
     });
     // Đồ thị mẫu có cả bốn loại, nên không con số nào bằng 0 một cách tình cờ.
-    expect(Object.values(unused).every((n) => n > 0)).toBe(true);
+    const { notLoaded, ...counts } = unused;
+    expect(Object.values(counts).every((n) => n > 0)).toBe(true);
+    // Đồ thị mẫu không có custom element nào.
+    expect(notLoaded).toBe(0);
   });
 
   it('không lẫn số khoá dịch với số setting, hay số chắc chắn với số cần xem lại', async () => {
@@ -107,7 +111,7 @@ describe('overview', () => {
     try {
       const result = overview(handle);
 
-      expect(result.unused).toEqual({ certain: 1, review: 2, translationKeys: 2, settings: 1 });
+      expect(result.unused).toEqual({ certain: 1, review: 2, notLoaded: 0, translationKeys: 2, settings: 1 });
       expect(formatOverview(result)).toContain('File không dùng  1 chắc chắn, 2 cần xem lại');
       expect(formatOverview(result)).toContain('Không thấy dùng  2 khoá dịch, 1 setting');
     } finally {

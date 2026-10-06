@@ -269,7 +269,7 @@ export function createServer(options: ServerOptions = {}): McpServer {
     {
       title: "File không còn được dùng trong Shopify theme",
       description:
-        'Shopify theme (Liquid): những file không loại trang nào dùng tới, chia hai mức: "chắc chắn không dùng" và "cần xem lại" (kèm lý do); cùng các khoá dịch và setting không file nào gọi. Gọi khi dọn dẹp theme hoặc được hỏi "file nào thừa", "xoá được gì".',
+        'Shopify theme (Liquid): những file không loại trang nào dùng tới, chia hai mức: "chắc chắn không dùng" và "cần xem lại" (kèm lý do); cùng các khoá dịch và setting không file nào gọi, và các file JavaScript định nghĩa một custom element đang được viết ra mà không trang nào nạp (lỗi cần sửa, không phải file thừa). Gọi khi dọn dẹp theme hoặc được hỏi "file nào thừa", "xoá được gì".',
       inputSchema: {
         limit: limitParam(DEFAULT_LIST_LIMIT, "mỗi danh sách"),
         theme: themeParam,

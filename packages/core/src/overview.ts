@@ -28,6 +28,7 @@ export interface OverviewResult {
   unused: {
     certain: number;
     review: number;
+    notLoaded: number; // asset có nơi cần mà không trang nào nạp
     translationKeys: number;
     settings: number;
   };
@@ -103,6 +104,7 @@ export function overview(graph: GraphHandle): OverviewResult {
     unused: {
       certain: dead.certain,
       review: dead.review,
+      notLoaded: dead.notLoaded.length,
       translationKeys: dead.unusedTranslationKeys.length,
       settings: dead.unusedSettings.length,
     },
