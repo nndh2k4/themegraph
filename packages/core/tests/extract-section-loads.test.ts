@@ -119,7 +119,9 @@ describe('extractSectionLoads — quy ước getSectionsToRender của Dawn', ()
   });
 
   it('không coi lời GỌI getSectionsToRender() là chỗ định nghĩa', () => {
-    const content = "sections: this.getSectionsToRender().map((s) => s.id),\nconst x = { id: 'outside' };";
+    // Có "];" phía sau, để nếu lời gọi bị coi là chỗ định nghĩa thì id: bên
+    // dưới sẽ rơi vào "thân hàm".
+    const content = "sections: this.getSectionsToRender().map((s) => s.id),\nconst x = [{ id: 'outside' }];";
 
     expect(loads(content)).toEqual([]);
   });

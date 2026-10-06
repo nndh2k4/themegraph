@@ -1,0 +1,188 @@
+{
+  "tests": [
+    "packages/core/tests/extract-section-loads.test.ts",
+    "packages/core/tests/section-loads.test.ts",
+    "packages/core/tests/extract.test.ts",
+    "packages/core/tests/resolver.test.ts",
+    "packages/core/tests/status-clean.test.ts"
+  ],
+  "timeoutMs": 180000,
+  "totals": {
+    "tong": 28,
+    "bat": 28,
+    "bienDich": 0,
+    "lot": 0,
+    "quaGio": 0,
+    "khongThay": 0
+  },
+  "results": [
+    {
+      "file": "packages/core/src/extract-section-loads.ts",
+      "name": "nhan ten la bieu thuc",
+      "outcome": "bat",
+      "summary": "1 failed | 92 passed (93)"
+    },
+    {
+      "file": "packages/core/src/extract-section-loads.ts",
+      "name": "section_id khong can ky tu dung truoc",
+      "outcome": "bat",
+      "summary": "1 failed | 92 passed (93)"
+    },
+    {
+      "file": "packages/core/src/extract-section-loads.ts",
+      "name": "sections khong tach dau phay",
+      "outcome": "bat",
+      "summary": "1 failed | 92 passed (93)"
+    },
+    {
+      "file": "packages/core/src/extract-section-loads.ts",
+      "name": "sections nhan danh sach ghep",
+      "outcome": "bat",
+      "summary": "1 failed | 92 passed (93)"
+    },
+    {
+      "file": "packages/core/src/extract-section-loads.ts",
+      "name": "liquid cung xet section:",
+      "outcome": "bat",
+      "summary": "2 failed | 91 passed (93)"
+    },
+    {
+      "file": "packages/core/src/extract-section-loads.ts",
+      "name": "bo dang section:",
+      "outcome": "bat",
+      "summary": "2 failed | 91 passed (93)"
+    },
+    {
+      "file": "packages/core/src/extract-section-loads.ts",
+      "name": "id: o moi noi",
+      "outcome": "bat",
+      "summary": "1 failed | 92 passed (93)"
+    },
+    {
+      "file": "packages/core/src/extract-section-loads.ts",
+      "name": "bo dang id:",
+      "outcome": "bat",
+      "summary": "3 failed | 90 passed (93)"
+    },
+    {
+      "file": "packages/core/src/extract-section-loads.ts",
+      "name": "loi goi cung la dinh nghia",
+      "outcome": "bat",
+      "summary": "1 failed | 92 passed (93)"
+    },
+    {
+      "file": "packages/core/src/extract-section-loads.ts",
+      "name": "so dong cua id: sai",
+      "outcome": "bat",
+      "summary": "1 failed | 92 passed (93)"
+    },
+    {
+      "file": "packages/core/src/extract-section-loads.ts",
+      "name": "so dong lech",
+      "outcome": "bat",
+      "summary": "12 failed | 81 passed (93)"
+    },
+    {
+      "file": "packages/core/src/extract-section-loads.ts",
+      "name": "khong sap theo vi tri",
+      "outcome": "bat",
+      "summary": "1 failed | 92 passed (93)"
+    },
+    {
+      "file": "packages/core/src/extract-section-loads.ts",
+      "name": "khong danh dau co dieu kien",
+      "outcome": "bat",
+      "summary": "8 failed | 85 passed (93)"
+    },
+    {
+      "file": "packages/core/src/extract.ts",
+      "name": "khong quet liquid",
+      "outcome": "bat",
+      "summary": "3 failed | 90 passed (93)"
+    },
+    {
+      "file": "packages/core/src/extract.ts",
+      "name": "js.liquid coi la liquid",
+      "outcome": "bat",
+      "summary": "1 failed | 92 passed (93)"
+    },
+    {
+      "file": "packages/core/src/extract.ts",
+      "name": "moi liquid coi la js",
+      "outcome": "bat",
+      "summary": "3 failed | 90 passed (93)"
+    },
+    {
+      "file": "packages/core/src/extract.ts",
+      "name": "khong quet js",
+      "outcome": "bat",
+      "summary": "9 failed | 84 passed (93)"
+    },
+    {
+      "file": "packages/core/src/extract.ts",
+      "name": "quet ca css",
+      "outcome": "bat",
+      "summary": "1 failed | 92 passed (93)"
+    },
+    {
+      "file": "packages/core/src/resolver.ts",
+      "name": "ten la thi bao hong",
+      "outcome": "bat",
+      "summary": "1 failed | 92 passed (93)"
+    },
+    {
+      "file": "packages/core/src/resolver.ts",
+      "name": "section_load khong phan giai",
+      "outcome": "bat",
+      "summary": "11 failed | 82 passed (93)"
+    },
+    {
+      "file": "packages/core/src/graph.ts",
+      "name": "giu ref khong phan giai",
+      "outcome": "bat",
+      "summary": "1 failed | 92 passed (93)"
+    },
+    {
+      "file": "packages/core/src/graph.ts",
+      "name": "giu tu tai chinh no",
+      "outcome": "bat",
+      "summary": "1 failed | 92 passed (93)"
+    },
+    {
+      "file": "packages/core/src/graph.ts",
+      "name": "khong sinh canh",
+      "outcome": "bat",
+      "summary": "9 failed | 84 passed (93)"
+    },
+    {
+      "file": "packages/core/src/graph.ts",
+      "name": "sinh canh RENDERS",
+      "outcome": "bat",
+      "summary": "5 failed | 88 passed (93)"
+    },
+    {
+      "file": "packages/core/src/types.ts",
+      "name": "khong thuoc luong render",
+      "outcome": "bat",
+      "summary": "1 failed | 92 passed (93)"
+    },
+    {
+      "file": "packages/core/src/analyze.ts",
+      "name": "khong doc js",
+      "outcome": "bat",
+      "summary": "9 failed | 84 passed (93)"
+    },
+    {
+      "file": "packages/core/src/status.ts",
+      "name": "status khong xet js",
+      "outcome": "bat",
+      "summary": "1 failed | 92 passed (93)"
+    },
+    {
+      "file": "packages/core/src/status.ts",
+      "name": "status xet moi file",
+      "outcome": "bat",
+      "summary": "10 failed | 83 passed (93)"
+    }
+  ]
+}
