@@ -62,7 +62,8 @@ const CANDIDATE_KINDS: readonly NodeKind[] = ["section", "section_group", "snipp
  * Các loại file mà "đồ thị không thấy ai dùng" chưa đủ để kết luận:
  *
  * - section: JavaScript của theme có thể tải nó qua Section Rendering API
- *   (ví dụ giỏ hàng dạng ngăn kéo), và mã JavaScript không được phân tích.
+ *   (ví dụ giỏ hàng dạng ngăn kéo). Đồ thị chỉ thấy những lần tải có tên
+ *   section viết sẵn (cạnh LOADS_SECTION); tên là biến thì không.
  * - asset: có thể được gọi bằng tên ghép lúc chạy ('icon-' | append: name),
  *   hoặc từ bên trong một file CSS / JavaScript.
  * - layout: có thể được chọn bằng {% layout ten_bien %}.

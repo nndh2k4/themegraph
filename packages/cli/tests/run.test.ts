@@ -856,7 +856,7 @@ describe('themegraph dead-code', () => {
       '  snippets/drawer-row.liquid  snippet  chỉ được gọi bởi sections/drawer.liquid',
       '',
       'Vì sao cần xem lại:',
-      '  section: không có preset và không template nào dùng, nhưng JavaScript của theme có thể vẫn tải nó qua Section Rendering API.',
+      '  section: không có preset, không template nào dùng, và không file nào tải nó bằng tên viết sẵn; JavaScript của theme vẫn có thể tải nó qua Section Rendering API bằng tên là biến.',
       '  asset: có thể được gọi bằng tên ghép lúc chạy, hoặc từ bên trong một file CSS / JavaScript.',
       '  File khác trong mục này: chỉ được gọi bởi một file cần xem lại.',
     ]);

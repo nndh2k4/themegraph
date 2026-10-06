@@ -40,6 +40,9 @@ export interface ScanResult {
  * - setting: đọc một setting. `to` là cách mã viết: 'settings.x' (toàn cục),
  *   'section.settings.x' hoặc 'block.settings.x'. Setting đó thuộc file nào
  *   thì tầng dựng đồ thị mới xác định được, vì còn tuỳ ai render file này.
+ * - section_load: JavaScript (hoặc một URL trong Liquid) xin Shopify render
+ *   riêng một section qua Section Rendering API, ví dụ ?section_id=cart-drawer.
+ *   `to` là tên section. Xem extract-section-loads.ts.
  */
 export type RefKind =
   | "render"
@@ -51,7 +54,8 @@ export type RefKind =
   | "layout"
   | "no_layout"
   | "translation"
-  | "setting";
+  | "setting"
+  | "section_load";
 
 /**
  * Nơi quan hệ được khai báo.
@@ -59,8 +63,9 @@ export type RefKind =
  * - liquid: một tag hoặc filter trong mã Liquid
  * - json: file JSON (template, section group)
  * - schema: khối {% schema %} của section hoặc block
+ * - js: mã JavaScript trong assets/ (chỉ ref section_load mới có nguồn này)
  */
-export type RefSource = "liquid" | "json" | "schema";
+export type RefSource = "liquid" | "json" | "schema" | "js";
 
 /**
  * Một tham chiếu THÔ từ file này tới một thứ khác trong theme.
@@ -207,6 +212,9 @@ export interface GraphNode {
  * - USES_ASSET:    file này tham chiếu một file trong assets/
  * - USES_TRANSLATION: file này dùng một khoá dịch qua filter t
  * - READS_SETTING: file này đọc giá trị của một setting
+ * - LOADS_SECTION: file này (thường là một file JavaScript) tải riêng một
+ *                  section lúc chạy, qua Section Rendering API. Luôn có điều
+ *                  kiện: section chỉ lên trang khi mã đó chạy.
  */
 export type EdgeType =
   | "USES_TEMPLATE"
@@ -214,14 +222,21 @@ export type EdgeType =
   | "RENDERS"
   | "USES_ASSET"
   | "USES_TRANSLATION"
-  | "READS_SETTING";
+  | "READS_SETTING"
+  | "LOADS_SECTION";
 
 /**
  * Các loại cạnh nối FILE với FILE (và loại trang với template). Đi theo đúng
  * các cạnh này là đi theo luồng render của theme; cạnh tới khoá dịch và tới
  * setting không thuộc luồng đó.
  */
-export const FILE_EDGE_TYPES: readonly EdgeType[] = ["USES_TEMPLATE", "USES_LAYOUT", "RENDERS", "USES_ASSET"];
+export const FILE_EDGE_TYPES: readonly EdgeType[] = [
+  "USES_TEMPLATE",
+  "USES_LAYOUT",
+  "RENDERS",
+  "USES_ASSET",
+  "LOADS_SECTION",
+];
 
 /**
  * Một cạnh của đồ thị. Mỗi bộ (from, to, type) chỉ có một cạnh: nhiều lời gọi

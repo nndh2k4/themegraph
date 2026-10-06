@@ -21,6 +21,7 @@ function conventionalPath(ref: RawRef): string | null {
     case "include":
       return `snippets/${ref.to}.liquid`;
     case "section":
+    case "section_load":
       return `sections/${ref.to}.liquid`;
     case "section_group":
       return `sections/${ref.to}.json`;
@@ -87,6 +88,11 @@ export function resolveRef(ref: RawRef, knownPaths: ReadonlySet<string>): Resolu
   // kiểm được type đó có thật sự được khai trong schema hay không. Một type
   // gõ sai trong JSON cũng sẽ rơi vào nhánh này.
   if (ref.kind === "block" && ref.source === "json") return { status: "local_block" };
+
+  // Tên lấy từ JavaScript bằng mẫu chữ (section: 'x', id: 'x') có thể không
+  // phải tên section nào. Không thấy file thì coi như không phải tham chiếu,
+  // chứ không báo là tham chiếu hỏng.
+  if (ref.kind === "section_load") return { status: "none" };
 
   return { status: "missing", expected };
 }

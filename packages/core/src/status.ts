@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { READ_EXTENSIONS } from "./analyze.js";
 import { hashContent } from "./hash.js";
 import { openGraph } from "./open.js";
 import { scanThemeDir } from "./scanner.js";
@@ -30,8 +31,8 @@ export interface StatusResult {
  * soạn thảo lưu lại file) và có thể không đổi khi nội dung đổi (file được
  * chép đè kèm thời điểm cũ).
  *
- * Chỉ file .liquid và .json mới được xét là "đã sửa": đó là những file mà
- * analyze đọc nội dung. Sửa một ảnh hay một file css không làm đồ thị đổi.
+ * Chỉ file .liquid, .json và .js mới được xét là "đã sửa": đó là những file
+ * mà analyze đọc nội dung. Sửa một ảnh hay một file css không làm đồ thị đổi.
  *
  * Ném GraphNotReadyError nếu theme chưa có đồ thị dùng được.
  */
@@ -70,7 +71,7 @@ export async function themeStatus(themeRoot: string): Promise<StatusResult> {
   const modified: string[] = [];
   for (const file of files) {
     if (!inGraph.has(file.path)) continue;
-    if (file.ext !== "liquid" && file.ext !== "json") continue;
+    if (!READ_EXTENSIONS.has(file.ext)) continue;
 
     // File không có hash là file lần phân tích không đọc được; không biết nội
     // dung cũ của nó nên coi là đã đổi.

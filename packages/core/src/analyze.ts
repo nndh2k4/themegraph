@@ -63,6 +63,12 @@ function countBy<T>(items: readonly T[], keyOf: (item: T) => string): Record<str
  * Ném lỗi nếu thư mục không phải theme. Một file riêng lẻ bị hỏng thì không
  * ném lỗi: nó được ghi vào `errors` và các file còn lại vẫn được phân tích.
  */
+/**
+ * Đuôi của những file mà analyze đọc nội dung. status dùng cùng danh sách này
+ * để biết sửa file nào thì đồ thị cũ đi.
+ */
+export const READ_EXTENSIONS: ReadonlySet<string> = new Set(["liquid", "json", "js"]);
+
 export async function analyze(themeRoot: string): Promise<AnalyzeResult> {
   const startedAt = performance.now();
 
@@ -84,9 +90,9 @@ export async function analyze(themeRoot: string): Promise<AnalyzeResult> {
   const errors: AnalyzeError[] = [];
 
   for (const file of files) {
-    // Chỉ file Liquid và JSON mới có quan hệ để trích; ảnh, css, js thì không
-    // cần đọc nội dung.
-    if (file.ext !== "liquid" && file.ext !== "json") continue;
+    // Chỉ file Liquid, JSON và JavaScript mới có quan hệ để trích; ảnh và css
+    // thì không cần đọc nội dung.
+    if (!READ_EXTENSIONS.has(file.ext)) continue;
 
     try {
       const content = await readFile(path.join(root, file.path), "utf8");

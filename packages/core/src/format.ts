@@ -406,7 +406,7 @@ export function formatContext(result: ContextResult, options: FormatOptions = {}
 /** Vì sao mỗi loại file chỉ ở mức "cần xem lại" chứ chưa chắc chắn. */
 const REVIEW_NOTES: Record<string, string> = {
   section:
-    "section: không có preset và không template nào dùng, nhưng JavaScript của theme có thể vẫn tải nó qua Section Rendering API.",
+    "section: không có preset, không template nào dùng, và không file nào tải nó bằng tên viết sẵn; JavaScript của theme vẫn có thể tải nó qua Section Rendering API bằng tên là biến.",
   asset: "asset: có thể được gọi bằng tên ghép lúc chạy, hoặc từ bên trong một file CSS / JavaScript.",
   layout: "layout: có thể được chọn bằng {% layout %} với tên là biến.",
 };

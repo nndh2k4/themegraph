@@ -16,7 +16,7 @@ export interface ContextLink {
   type: EdgeType;
   conditional: boolean;
   count: number; // số lời gọi trong mã đã gộp vào cạnh
-  sources: string; // 'liquid', 'json', 'schema', 'convention', nối bằng dấu phẩy
+  sources: string; // 'liquid', 'json', 'schema', 'js', 'convention', nối bằng dấu phẩy
   // Các dòng có lời gọi, tính trong file GỌI (đầu nguồn của cạnh). Rỗng với
   // quan hệ lấy từ file JSON hoặc suy từ quy ước, vì chúng không có số dòng.
   lines: number[];

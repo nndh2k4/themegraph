@@ -40,7 +40,7 @@ Nếu máy có MCP server khác cũng có tool tên `impact` hay `context` (ví 
 ## Giới hạn cần biết
 
 - Đồ thị chỉ thấy tên viết sẵn trong mã. Lời gọi có tên là biến (`{% render snippet_name %}`, `section.settings[key]`, khoá dịch ghép chuỗi) không sinh quan hệ, nên một file "không ai gọi" vẫn có thể được gọi theo cách đó. Trước khi xoá, grep thêm tên file.
-- JavaScript trong `assets/` không được phân tích: file `.js` gọi section hay asset nào thì đồ thị không biết.
+- JavaScript trong `assets/` không được phân tích cú pháp. Đồ thị chỉ nhận ra một việc: file `.js` (hoặc một URL trong Liquid) tải riêng một section qua Section Rendering API với tên viết sẵn, ví dụ `?section_id=cart-drawer`; quan hệ đó hiện là `LOADS_SECTION`, luôn `[có điều kiện]`. Tên là biến (`section_id=${id}`), và mọi thứ khác JavaScript làm, thì đồ thị không biết.
 - ThemeGraph không đọc nội dung file. Tìm chữ trong file thì dùng grep; cần biết file làm gì thì đọc file.
 
 ## Quy trình khi sửa một file Liquid

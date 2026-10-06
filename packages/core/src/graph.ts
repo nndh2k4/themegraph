@@ -37,6 +37,7 @@ const EDGE_TYPE_OF: Partial<Record<RefKind, EdgeType>> = {
   layout: "USES_LAYOUT",
   translation: "USES_TRANSLATION",
   setting: "READS_SETTING",
+  section_load: "LOADS_SECTION",
 };
 
 /**
@@ -180,6 +181,13 @@ export function buildGraph(
     }
 
     const resolution = resolveRef(ref, knownPaths);
+
+    // Section được tải lúc chạy: chỉ giữ những tên ứng với một section có
+    // thật, và bỏ trường hợp một section tự xin lại chính nó (cách thường gặp
+    // để làm mới nội dung của nó; không nói thêm gì về việc ai dùng nó).
+    if (ref.kind === "section_load" && (resolution.status !== "resolved" || resolution.path === ref.from)) {
+      continue;
+    }
 
     if (ref.kind === "layout" || ref.kind === "no_layout") {
       templatesWithLayoutChoice.add(ref.from);
