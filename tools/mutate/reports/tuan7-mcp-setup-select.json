@@ -1,0 +1,566 @@
+{
+  "tests": [
+    "packages/core/tests/select-theme.test.ts",
+    "packages/core/tests/open.test.ts",
+    "packages/core/tests/format-note.test.ts",
+    "packages/cli/tests",
+    "packages/mcp/tests"
+  ],
+  "timeoutMs": 180000,
+  "totals": {
+    "tong": 91,
+    "bat": 89,
+    "bienDich": 0,
+    "lot": 2,
+    "quaGio": 0,
+    "khongThay": 0
+  },
+  "results": [
+    {
+      "file": "packages/core/src/select-theme.ts",
+      "name": "bo chon theo duong dan trong so",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/core/src/select-theme.ts",
+      "name": "ten phan biet hoa thuong",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/core/src/select-theme.ts",
+      "name": "trung ten lay cai dau",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/core/src/select-theme.ts",
+      "name": "bo thu muc ngoai so",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/core/src/select-theme.ts",
+      "name": "khong trim",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/core/src/select-theme.ts",
+      "name": "chuoi rong la co neu",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/core/src/select-theme.ts",
+      "name": "duong dan khong tinh tu cwd",
+      "outcome": "bat",
+      "summary": "2 failed | 238 passed (240)"
+    },
+    {
+      "file": "packages/core/src/select-theme.ts",
+      "name": "bo findThemeRoot",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/core/src/select-theme.ts",
+      "name": "bo findRegisteredTheme",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/core/src/select-theme.ts",
+      "name": "bo theme duy nhat",
+      "outcome": "bat",
+      "summary": "2 failed | 238 passed (240)"
+    },
+    {
+      "file": "packages/core/src/select-theme.ts",
+      "name": "nhieu theme lay cai dau",
+      "outcome": "bat",
+      "summary": "2 failed | 238 passed (240)"
+    },
+    {
+      "file": "packages/core/src/select-theme.ts",
+      "name": "so trong bao mo ho",
+      "outcome": "bat",
+      "summary": "2 failed | 238 passed (240)"
+    },
+    {
+      "file": "packages/core/src/select-theme.ts",
+      "name": "theme duy nhat thang cwd",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/core/src/find-node.ts",
+      "name": "bo cach hieu 4",
+      "outcome": "bat",
+      "summary": "3 failed | 237 passed (240)"
+    },
+    {
+      "file": "packages/core/src/find-node.ts",
+      "name": "trung ten lay cai dau",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/core/src/find-node.ts",
+      "name": "trung ten khong liet ke",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/core/src/find-node.ts",
+      "name": "nhan ten co thu muc",
+      "outcome": "LOT",
+      "summary": "240 passed (240)"
+    },
+    {
+      "file": "packages/core/src/find-node.ts",
+      "name": "nhan ca khoa dich",
+      "outcome": "LOT",
+      "summary": "240 passed (240)"
+    },
+    {
+      "file": "packages/core/src/find-node.ts",
+      "name": "khop mot phan",
+      "outcome": "bat",
+      "summary": "2 failed | 238 passed (240)"
+    },
+    {
+      "file": "packages/core/src/find-node.ts",
+      "name": "bo khop ca duoi",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/core/src/find-node.ts",
+      "name": "bo khop khong duoi",
+      "outcome": "bat",
+      "summary": "4 failed | 236 passed (240)"
+    },
+    {
+      "file": "packages/core/src/find-node.ts",
+      "name": "duoi tu dau cham dau",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/core/src/find-node.ts",
+      "name": "phan biet hoa thuong",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "note khong bao cu",
+      "outcome": "bat",
+      "summary": "5 failed | 235 passed (240)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "note luon bao cu",
+      "outcome": "bat",
+      "summary": "4 failed | 236 passed (240)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "note bo file xoa",
+      "outcome": "bat",
+      "summary": "2 failed | 238 passed (240)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "note bo file them",
+      "outcome": "bat",
+      "summary": "2 failed | 238 passed (240)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "note khong cat",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "note dem sai phan con lai",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "note ten theme la ca duong dan",
+      "outcome": "bat",
+      "summary": "7 failed | 233 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "khong dong graph",
+      "outcome": "bat",
+      "summary": "20 failed | 220 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "bo ghi chu theme",
+      "outcome": "bat",
+      "summary": "11 failed | 229 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "loi khong danh dau isError",
+      "outcome": "bat",
+      "summary": "5 failed | 235 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "bo qua tham so theme",
+      "outcome": "bat",
+      "summary": "2 failed | 238 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "bo qua cwd",
+      "outcome": "bat",
+      "summary": "2 failed | 238 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "bo instructions",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "bo readOnly",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "search bo kind",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "search bo limit",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "impact bo limit",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "impact khong gioi han",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "context bo limit",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "context khong gioi han",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "flow bo max_depth",
+      "outcome": "bat",
+      "summary": "2 failed | 238 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "flow khong gioi han do sau",
+      "outcome": "bat",
+      "summary": "2 failed | 238 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "flow bo limit",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "dead bo limit",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "limit nhan 0",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "limit nhan so le",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "mac dinh do sau 4",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "mac dinh list 51",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "mac dinh search 21",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/mcp/src/server.ts",
+      "name": "bo tool dead_code",
+      "outcome": "bat",
+      "summary": "5 failed | 235 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "claude loi van coi la co",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "luon dang ky lai",
+      "outcome": "bat",
+      "summary": "2 failed | 238 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "khong xet node",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "khong xet cli",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "khong go truoc khi them",
+      "outcome": "bat",
+      "summary": "3 failed | 237 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "dry-run van dang ky",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "dry-run van go server",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "bo scope user",
+      "outcome": "bat",
+      "summary": "8 failed | 232 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "thieu tham so mcp",
+      "outcome": "bat",
+      "summary": "5 failed | 235 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "add loi van bao xong",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "remove loi van bao xong",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "skill tu tao .claude",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "skill luon ghi",
+      "outcome": "bat",
+      "summary": "2 failed | 238 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "skill dry-run van ghi",
+      "outcome": "bat",
+      "summary": "2 failed | 238 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "skill dry-run van xoa",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "skill xoa ca thu muc co file khac",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "skill khong xoa thu muc rong",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "cursor tu tao .cursor",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "cursor ghi de json hong",
+      "outcome": "bat",
+      "summary": "2 failed | 238 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "cursor nhan dang la",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "cursor khong xet mcpServers la",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "cursor mat server khac",
+      "outcome": "bat",
+      "summary": "6 failed | 234 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "cursor mat khoa khac",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "cursor luon ghi",
+      "outcome": "bat",
+      "summary": "2 failed | 238 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "cursor dry-run van ghi",
+      "outcome": "bat",
+      "summary": "2 failed | 238 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "cursor dry-run van go",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "cursor remove khong xoa muc",
+      "outcome": "bat",
+      "summary": "2 failed | 238 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "cursor remove tao file",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "loi mot buoc lam hong ca lenh",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "nhac khoi dong lai khi go",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/setup.ts",
+      "name": "nhac khoi dong lai khi khong doi",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "setup loi van ma 0",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "setup bo dry-run",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "setup bo remove",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "setup bo json",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "setup sai cliPath",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "setup nhan tham so thua",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    },
+    {
+      "file": "packages/cli/src/run.ts",
+      "name": "mcp nhan tham so thua",
+      "outcome": "bat",
+      "summary": "1 failed | 239 passed (240)"
+    }
+  ]
+}

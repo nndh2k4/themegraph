@@ -82,18 +82,33 @@ tỉ lệ; phép so này chỉ cho thấy skill không phải điều kiện đ�
 
 ## Số đo của server
 
-Gọi qua stdio trên lệnh đã build, tham số mặc định:
+Gọi qua stdio trên lệnh đã build, tham số mặc định, bằng
+`tools/accept/measure-server.mjs` (mỗi tool 5 lần, lấy trung vị). Đo lại ngày
+06/10/2026 trên bản đã có `impact` ghi đường đi, `render_flow` có phần tổng
+hợp, và cạnh `LOADS_SECTION`:
 
-| Tool | Dawn (1299 node) | Purity (3811 node) |
+| Tool | Dawn (1299 node, 1848 cạnh) | Purity (3811 node, 5455 cạnh) |
 | --- | --- | --- |
-| `impact` | 1,1 KB, 49 ms | 4,6 KB, 119 ms |
-| `context` | 5,1 KB, 52 ms | 5,0 KB, 108 ms |
-| `render_flow` (trang product) | 4,0 KB, 46 ms | 7,0 KB, 113 ms |
-| `search` | 0,3 KB, 39 ms | 1,5 KB, 98 ms |
-| `dead_code` | 4,9 KB, 46 ms | 5,0 KB, 114 ms |
+| `impact` | 1,7 KB, 193 ms | 6,8 KB, 462 ms |
+| `context` | 5,4 KB, 142 ms | 5,4 KB, 783 ms |
+| `render_flow` (trang product) | 5,1 KB, 77 ms | 9,0 KB, 252 ms |
+| `search` | 1,3 KB, 69 ms | 1,5 KB, 269 ms |
+| `dead_code` | 4,2 KB, 131 ms | 6,6 KB, 285 ms |
 
-Thời gian đã gồm việc so hash mọi file để phát hiện đồ thị cũ. Để so sánh:
-JSON đầy đủ của `render-flow product` trên Purity dài 292 KB.
+Tham số: Dawn hỏi `snippets/card-product.liquid` và từ khoá "card"; Purity hỏi
+`blocks/button.liquid` và từ khoá "price".
+
+Bản đo đầu tiên (05/10/2026) cho 40–120 ms ở mọi tool. Hai thứ làm chậm đi:
+
+- Mỗi lời gọi so hash mọi file để phát hiện đồ thị cũ, và từ khi có
+  `LOADS_SECTION` việc đó gồm cả các file `.js` trong `assets/`. Trên Purity
+  phần này chiếm khoảng 250 ms, là mức sàn của mọi tool (xem dòng `search`).
+- `impact` duyệt xuôi từ từng trang bị ảnh hưởng để biết trang đi qua file
+  nào; `button` của Purity ảnh hưởng 17 trang.
+
+Mọi tool vẫn dưới một giây, nhỏ so với 15–35 giây của một lượt hỏi agent.
+Chưa tối ưu. Để so sánh về kích thước: JSON đầy đủ của `render-flow product`
+trên Purity dài 292 KB.
 
 ## Chưa kiểm được
 

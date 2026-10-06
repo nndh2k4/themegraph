@@ -241,6 +241,20 @@ describe('findNode', () => {
     expect(() => findNode(open(), 'title')).toThrow(NodeNotFoundError);
   });
 
+  it('cách hiểu tắt không tính node loại trang: "login" là file template, không bị coi là trùng tên với trang', async () => {
+    // templates/customers/login.json sinh ra node page:customers/login. Phần
+    // sau dấu "/" của id đó cũng là "login"; nếu tính cả nó thì có hai kết
+    // quả và lời gọi bị từ chối vì mơ hồ.
+    const root = await saveToTempTheme(buildGraph([file('templates/customers/login.json', 'template')], [], {}));
+    const handle = openGraph(root);
+    try {
+      expect(findNode(handle, 'login')).toEqual({ id: 'templates/customers/login.json', kind: 'template' });
+    } finally {
+      handle.close();
+      await removeTempTheme(root);
+    }
+  });
+
   it('ném NodeNotFoundError kèm gợi ý khi không tìm thấy', () => {
     const error = errorOf(() => findNode(open(), 'snippets/card'));
 

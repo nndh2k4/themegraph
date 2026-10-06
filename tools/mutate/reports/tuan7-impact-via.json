@@ -1,12 +1,13 @@
 {
   "tests": [
     "packages/core/tests/impact.test.ts",
+    "packages/core/tests/section-loads.test.ts",
     "packages/cli/tests/run.test.ts"
   ],
   "timeoutMs": 180000,
   "totals": {
-    "tong": 19,
-    "bat": 19,
+    "tong": 27,
+    "bat": 27,
     "bienDich": 0,
     "lot": 0,
     "quaGio": 0,
@@ -17,115 +18,163 @@
       "file": "packages/core/src/impact.ts",
       "name": "direct la moi do sau",
       "outcome": "bat",
-      "summary": "7 failed | 140 passed (147)"
+      "summary": "11 failed | 158 passed (169)"
     },
     {
       "file": "packages/core/src/impact.ts",
       "name": "direct la do sau 2",
       "outcome": "bat",
-      "summary": "8 failed | 139 passed (147)"
+      "summary": "13 failed | 156 passed (169)"
     },
     {
       "file": "packages/core/src/impact.ts",
       "name": "via gom ca trang",
       "outcome": "bat",
-      "summary": "2 failed | 145 passed (147)"
+      "summary": "2 failed | 167 passed (169)"
     },
     {
       "file": "packages/core/src/impact.ts",
       "name": "via khong loc direct",
       "outcome": "bat",
-      "summary": "10 failed | 137 passed (147)"
+      "summary": "11 failed | 158 passed (169)"
     },
     {
       "file": "packages/core/src/impact.ts",
       "name": "via khong sap xep",
       "outcome": "bat",
-      "summary": "2 failed | 145 passed (147)"
+      "summary": "2 failed | 167 passed (169)"
     },
     {
       "file": "packages/core/src/impact.ts",
       "name": "di nguoc thay vi xuoi",
       "outcome": "bat",
-      "summary": "12 failed | 135 passed (147)"
+      "summary": "15 failed | 154 passed (169)"
     },
     {
       "file": "packages/core/src/impact.ts",
       "name": "offPage rong",
       "outcome": "bat",
-      "summary": "3 failed | 144 passed (147)"
+      "summary": "3 failed | 166 passed (169)"
     },
     {
       "file": "packages/core/src/impact.ts",
       "name": "offPage gom tat ca",
       "outcome": "bat",
-      "summary": "7 failed | 140 passed (147)"
+      "summary": "9 failed | 160 passed (169)"
     },
     {
       "file": "packages/core/src/impact.ts",
       "name": "offPage dao nguoc",
       "outcome": "bat",
-      "summary": "8 failed | 139 passed (147)"
+      "summary": "10 failed | 159 passed (169)"
     },
     {
       "file": "packages/core/src/impact.ts",
       "name": "offPage gom ca trang",
       "outcome": "bat",
-      "summary": "6 failed | 141 passed (147)"
+      "summary": "8 failed | 161 passed (169)"
     },
     {
       "file": "packages/core/src/format.ts",
       "name": "via khong cat",
       "outcome": "bat",
-      "summary": "1 failed | 146 passed (147)"
+      "summary": "1 failed | 168 passed (169)"
     },
     {
       "file": "packages/core/src/format.ts",
       "name": "via dem sai",
       "outcome": "bat",
-      "summary": "1 failed | 146 passed (147)"
+      "summary": "1 failed | 168 passed (169)"
     },
     {
       "file": "packages/core/src/format.ts",
       "name": "via rong van in qua",
       "outcome": "bat",
-      "summary": "1 failed | 146 passed (147)"
+      "summary": "1 failed | 168 passed (169)"
     },
     {
       "file": "packages/core/src/format.ts",
       "name": "bo cot via",
       "outcome": "bat",
-      "summary": "3 failed | 144 passed (147)"
+      "summary": "4 failed | 165 passed (169)"
     },
     {
       "file": "packages/core/src/format.ts",
       "name": "bo nhan offPage",
       "outcome": "bat",
-      "summary": "1 failed | 146 passed (147)"
+      "summary": "1 failed | 168 passed (169)"
     },
     {
       "file": "packages/core/src/format.ts",
       "name": "nhan offPage cho moi file",
       "outcome": "bat",
-      "summary": "4 failed | 143 passed (147)"
+      "summary": "4 failed | 165 passed (169)"
     },
     {
       "file": "packages/core/src/format.ts",
       "name": "luon in giai thich",
       "outcome": "bat",
-      "summary": "3 failed | 144 passed (147)"
+      "summary": "4 failed | 165 passed (169)"
     },
     {
       "file": "packages/core/src/format.ts",
       "name": "khong in giai thich",
       "outcome": "bat",
-      "summary": "1 failed | 146 passed (147)"
+      "summary": "1 failed | 168 passed (169)"
     },
     {
       "file": "packages/core/src/format.ts",
       "name": "toi da 4",
       "outcome": "bat",
-      "summary": "1 failed | 146 passed (147)"
+      "summary": "1 failed | 168 passed (169)"
+    },
+    {
+      "file": "packages/core/src/impact.ts",
+      "name": "scriptOnly luon sai",
+      "outcome": "bat",
+      "summary": "4 failed | 165 passed (169)"
+    },
+    {
+      "file": "packages/core/src/impact.ts",
+      "name": "scriptOnly luon dung",
+      "outcome": "bat",
+      "summary": "8 failed | 161 passed (169)"
+    },
+    {
+      "file": "packages/core/src/impact.ts",
+      "name": "duong tinh gom ca LOADS_SECTION",
+      "outcome": "bat",
+      "summary": "4 failed | 165 passed (169)"
+    },
+    {
+      "file": "packages/core/src/impact.ts",
+      "name": "khong di nguoc tu direct",
+      "outcome": "bat",
+      "summary": "7 failed | 162 passed (169)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "khong xep trang JavaScript ra sau",
+      "outcome": "bat",
+      "summary": "3 failed | 166 passed (169)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "khong gan nhan JavaScript",
+      "outcome": "bat",
+      "summary": "1 failed | 168 passed (169)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "luon noi ve JavaScript o cau dau",
+      "outcome": "bat",
+      "summary": "4 failed | 165 passed (169)"
+    },
+    {
+      "file": "packages/core/src/format.ts",
+      "name": "luon in giai thich JavaScript",
+      "outcome": "bat",
+      "summary": "4 failed | 165 passed (169)"
     }
   ]
 }

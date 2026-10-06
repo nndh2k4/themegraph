@@ -8,8 +8,9 @@ tốt hơn so với việc agent tự grep trong theme hay không.
 - **Về tốc độ và chi phí: có.** Với cùng năm câu hỏi, agent có ThemeGraph mất
   85 giây và 21 lời gọi tool; không có thì 209 giây và 41 lời gọi.
 - **Về độ đúng: không rõ ràng nghiêng về bên nào.** Agent tự grep trả lời
-  đúng cả năm câu. Agent có ThemeGraph đúng ba câu, thiếu ở một câu, và sai ở
-  một câu vì một lỗi của chính ThemeGraph (đã sửa sau phép đối chứng này).
+  đúng bốn câu và đúng một phần ở câu 2 (đúng hướng nhưng không liệt kê được
+  trang). Agent có ThemeGraph đúng ba câu, thiếu ở một câu, và sai ở một câu
+  vì một lỗi của chính ThemeGraph (đã sửa sau phép đối chứng này).
 - **Điểm ThemeGraph làm tốt hơn:** liệt kê đủ và chính xác các trang bị ảnh
   hưởng khi quan hệ đi qua layout (17 trên 19 trang ở câu 2), thứ agent tự
   grep chỉ tả được bằng lời.
@@ -17,7 +18,9 @@ tốt hơn so với việc agent tự grep trong theme hay không.
   Section Rendering API; agent tự grep tìm ra chúng ở hai câu.
 
 Mỗi ô chỉ có một lượt chạy, nên các con số dưới đây cho biết chiều hướng chứ
-chưa đủ để nói về độ lệch.
+chưa đủ để nói về độ lệch. Đợt 2 ở cuối tài liệu lặp lại ba câu, mỗi câu ba
+lần, với thang chấm viết trước; kết luận của đợt đó thay cho mục này ở những
+chỗ hai bên khác nhau.
 
 ## Cách chạy
 
@@ -106,8 +109,9 @@ nghiệm thu trước nó ghép sai chỗ này (đã sửa bằng commit `49d053
 
 ## Điều rút ra
 
-- Một agent mạnh, có grep, trả lời đúng các câu hỏi cấu trúc trên theme cỡ
-  Purity. ThemeGraph không phải là điều kiện để có câu trả lời đúng.
+- Một agent mạnh, có grep, trả lời đúng phần lớn các câu hỏi cấu trúc trên
+  theme cỡ Purity. (Đợt 2 cho thấy câu này cần nói hẹp lại: với câu hỏi mà
+  quan hệ đi qua layout, agent tự grep sót trang ở cả ba lần chạy.)
 - ThemeGraph rút thời gian và số lời gọi xuống còn khoảng một nửa, và cho
   danh sách đầy đủ ở những chỗ agent tự grep chỉ ước lượng (câu 2).
 - Câu trả lời của agent có ThemeGraph tin vào đồ thị. Khi đồ thị sai (câu 4)
@@ -130,3 +134,76 @@ nghiệm thu trước nó ghép sai chỗ này (đã sửa bằng commit `49d053
 - Section tải qua Section Rendering API vẫn nằm ngoài đồ thị. Tìm
   `section_id=` và `sections=` trong `assets/*.js` có thể bắt được phần lớn;
   việc này thuộc phạm vi "phân tích JavaScript" mà đề cương đã loại.
+
+## Đợt 2: lặp lại có thang chấm (06/10/2026)
+
+Đợt 1 có ba điểm yếu: mỗi ô một lượt, người chấm là người viết công cụ, và
+nhánh "không có" bị nhiễu vì máy còn MCP server và skill khác. Đợt này sửa cả
+ba, và chạy trên bản ThemeGraph đã có ba thay đổi sinh ra từ đợt 1 (`impact`
+ghi đường đi, `render_flow` liệt kê đủ section, cạnh `LOADS_SECTION` cho
+section do JavaScript tải).
+
+### Cách chạy
+
+`tools/accept/run-compare.cjs`, câu hỏi và đáp án ở `tools/accept/questions.json`.
+
+- Cả hai nhánh chạy với `--strict-mcp-config` và `--disable-slash-commands`:
+  không MCP server nào khác, không skill nào (kể cả skill của ThemeGraph).
+  Nhánh "có" chỉ có thêm MCP server `themegraph`.
+- Đáp án của mỗi câu được viết trước khi chạy, lấy từ đầu ra CLI của chính
+  ThemeGraph. Vì vậy thang chấm nghiêng về nhánh "có": nếu đồ thị sai thì
+  đáp án sai theo và nhánh "có" vẫn được điểm tối đa. Chỉ đáp án của câu block
+  chết được một script độc lập xác nhận (`tools/accept/check-blocks.cjs`); hai
+  câu kia mới được dò tay một phần. Máy chấm bằng cách tìm từng mục của đáp án trong câu trả lời. "Điểm
+  cộng" là mục đúng nằm ngoài đáp án (section do JavaScript tải).
+- Model: `claude-opus-5-5` ở mọi lượt được tính.
+
+### Kết quả
+
+| Câu hỏi (Purity) | Nhánh | Điểm, ba lần | Thời gian | Lời gọi tool |
+| --- | --- | --- | --- | --- |
+| Sửa `buy-buttons` ảnh hưởng trang nào (thang 11) | có | 11, 11, 11 | 16–18 s | 2, 2, 2 |
+| | không | 4, 7, 7 | 25–35 s | 10, 6, 13 |
+| Trang cart render section nào (thang 13) | có | 13, 13, 13 | 19–33 s | 5, 7, 5 |
+| | không | 13, 13, 13 | 22–26 s | 8, 11, 13 |
+| Block nào trong `blocks/` không còn dùng (thang 33) | có | 33 (một lần) | 34 s | 4 |
+| | không | không có lượt hợp lệ | | |
+
+Một lượt thử trước đợt này (câu trang cart, cùng cách chạy, trên bản chưa có
+`LOADS_SECTION`) cho 13/13 ở nhánh "có" và 6/13 ở nhánh "không": lần đó agent
+tự grep bỏ sót cả bảy section của `overlay-group`. Ba lần trong đợt chính thì
+nó tìm đủ. Độ đúng của nhánh "không" dao động giữa các lần chạy; của nhánh
+"có" thì không.
+
+### Phần bị hỏng của đợt này
+
+Câu block chết chỉ có một lượt hợp lệ. Sau lượt đó tài khoản mất quyền dùng
+`claude-opus-5-5` (API trả 403), năm lượt kế thất bại ngay. Khi chạy lại, lệnh
+`claude` lặng lẽ dùng `claude-haiku-4-5`; bốn lượt đó không được tính vào
+bảng vì khác model. Ghi lại để tham khảo, không dùng để so sánh:
+
+| Nhánh (Haiku 4.5) | Điểm | Thời gian | Lời gọi tool |
+| --- | --- | --- | --- |
+| có | 33, 33 | 18 s, 17 s | 2, 2 |
+| không | 5 trên 33; lần hai liệt kê 19 block, trong đó có block đang dùng | 398 s, 111 s | 131, 24 |
+
+Công cụ giờ ghim model bằng `--model` và ghi model vào từng bản tóm tắt, để
+việc này không lặp lại mà không ai biết.
+
+### Điều đợt 2 cho thấy
+
+- Với câu hỏi mà quan hệ đi qua layout (`buy-buttons`), ThemeGraph cho câu trả
+  lời đủ ở cả ba lần; agent tự grep sót từ 4 đến 7 trên 11 loại trang ở cả ba
+  lần. Đây là chỗ đợt 1 mới chỉ mô tả bằng lời.
+- Với câu hỏi mà grep làm được (trang cart), hai nhánh ngang nhau về độ đúng
+  và thời gian. ThemeGraph chỉ giảm số lời gọi.
+- Sau khi có `LOADS_SECTION`, nhánh "có" cũng nêu được hai section do
+  JavaScript tải ở trang cart, thứ ở đợt 1 chỉ nhánh "không" tìm ra.
+- Chín lượt mỗi nhánh vẫn là ít, và cả ba câu đều trên một theme.
+
+### Chưa làm trong đợt 2
+
+- Hai lượt còn thiếu của câu block chết ở nhánh "có" và cả ba lượt ở nhánh
+  "không", vì lý do nêu trên.
+- Kịch bản agent sửa file rồi hỏi lại (để quyết định server có nên tự cập
+  nhật đồ thị cũ hay không).
