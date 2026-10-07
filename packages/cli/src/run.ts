@@ -37,6 +37,7 @@ import type { FormatOptions, GraphHandle, NodeKind } from "@themegraph/core";
 
 import { formatSetup, runClaudeCommand, setup } from "./setup.js";
 import type { SetupOptions } from "./setup.js";
+import { resolveWebRoot } from "./web-root.js";
 
 /**
  * Nơi lệnh in kết quả ra. Tách thành tham số để test gom được output mà không
@@ -346,9 +347,14 @@ async function runServe(positionals: string[], flags: Flags, io: Io, overrides: 
   try {
     server = await startServer({
       port,
-      // File này sau khi build nằm ở packages/cli/dist/; bản build của giao
-      // diện nằm ở packages/web/dist/ (đường dẫn này cũng đúng khi chạy từ src/).
-      webRoot: fileURLToPath(new URL("../../web/dist", import.meta.url)),
+      // Giao diện nằm trong gói khi cài từ bản phát hành, hoặc ở
+      // packages/web/dist/ khi chạy trong repo mã nguồn (xem resolveWebRoot).
+      // Cả hai đường dẫn tính từ thư mục chứa file này: dist/ sau khi build,
+      // src/ khi chạy thẳng từ mã nguồn.
+      webRoot: resolveWebRoot([
+        fileURLToPath(new URL("../web", import.meta.url)),
+        fileURLToPath(new URL("../../web/dist", import.meta.url)),
+      ]),
     });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") {

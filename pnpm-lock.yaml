@@ -216,6 +216,9 @@ importers:
       eslint:
         specifier: ^10.9.1
         version: 10.9.1
+      rolldown:
+        specifier: 1.2.6
+        version: 1.2.6
       typescript:
         specifier: ^6.0.3
         version: 6.0.3

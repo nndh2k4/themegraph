@@ -6,3 +6,6 @@ accept-out/
 
 # Tài liệu nghiệm thu và ảnh chụp: giữ ở máy, không đưa vào repo.
 docs/
+
+# Gói phát hành do tools/release/pack.mjs tạo ra.
+/release/

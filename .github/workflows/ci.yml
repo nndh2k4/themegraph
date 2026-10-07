@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
+    tags: ["v*"]
   pull_request:
 
 jobs:
@@ -35,3 +36,106 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+  # Đóng gói thành một file .tgz tự chứa (xem tools/release/pack.mjs).
+  pack:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and pack
+        run: pnpm run pack
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package
+          path: release/*.tgz
+          if-no-files-found: error
+
+  # Cài gói đó như một người dùng trên máy sạch, rồi chạy đủ luồng trên theme
+  # Dawn. Job này cố ý KHÔNG cài pnpm và không lấy mã nguồn của các gói: nó chỉ
+  # có Node, file .tgz, và script kiểm. Nếu gói còn dựa vào thứ gì của repo thì
+  # nó hỏng ở đây.
+  install:
+    needs: pack
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Lấy riêng script kiểm
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools/release
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: package
+          path: package
+
+      - name: Cài gói bằng npm
+        shell: bash
+        run: npm install -g ./package/themegraph-*.tgz
+
+      # Ghim ở một commit để số node và số cạnh so được chính xác.
+      - name: Tải theme Dawn
+        shell: bash
+        run: |
+          mkdir dawn && cd dawn
+          git init -q
+          git remote add origin https://github.com/Shopify/dawn.git
+          git fetch -q --depth 1 origin 258f00f64365e2018ca4c62778a6bf55a5d3cd18
+          git checkout -q FETCH_HEAD
+
+      - name: Chạy đủ luồng trên bản đã cài
+        run: node tools/release/smoke.mjs --theme dawn --expect-nodes 1299 --expect-edges 1848
+
+  # Đẩy một tag v<phiên bản> thì gói đã qua mọi bước kiểm ở trên được đưa lên
+  # GitHub Release. File được đăng dưới hai tên: có phiên bản, và một tên cố
+  # định (themegraph.tgz) để hướng dẫn cài trong README không phải đổi theo
+  # từng bản.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [check, install]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: package
+          path: package
+
+      - name: Tag phải khớp phiên bản của gói
+        run: test -f "package/themegraph-${GITHUB_REF_NAME#v}.tgz"
+
+      - name: Tạo GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp "package/themegraph-${GITHUB_REF_NAME#v}.tgz" package/themegraph.tgz
+          gh release create "$GITHUB_REF_NAME" package/*.tgz \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "ThemeGraph ${GITHUB_REF_NAME#v}" \
+            --generate-notes
