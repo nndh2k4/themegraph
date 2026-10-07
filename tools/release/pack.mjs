@@ -91,13 +91,16 @@ const entry = readFileSync(path.join(stage, "dist", "cli.js"), "utf8");
 if (!entry.startsWith("#!/usr/bin/env node")) fail('dist/cli.js sau khi gộp mất dòng "#!/usr/bin/env node".');
 
 // Không import nào được trỏ ra ngoài gói, trừ module có sẵn của Node.
-const builtins = new Set((await import("node:module")).builtinModules.flatMap((name) => [name, `node:${name}`]));
+// Module viết với tiền tố "node:" luôn là của Node. Danh sách builtinModules
+// không đủ để nhận ra chúng: trên Node 22 nó chưa có node:sqlite.
+const { builtinModules } = await import("node:module");
+const isBuiltin = (name) => name.startsWith("node:") || builtinModules.includes(name);
 const external = new Set();
 for (const chunk of output) {
   if (chunk.type !== "chunk") continue;
   for (const name of [...chunk.imports, ...chunk.dynamicImports]) {
     const isOwnChunk = output.some((other) => other.fileName === name);
-    if (!isOwnChunk && !builtins.has(name)) external.add(name);
+    if (!isOwnChunk && !isBuiltin(name)) external.add(name);
   }
 }
 if (external.size > 0) fail(`gói còn import từ bên ngoài: ${[...external].join(", ")}`);
