@@ -31,5 +31,5 @@ lệnh `setup` trong test): khi đó test sẽ ghi vào thư mục home thật.
 - `scan-js-sections.cjs`: với mỗi section mà `dead-code` báo không trang nào
   dùng, tìm dấu vết nó được JavaScript tải (Section Rendering API).
 
-Tóm tắt các lượt đã chạy nằm ở `docs/nghiem-thu/`. Bản ghi thô (`.jsonl`) không
+Tóm tắt các lượt đã chạy nằm ở `docs/nghiem-thu/` trên máy phát triển (thư mục `docs/` không được đưa vào repo). Bản ghi thô (`.jsonl`) không
 để trong repo vì chứa thông tin về máy chạy.
