@@ -3,3 +3,6 @@ dist/
 coverage/
 *.tsbuildinfo
 accept-out/
+
+# Tài liệu nghiệm thu và ảnh chụp: giữ ở máy, không đưa vào repo.
+docs/
