@@ -1,3 +1,4 @@
+import { stripJsonComments } from "./json-comments.js";
 import type { RawRef, RefKind, ThemeFile } from "./types.js";
 
 /** Kiểu của một object JSON bất kỳ sau khi parse. */
@@ -6,18 +7,6 @@ type JsonObject = Record<string, unknown>;
 /** Kiểm tra một giá trị có phải object thường (không phải null, không phải mảng). */
 function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/**
- * Gỡ khối chú thích ở đầu file.
- *
- * Theme editor của Shopify ghi một khối chú thích dạng C ở đầu các file JSON
- * do nó sinh ra ("IMPORTANT: The contents of this file are auto-generated").
- * JSON chuẩn không cho phép chú thích, nên phải cắt đi trước khi JSON.parse.
- * Chỉ cắt khối nằm ở ĐẦU file, không đụng tới nội dung bên trong.
- */
-export function stripLeadingComment(content: string): string {
-  return content.replace(/^\uFEFF?\s*\/\*[\s\S]*?\*\//, "");
 }
 
 /**
@@ -38,7 +27,7 @@ export function extractJsonRefs(file: ThemeFile, content: string): RawRef[] {
 
   let data: unknown;
   try {
-    data = JSON.parse(stripLeadingComment(content));
+    data = JSON.parse(stripJsonComments(content));
   } catch (error) {
     // Bọc lỗi lại để thông báo nói rõ file nào hỏng; lỗi gốc của JSON.parse
     // chỉ có vị trí ký tự, không có tên file. Giữ lỗi gốc trong `cause` để

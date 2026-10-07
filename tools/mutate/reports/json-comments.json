@@ -1,0 +1,133 @@
+{
+  "tests": [
+    "packages/core/tests/json-comments.test.ts",
+    "packages/core/tests/extract-locale.test.ts",
+    "packages/core/tests/extract-json.test.ts",
+    "packages/core/tests/extract-settings.test.ts"
+  ],
+  "timeoutMs": 180000,
+  "totals": {
+    "tong": 19,
+    "bat": 19,
+    "bienDich": 0,
+    "lot": 0,
+    "quaGio": 0,
+    "khongThay": 0
+  },
+  "results": [
+    {
+      "file": "packages/core/src/json-comments.ts",
+      "name": "khong bo BOM",
+      "outcome": "bat",
+      "summary": "1 failed | 51 passed (52)"
+    },
+    {
+      "file": "packages/core/src/json-comments.ts",
+      "name": "khong nhay qua chuoi",
+      "outcome": "bat",
+      "summary": "5 failed | 47 passed (52)"
+    },
+    {
+      "file": "packages/core/src/json-comments.ts",
+      "name": "dau nhay sau gach cheo nguoc ket thuc chuoi",
+      "outcome": "bat",
+      "summary": "1 failed | 51 passed (52)"
+    },
+    {
+      "file": "packages/core/src/json-comments.ts",
+      "name": "khong buoc qua dau nhay dong",
+      "outcome": "bat",
+      "summary": "7 failed | 45 passed (52)"
+    },
+    {
+      "file": "packages/core/src/json-comments.ts",
+      "name": "khong go chu thich mot dong",
+      "outcome": "bat",
+      "summary": "5 failed | 47 passed (52)"
+    },
+    {
+      "file": "packages/core/src/json-comments.ts",
+      "name": "chu thich mot dong an ca dong sau",
+      "outcome": "bat",
+      "summary": "1 failed | 51 passed (52)"
+    },
+    {
+      "file": "packages/core/src/json-comments.ts",
+      "name": "chu thich mot dong an toi het file",
+      "outcome": "bat",
+      "summary": "3 failed | 49 passed (52)"
+    },
+    {
+      "file": "packages/core/src/json-comments.ts",
+      "name": "khong go chu thich khoi",
+      "outcome": "bat",
+      "summary": "12 failed | 40 passed (52)"
+    },
+    {
+      "file": "packages/core/src/json-comments.ts",
+      "name": "khoi dong som hai ky tu",
+      "outcome": "bat",
+      "summary": "11 failed | 41 passed (52)"
+    },
+    {
+      "file": "packages/core/src/json-comments.ts",
+      "name": "khoi khong dong thi de nguyen",
+      "outcome": "bat",
+      "summary": "1 failed | 51 passed (52)"
+    },
+    {
+      "file": "packages/core/src/json-comments.ts",
+      "name": "tim dau dong khoi tu dau chu thich",
+      "outcome": "bat",
+      "summary": "1 failed | 51 passed (52)"
+    },
+    {
+      "file": "packages/core/src/json-comments.ts",
+      "name": "cat chu thich thay vi thay bang dau cach",
+      "outcome": "bat",
+      "summary": "4 failed | 48 passed (52)"
+    },
+    {
+      "file": "packages/core/src/json-comments.ts",
+      "name": "thay ca ky tu xuong dong",
+      "outcome": "bat",
+      "summary": "3 failed | 49 passed (52)"
+    },
+    {
+      "file": "packages/core/src/json-comments.ts",
+      "name": "mat phan sau chu thich cuoi",
+      "outcome": "bat",
+      "summary": "14 failed | 38 passed (52)"
+    },
+    {
+      "file": "packages/core/src/json-comments.ts",
+      "name": "loi tat bo qua file chi co khoi",
+      "outcome": "bat",
+      "summary": "9 failed | 43 passed (52)"
+    },
+    {
+      "file": "packages/core/src/json-comments.ts",
+      "name": "loi tat bo qua file chi co chu thich dong",
+      "outcome": "bat",
+      "summary": "3 failed | 49 passed (52)"
+    },
+    {
+      "file": "packages/core/src/extract-locale.ts",
+      "name": "locale khong go chu thich",
+      "outcome": "bat",
+      "summary": "3 failed | 49 passed (52)"
+    },
+    {
+      "file": "packages/core/src/extract-json.ts",
+      "name": "template khong go chu thich",
+      "outcome": "bat",
+      "summary": "1 failed | 51 passed (52)"
+    },
+    {
+      "file": "packages/core/src/extract-settings.ts",
+      "name": "settings khong go chu thich",
+      "outcome": "bat",
+      "summary": "1 failed | 51 passed (52)"
+    }
+  ]
+}

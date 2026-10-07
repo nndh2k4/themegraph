@@ -93,3 +93,34 @@ describe('extractFile với file locale', () => {
     expect(extractFile(french, JSON.stringify({ a: { b: 'x' } })).translationKeys).toEqual([]);
   });
 });
+
+describe('file dịch có chú thích nằm giữa JSON', () => {
+  // Theme Horizon của Shopify viết ghi chú cho người dịch ngay giữa file dịch mặc định.
+  const HORIZON_STYLE = [
+    '/*',
+    ' * IMPORTANT: The contents of this file are auto-generated.',
+    ' */',
+    '{',
+    '  "accessibility": {',
+    '    "menu": "Menu",',
+    '    // This is the label for the header navigation menu.',
+    '    "header_navigation_label": "Main navigation",',
+    '    "docs": "https://shopify.dev/docs" // địa chỉ có // bên trong chuỗi',
+    '  }',
+    '}',
+  ].join('\r\n');
+
+  it('vẫn thu được đủ khoá dịch', () => {
+    const keys = collectTranslationKeys(DEFAULT, HORIZON_STYLE);
+
+    // Theo thứ tự trong file.
+    expect(keys).toEqual(['accessibility.menu', 'accessibility.header_navigation_label', 'accessibility.docs']);
+  });
+
+  it('file sai cú pháp thật thì thông báo lỗi ghi đúng số dòng của file gốc', () => {
+    const broken = HORIZON_STYLE.replace('"menu": "Menu",', '"menu" "Menu",');
+
+    // Dòng 6 của file, kể cả ba dòng chú thích ở đầu.
+    expect(() => collectTranslationKeys(DEFAULT, broken)).toThrow(/locales\/en\.default\.json.*line 6/s);
+  });
+});

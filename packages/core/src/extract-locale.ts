@@ -1,4 +1,4 @@
-import { stripLeadingComment } from "./extract-json.js";
+import { stripJsonComments } from "./json-comments.js";
 import type { ThemeFile } from "./types.js";
 
 /**
@@ -47,7 +47,7 @@ export function isDefaultLocale(file: ThemeFile): boolean {
 export function collectTranslationKeys(file: ThemeFile, content: string): string[] {
   let data: unknown;
   try {
-    data = JSON.parse(stripLeadingComment(content));
+    data = JSON.parse(stripJsonComments(content));
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     throw new Error(`Không đọc được JSON của "${file.path}": ${reason}`, { cause: error });

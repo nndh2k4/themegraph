@@ -1,0 +1,21 @@
+[
+ ["packages/core/src/json-comments.ts", "khong bo BOM", "const text = content.charCodeAt(0) === 0xfeff ? content.slice(1) : content;", "const text = content;"],
+ ["packages/core/src/json-comments.ts", "khong nhay qua chuoi", "    if (char === '\"') {", "    if (false) {"],
+ ["packages/core/src/json-comments.ts", "dau nhay sau gach cheo nguoc ket thuc chuoi", "i += text[i] === \"\\\\\" ? 2 : 1;", "i += 1;"],
+ ["packages/core/src/json-comments.ts", "khong buoc qua dau nhay dong", "      while (i < text.length && text[i] !== '\"') i += text[i] === \"\\\\\" ? 2 : 1;\n      i++;\n      continue;", "      while (i < text.length && text[i] !== '\"') i += text[i] === \"\\\\\" ? 2 : 1;\n      continue;"],
+ ["packages/core/src/json-comments.ts", "khong go chu thich mot dong", "    if (char === \"/\" && text[i + 1] === \"/\") {", "    if (false) {"],
+ ["packages/core/src/json-comments.ts", "chu thich mot dong an ca dong sau", "while (end < text.length && text[end] !== \"\\n\" && text[end] !== \"\\r\") end++;", "while (end < text.length && text[end] !== \"\\r\") end++;"],
+ ["packages/core/src/json-comments.ts", "chu thich mot dong an toi het file", "while (end < text.length && text[end] !== \"\\n\" && text[end] !== \"\\r\") end++;", "end = text.length;"],
+ ["packages/core/src/json-comments.ts", "khong go chu thich khoi", "    if (char === \"/\" && text[i + 1] === \"*\") {", "    if (false) {"],
+ ["packages/core/src/json-comments.ts", "khoi dong som hai ky tu", "const end = close === -1 ? text.length : close + 2;", "const end = close === -1 ? text.length : close;"],
+ ["packages/core/src/json-comments.ts", "khoi khong dong thi de nguyen", "const end = close === -1 ? text.length : close + 2;", "const end = close === -1 ? i + 2 : close + 2;"],
+ ["packages/core/src/json-comments.ts", "tim dau dong khoi tu dau chu thich", "const close = text.indexOf(\"*/\", i + 2);", "const close = text.indexOf(\"*/\", 0);"],
+ ["packages/core/src/json-comments.ts", "cat chu thich thay vi thay bang dau cach", "text.slice(from, to).replace(/[^\\r\\n]/g, \" \");", "\"\";"],
+ ["packages/core/src/json-comments.ts", "thay ca ky tu xuong dong", "text.slice(from, to).replace(/[^\\r\\n]/g, \" \");", "\" \".repeat(to - from);"],
+ ["packages/core/src/json-comments.ts", "mat phan sau chu thich cuoi", "return out + text.slice(copiedTo);", "return out;"],
+ ["packages/core/src/json-comments.ts", "loi tat bo qua file chi co khoi", "if (!text.includes(\"//\") && !text.includes(\"/*\")) return text;", "if (!text.includes(\"//\")) return text;"],
+ ["packages/core/src/json-comments.ts", "loi tat bo qua file chi co chu thich dong", "if (!text.includes(\"//\") && !text.includes(\"/*\")) return text;", "if (!text.includes(\"/*\")) return text;"],
+ ["packages/core/src/extract-locale.ts", "locale khong go chu thich", "data = JSON.parse(stripJsonComments(content));", "data = JSON.parse(content);"],
+ ["packages/core/src/extract-json.ts", "template khong go chu thich", "data = JSON.parse(stripJsonComments(content));", "data = JSON.parse(content);"],
+ ["packages/core/src/extract-settings.ts", "settings khong go chu thich", "data = JSON.parse(stripJsonComments(content));", "data = JSON.parse(content);"]
+]
