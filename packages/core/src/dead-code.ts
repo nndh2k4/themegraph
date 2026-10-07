@@ -67,9 +67,14 @@ export interface DeadCodeResult {
   // chạy ('products.' | append: handle | t), thứ đồ thị không thấy.
   unusedTranslationKeys: string[];
   // Setting có trong schema mà không file nào đọc bằng tên viết sẵn, ghi ở
-  // dạng id không có tiền tố 'setting:'. Cũng luôn ở mức cần xem lại: setting
-  // còn có thể được đọc bằng section.settings[ten_bien], và vài setting toàn
-  // cục do chính Shopify đọc (ví dụ các setting của trang thanh toán).
+  // dạng id không có tiền tố 'setting:'. Cũng luôn ở mức cần xem lại, vì có ba
+  // cách đọc mà đồ thị không thấy:
+  //   - snippet nhận cả bộ setting qua tham số rồi mới đọc
+  //     ({% render 'x', settings: block.settings %}). Theme Horizon của Shopify
+  //     viết kiểu này ở 99 chỗ, nên gần một nửa số setting của nó (810 trên
+  //     1637) nằm trong danh sách này dù đang được dùng;
+  //   - tên là biến: section.settings[ten_bien];
+  //   - vài setting toàn cục do chính Shopify đọc (ví dụ của trang thanh toán).
   unusedSettings: string[];
 }
 

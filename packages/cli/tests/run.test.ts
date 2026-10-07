@@ -995,7 +995,7 @@ describe('themegraph dead-code', () => {
       '',
       'Setting không file nào đọc bằng tên viết sẵn (1), cần xem lại:',
       '  settings.old_color',
-      '  Setting vẫn có thể được đọc bằng tên là biến (section.settings[ten]), hoặc do chính Shopify đọc.',
+      "  Setting vẫn có thể đang được dùng theo cách công cụ không lần theo: snippet nhận cả bộ setting qua tham số (render 'x', settings: block.settings), tên là biến (section.settings[ten]), hoặc do chính Shopify đọc.",
     ]);
   });
 

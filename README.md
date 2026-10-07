@@ -148,6 +148,7 @@ ThemeGraph phân tích tĩnh: nó đọc mã, không chạy theme. Vì vậy:
 - JavaScript không được phân tích cú pháp. Công cụ chỉ dò vài cách viết quen thuộc: section được tải qua Section Rendering API bằng tên viết sẵn, và `customElements.define("tên")`.
 - Section do JavaScript tải bằng tên là biến nằm ngoài đồ thị; `dead-code` xếp nó vào nhóm "cần xem lại".
 - Thư mục `listings/` không được quét.
+- Setting được truyền cả bộ cho snippet (`render 'x', settings: block.settings`) rồi snippet mới đọc thì công cụ không lần theo. Theme viết theo kiểu này (ví dụ Horizon của Shopify) sẽ có rất nhiều setting nằm trong danh sách "không thấy đọc" của `dead-code` dù đang được dùng. Danh sách đó luôn là "cần xem lại", không phải "xoá được".
 - Những gì merchant thêm từ theme editor mà không nằm trong file của theme (app block, nội dung nhập tay) thì công cụ không biết.
 - Nhóm "có nơi dùng thẻ nhưng không trang nào nạp file" chỉ xét file JavaScript mà không trang nào nạp. File được nạp ở trang này nhưng thẻ viết ở trang khác thì chưa phát hiện.
 
