@@ -1,4 +1,3 @@
-import type { RenderFlowResult } from "@themegraph/core";
 import { useMemo, useState } from "react";
 
 import type { Api } from "../api.js";
@@ -12,17 +11,15 @@ import { GraphCanvas } from "./GraphCanvas.js";
 import type { FlyTo } from "./GraphCanvas.js";
 import { Header } from "./Header.js";
 import { LeftPanel } from "./LeftPanel.js";
-import { RightPanel } from "./RightPanel.js";
 
 /**
  * Màn làm việc của một theme: thanh trên, panel trái (cây file và bộ lọc),
- * vùng vẽ đồ thị ở giữa, panel phải (tổng quan, chi tiết, luồng trang), và
- * thanh trạng thái ở dưới.
+ * vùng vẽ đồ thị chiếm phần còn lại, và thanh trạng thái ở dưới.
  *
  * Thành phần này giữ mọi dữ liệu dùng chung và nối các vùng với nhau. Trạng
  * thái nằm trong địa chỉ (`route`); các vùng đổi trạng thái bằng cách đổi địa
- * chỉ. Chỉ ba thứ thoáng qua nằm ở đây: từ khoá đang gõ, yêu cầu đưa camera
- * tới một node, và việc panel phải đang mở hay đóng.
+ * chỉ. Chỉ hai thứ thoáng qua nằm ở đây: từ khoá đang gõ, và yêu cầu đưa
+ * camera tới một node.
  */
 export function Workspace({ api, route }: { api: Api; route: WorkspaceRoute }) {
   const { themeId } = route;
@@ -31,13 +28,6 @@ export function Workspace({ api, route }: { api: Api; route: WorkspaceRoute }) {
   const themes = useLoaded("themes", () => api.themes());
   const graphData = useLoaded(`graph:${themeId}`, () => api.graph(themeId));
   const overview = useLoaded(`overview:${themeId}`, () => api.overview(themeId));
-
-  // Luồng của trang đang xem, tải ở đây (chứ không trong tab) vì vùng vẽ cũng
-  // cần nó để làm nổi các node của luồng.
-  const flowPage = route.tab === "flow" ? route.page : "";
-  const flow = useLoaded<RenderFlowResult | null>(`flow:${themeId}:${flowPage}`, () =>
-    flowPage === "" ? Promise.resolve(null) : api.flow(themeId, flowPage),
-  );
 
   const kinds = useMemo(() => parseKinds(route.kinds), [route.kinds]);
   const edgeTypes = useMemo(() => parseEdgeTypes(route.edges), [route.edges]);
@@ -55,16 +45,9 @@ export function Workspace({ api, route }: { api: Api; route: WorkspaceRoute }) {
 
   const [query, setQuery] = useState("");
   const [flyTo, setFlyTo] = useState<FlyTo | null>(null);
-  const [rightOpen, setRightOpen] = useState(true);
 
   const hits = useMemo(() => (exported === null ? [] : searchNodes(exported.nodes, query)), [exported, query]);
   const matches = useMemo(() => (query.trim() === "" ? null : new Set(hits.map((hit) => hit.id))), [hits, query]);
-
-  // Các node thuộc luồng của trang đang xem: chính trang đó và mọi file nó kéo theo.
-  const flowIds = useMemo(
-    () => (flow.state === "ready" && flow.data !== null ? new Set([flow.data.root.id, ...flow.data.files.map((file) => file.id)]) : null),
-    [flow],
-  );
 
   if (graphData.state === "loading") return <div className="screen-message muted">Đang tải đồ thị…</div>;
   if (graphData.state === "failed") {
@@ -80,12 +63,11 @@ export function Workspace({ api, route }: { api: Api; route: WorkspaceRoute }) {
   if (exported === null || draw === null || graph === null) return null;
 
   // Chọn một node từ ô tìm kiếm hoặc cây file: chọn nó, bật loại của nó nếu
-  // đang tắt, mở tab chi tiết, và đưa nó vào giữa vùng vẽ.
+  // đang tắt, và đưa nó vào giữa vùng vẽ.
   const pick = (hit: NodeHit): void => {
-    navigator.go({ node: hit.id, tab: "detail", kinds: formatKinds(kinds.includes(hit.kind) ? kinds : toggleKind(kinds, hit.kind)) });
+    navigator.go({ node: hit.id, kinds: formatKinds(kinds.includes(hit.kind) ? kinds : toggleKind(kinds, hit.kind)) });
     setFlyTo((previous) => ({ id: hit.id, n: (previous?.n ?? 0) + 1 }));
     setQuery("");
-    setRightOpen(true);
   };
 
   const theme = themes.state === "ready" ? themes.data.find((entry) => entry.id === themeId) : undefined;
@@ -96,16 +78,7 @@ export function Workspace({ api, route }: { api: Api; route: WorkspaceRoute }) {
   return (
     <NavigatorProvider value={navigator}>
       <div className="workspace">
-        <Header
-          api={api}
-          theme={theme}
-          query={query}
-          hits={hits}
-          onQuery={setQuery}
-          onPick={pick}
-          rightOpen={rightOpen}
-          onToggleRight={() => setRightOpen(!rightOpen)}
-        />
+        <Header api={api} theme={theme} query={query} hits={hits} onQuery={setQuery} onPick={pick} />
 
         <main className="workspace-main">
           <LeftPanel exported={exported} kinds={kinds} edgeTypes={edgeTypes} depth={route.depth} selected={route.node} onPick={pick} />
@@ -119,30 +92,12 @@ export function Workspace({ api, route }: { api: Api; route: WorkspaceRoute }) {
                 layout={route.layout}
                 selected={selected}
                 matches={matches}
-                flow={flowIds}
                 flyTo={flyTo}
-                onSelect={(id) => {
-                  if (id !== "") setRightOpen(true);
-                  // Bỏ chọn thì giữ nguyên tab; chọn một node thì mở tab chi tiết.
-                  navigator.go(id === "" ? { node: "", depth: 0 } : { node: id, tab: "detail" });
-                }}
+                onSelect={(id) => navigator.go(id === "" ? { node: "", depth: 0 } : { node: id })}
                 onLayout={(layout) => navigator.go({ layout })}
               />
             )}
           </div>
-
-          {rightOpen && (
-            <RightPanel
-              api={api}
-              tab={route.tab}
-              node={route.node}
-              depth={route.depth}
-              page={route.page}
-              overview={overview}
-              flow={flow}
-              onClose={() => setRightOpen(false)}
-            />
-          )}
         </main>
 
         <footer className="statusbar">

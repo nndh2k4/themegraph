@@ -29,8 +29,6 @@ interface Emphasis {
   selected: string | null;
   // Các node khớp từ khoá đang gõ ở ô tìm kiếm; null khi ô trống.
   matches: ReadonlySet<string> | null;
-  // Các node thuộc luồng của trang đang xem; null khi không xem trang nào.
-  flow: ReadonlySet<string> | null;
 }
 
 /**
@@ -41,14 +39,13 @@ interface Emphasis {
  * rồi vẽ lại, để hình không giật và người xem không mất chỗ đang phóng to.
  *
  * Thứ tự ưu tiên khi nhiều thứ cùng đòi được làm nổi: node đang rê chuột, rồi
- * kết quả tìm kiếm, rồi luồng của trang, rồi node đang chọn.
+ * kết quả tìm kiếm, rồi node đang chọn.
  */
 export function GraphCanvas({
   graph,
   layout,
   selected,
   matches,
-  flow,
   flyTo,
   onSelect,
   onLayout,
@@ -57,14 +54,13 @@ export function GraphCanvas({
   layout: GraphLayout;
   selected: string | null;
   matches: ReadonlySet<string> | null;
-  flow: ReadonlySet<string> | null;
   flyTo: FlyTo | null;
   onSelect: (id: string) => void;
   onLayout: (layout: GraphLayout) => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const renderer = useRef<Sigma<NodeAttributes, EdgeAttributes> | null>(null);
-  const emphasis = useRef<Emphasis>({ hovered: null, selected, matches, flow });
+  const emphasis = useRef<Emphasis>({ hovered: null, selected, matches });
   // Yêu cầu flyTo cuối cùng đã thực hiện, để vẽ lại không làm camera bay lần nữa.
   const flown = useRef(0);
   const select = useRef(onSelect);
@@ -116,15 +112,14 @@ export function GraphCanvas({
       },
 
       nodeReducer: (id, data) => {
-        const { hovered: hover, selected: chosen, matches: found, flow: inFlow } = emphasis.current;
+        const { hovered: hover, selected: chosen, matches: found } = emphasis.current;
         // Node không liên quan: mờ đi nhưng vẫn đoán được nó thuộc loại nào.
         const dimmed = { ...data, color: dimColor(data.color, COLORS.background, 0.22), label: "", zIndex: 0 };
 
-        // Một tập node được làm nổi (kết quả tìm kiếm, hoặc luồng của một trang).
-        const group = hover === null ? (found ?? inFlow) : null;
-        if (group !== null) {
-          if (!group.has(id)) return dimmed;
-          return id === chosen ? { ...data, highlighted: true, forceLabel: true, zIndex: 2 } : { ...data, forceLabel: found !== null, zIndex: 1 };
+        // Các node khớp từ khoá đang gõ được làm nổi.
+        if (hover === null && found !== null) {
+          if (!found.has(id)) return dimmed;
+          return id === chosen ? { ...data, highlighted: true, forceLabel: true, zIndex: 2 } : { ...data, forceLabel: true, zIndex: 1 };
         }
 
         // Một node được làm nổi cùng hàng xóm của nó.
@@ -137,18 +132,11 @@ export function GraphCanvas({
       },
 
       edgeReducer: (edge, data) => {
-        const { hovered: hover, selected: chosen, matches: found, flow: inFlow } = emphasis.current;
+        const { hovered: hover, selected: chosen, matches: found } = emphasis.current;
         const base = { ...data, type: data.conditional ? "dashed" : "arrow", color: COLORS.edge, size: 1.2 };
 
-        if (hover === null) {
-          // Đang tìm kiếm: ẩn cạnh, để nhìn ra các node khớp nằm ở đâu.
-          if (found !== null) return { ...base, hidden: true };
-          // Luồng của một trang: chỉ giữ cạnh nối hai node trong luồng.
-          if (inFlow !== null) {
-            const within = inFlow.has(graph.source(edge)) && inFlow.has(graph.target(edge));
-            return within ? { ...base, color: COLORS.edgeActive, zIndex: 1 } : { ...base, hidden: true };
-          }
-        }
+        // Đang tìm kiếm: ẩn cạnh, để nhìn ra các node khớp nằm ở đâu.
+        if (hover === null && found !== null) return { ...base, hidden: true };
 
         const focus = hover ?? chosen;
         if (focus === null || !graph.hasNode(focus)) return base;
@@ -181,9 +169,8 @@ export function GraphCanvas({
   useEffect(() => {
     emphasis.current.selected = selected;
     emphasis.current.matches = matches;
-    emphasis.current.flow = flow;
     renderer.current?.refresh({ skipIndexation: true });
-  }, [selected, matches, flow, graph]);
+  }, [selected, matches, graph]);
 
   // Đưa node vừa chọn từ ô tìm kiếm hoặc cây file vào giữa vùng vẽ. Chạy sau
   // effect tạo Sigma, và chạy lại khi đồ thị đổi: chọn một node thuộc loại
@@ -210,10 +197,10 @@ export function GraphCanvas({
 
       <div className="canvas-modes" role="tablist" aria-label="Cách xếp node">
         <button type="button" role="tab" aria-selected={layout === "force"} className={layout === "force" ? "active" : ""} onClick={() => onLayout("force")}>
-          <Network size={14} /> Lực
+          <Network size={14} /> Force
         </button>
         <button type="button" role="tab" aria-selected={layout === "tree"} className={layout === "tree" ? "active" : ""} onClick={() => onLayout("tree")}>
-          <GitBranch size={14} /> Tầng
+          <GitBranch size={14} /> Tree
         </button>
       </div>
 

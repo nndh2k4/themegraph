@@ -1,8 +1,7 @@
-import type { EdgeType, ExportedGraph, FlowNode, NodeKind } from '@themegraph/core';
+import type { EdgeType, ExportedGraph, NodeKind } from '@themegraph/core';
 import type { FileTreeNode } from '../src/graph-model.js';
 import { describe, expect, it } from 'vitest';
 
-import { deepestFile, defaultPage, flowStats, OPEN_DEPTH, opensByDefault } from '../src/flow-model.js';
 import { KIND_LAYERS, layeredPositions, layoutGraph, MAX_PER_ROW, TREE_SIZE_SCALE } from '../src/graph-layout.js';
 import {
   buildFileTree,
@@ -455,61 +454,6 @@ describe('layoutGraph', () => {
     expect(noEdges.order).toBe(2);
     expect(noEdges.size).toBe(0);
     noEdges.forEachNode((_, attributes) => expect(Number.isFinite(attributes.x + attributes.y)).toBe(true));
-  });
-});
-
-describe('flow-model', () => {
-  const flowNode = (id: string, depth: number, extra: Partial<FlowNode> = {}): FlowNode => ({
-    id,
-    kind: 'snippet',
-    depth,
-    edge: depth === 0 ? null : 'RENDERS',
-    conditional: false,
-    count: depth === 0 ? 0 : 1,
-    repeated: false,
-    hidden: 0,
-    children: [],
-    ...extra,
-  });
-
-  it('defaultPage: trang chủ nếu có, không thì trang đầu, không có trang nào thì null', () => {
-    expect(defaultPage(['404', 'cart', 'index', 'product'])).toBe('index');
-    expect(defaultPage(['404', 'cart'])).toBe('404');
-    expect(defaultPage([])).toBeNull();
-  });
-
-  it('opensByDefault: mở sẵn các tầng trên, và chỉ node có con', () => {
-    const child = flowNode('c', 1);
-
-    expect(OPEN_DEPTH).toBe(2);
-    expect(opensByDefault(flowNode('a', 0, { children: [child] }))).toBe(true);
-    expect(opensByDefault(flowNode('a', 1, { children: [child] }))).toBe(true);
-    expect(opensByDefault(flowNode('a', 2, { children: [child] }))).toBe(false);
-    expect(opensByDefault(flowNode('a', 0))).toBe(false);
-  });
-
-  it('deepestFile: tầng của file xa nhất, không phụ thuộc thứ tự; không có file thì là 0', () => {
-    expect(deepestFile([{ depth: 1 }, { depth: 5 }, { depth: 2 }])).toBe(5);
-    expect(deepestFile([{ depth: 5 }, { depth: 1 }])).toBe(5);
-    expect(deepestFile([])).toBe(0);
-  });
-
-  it('flowStats đếm dòng, dòng lặp và dòng có điều kiện', () => {
-    const tree = flowNode('page:index', 0, {
-      children: [
-        flowNode('templates/index.json', 1, {
-          children: [
-            flowNode('sections/hero.liquid', 2, {
-              children: [flowNode('snippets/card.liquid', 3, { conditional: true }), flowNode('snippets/price.liquid', 3)],
-            }),
-            flowNode('snippets/card.liquid', 2, { repeated: true, conditional: true }),
-          ],
-        }),
-      ],
-    });
-
-    expect(flowStats(tree)).toEqual({ rows: 6, repeated: 1, conditional: 2 });
-    expect(flowStats(flowNode('page:index', 0))).toEqual({ rows: 1, repeated: 0, conditional: 0 });
   });
 });
 

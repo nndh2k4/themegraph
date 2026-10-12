@@ -1,8 +1,8 @@
 // Bấm thử giao diện của ThemeGraph trong một trình duyệt thật (Microsoft Edge
 // chạy không cửa sổ), điều khiển qua cổng gỡ lỗi của nó. Khác với ảnh chụp,
 // script này gửi sự kiện chuột và bàn phím thật, đi qua mọi vùng của màn làm
-// việc: màn chọn theme, bộ lọc, vùng vẽ, ô tìm kiếm, cây file, các tab của
-// panel phải, nút Back của trình duyệt.
+// việc: màn chọn theme, bộ lọc, vùng vẽ, ô tìm kiếm, cây file, nút Back của
+// trình duyệt.
 //
 // Không kiểm được: hình có đẹp không, kéo và lăn chuột có mượt không (Edge
 // không cửa sổ vẽ WebGL bằng phần mềm), và rê chuột lên node.
@@ -259,7 +259,7 @@ try {
   // ---- màn làm việc ----
   await until(async () => (await count(".canvas-stage canvas")) > 0, "vùng vẽ của đồ thị hiện ra");
   const start = await until(drawn, "thanh dưới ghi số node đang vẽ");
-  check("Bấm thẻ theme: màn làm việc mở, có vùng vẽ WebGL và năm vùng", (await count(".topbar, .left, .workspace-canvas, .right, .statusbar")) === 5, start.nodes + " node, " + start.edges + " cạnh");
+  check("Bấm thẻ theme: màn làm việc mở, có vùng vẽ WebGL và bốn vùng, không có panel phải", (await count(".topbar, .left, .workspace-canvas, .statusbar")) === 4 && (await count(".right")) === 0, start.nodes + " node, " + start.edges + " cạnh");
   await until(async () => ((await text('[data-testid="status"]')) ?? "").includes("Đồ thị"), "thanh dưới ghi trạng thái đồ thị");
   check("Thanh dưới báo trạng thái đồ thị so với file trên đĩa", true, ((await text('[data-testid="status"]')) ?? "").trim());
   await sleep(600);
@@ -305,11 +305,11 @@ try {
     await sleep(300);
     clicked = await param("node");
   }
-  check("Bấm vào một node trên vùng vẽ: node được chọn, tab chi tiết mở", clicked !== null && (await param("tab")) === "detail", clicked ?? "không tìm thấy node trên ảnh chụp");
+  check("Bấm vào một node trên vùng vẽ: node được chọn", clicked !== null, clicked ?? "không tìm thấy node trên ảnh chụp");
 
   if (clicked !== null) {
-    const title = await until(() => text(".detail-title"), "tab chi tiết hiện tên node");
-    check("Tab chi tiết và nhãn trên vùng vẽ hiện đúng node vừa bấm", clicked.endsWith(title) && ((await text(".canvas-pill .pill-name")) ?? "") === title, title);
+    const title = await until(() => text(".canvas-pill .pill-name"), "nhãn trên vùng vẽ hiện tên node");
+    check("Nhãn trên vùng vẽ hiện đúng node vừa bấm", clicked.endsWith(title), title);
 
     await sleep(400); // để Sigma không coi đây là lần thứ hai của một cú bấm đúp
     await click(stage.x + 8, stage.y + stage.h - 8);
@@ -353,7 +353,7 @@ try {
   await until(async () => (await param("node")) === linkedNode, "bấm chuột chọn kết quả");
   check("Bấm chuột vào một kết quả thì node đó được chọn", true, linkedNode);
   await sleep(800); // chờ camera bay xong
-  await snap("4-chi-tiet-node");
+  await snap("4-chon-node");
 
   await type(".css");
   await until(async () => (await hitCount()) > 0, "kết quả là asset");
@@ -374,32 +374,27 @@ try {
   await key("Escape", 27);
 
   // ---- độ sâu lân cận ----
-  await page("location.hash = " + JSON.stringify("#/t/" + themeId + "?node=" + encodeURIComponent(linkedNode) + "&tab=detail"));
-  await until(async () => (await count(".chip-button")) > 0 && (await drawn())?.nodes === start.nodes, "tab chi tiết của file có quan hệ");
-  await clickOn(".chip-button");
+  await page("location.hash = " + JSON.stringify("#/t/" + themeId + "?node=" + encodeURIComponent(linkedNode)));
+  await until(async () => (await text(".canvas-pill .pill-name")) === linkedNode && (await drawn())?.nodes === start.nodes, "chọn file có quan hệ");
+  await clickText(".depths button", "1 bước");
   const near1 = await drawnChanged(start, "hình thu về lân cận một bước");
-  check('Nút "Chỉ hiện lân cận": hình thu về quanh node, địa chỉ có depth=1', (await param("depth")) === "1" && near1.nodes < start.nodes, near1.nodes + " node, " + near1.edges + " cạnh");
+  check("Chọn 1 bước ở tab bộ lọc: hình thu về quanh node, địa chỉ có depth=1", (await param("depth")) === "1" && near1.nodes < start.nodes, near1.nodes + " node, " + near1.edges + " cạnh");
 
   await clickText(".depths button", "2 bước");
   const near2 = await drawnChanged(near1, "hình mở rộng ra hai bước");
   check("Chọn 2 bước ở tab bộ lọc: lân cận rộng hơn", (await param("depth")) === "2" && near2.nodes > near1.nodes, near1.nodes + " -> " + near2.nodes + " node");
 
-  // Bấm một file trong tab chi tiết: chuyển node, giữ nguyên độ sâu.
-  const nextNode = await text(".right .section .plain .node");
-  await clickOn(".right .section .plain .node");
-  await until(async () => (await param("node")) !== linkedNode, "node đang chọn đổi");
-  check("Bấm một file trong tab chi tiết: chuyển sang node đó, giữ nguyên độ sâu", (await param("depth")) === "2", nextNode);
-
   await clickText(".depths button", "Tất cả");
   await until(async () => (await param("depth")) === null && (await drawn())?.nodes === start.nodes, "về hiện cả đồ thị");
 
   // ---- chuyển bố cục ----
-  await clickText(".canvas-modes button", "Tầng");
+  await clickText(".canvas-modes button", "Tree");
   await until(async () => (await param("layout")) === "tree", "địa chỉ ghi bố cục theo tầng");
   await sleep(700);
   check("Chuyển sang bố cục theo tầng: vùng vẽ còn nguyên, số node không đổi", (await count(".canvas-stage canvas")) > 0 && (await drawn()).nodes === start.nodes);
+  check("Hai nút bố cục ghi Force và Tree", (await page('[...document.querySelectorAll(".canvas-modes button")].map((el) => el.textContent.trim()).join(",")')) === "Force,Tree");
   await snap("5-bo-cuc-tang");
-  await clickText(".canvas-modes button", "Lực");
+  await clickText(".canvas-modes button", "Force");
   await until(async () => (await param("layout")) === null, "về bố cục lực");
 
   // ---- cây file ----
@@ -423,43 +418,14 @@ try {
   }, "cây file lọc theo từ khoá");
   check("Lọc cây file: chỉ còn file có tên khớp", true, (await count(".tree-row.file")) + " file");
 
-  // ---- thu gọn và mở lại hai panel ----
+  // ---- thu gọn và mở lại panel trái ----
   await clickOn(".left .panel-tabs .icon-button");
   await until(async () => (await count(".left.rail")) === 1, "panel trái thu về dải icon");
   await clickOn(".left.rail .icon-button", 0);
   await until(async () => (await count(".left.rail")) === 0, "panel trái mở lại");
-  await clickOn(".topbar-right .icon-button");
-  await until(async () => (await count(".right")) === 0, "panel phải ẩn");
-  await clickOn(".topbar-right .icon-button");
-  await until(async () => (await count(".right")) === 1, "panel phải hiện lại");
-  check("Thu gọn và mở lại panel trái, ẩn và hiện panel phải", true);
+  check("Thu gọn và mở lại panel trái", true);
 
-  // ---- tab luồng trang ----
-  await clickOn('.right [data-tab="flow"]');
-  await until(async () => (await param("tab")) === "flow" && (await count(".pages .page")) > 0, "tab luồng trang liệt kê các trang");
-  await clickText(".pages .page", "product");
-  await until(async () => (await param("page")) === "product" && (await count(".flow-tree")) === 1, "chọn trang product");
-  const openBefore = await count(".flow-tree details[open]");
-  const closedBefore = await count(".flow-tree details:not([open])");
-  check("Chọn trang product: cây luồng hiện ra, mở sẵn các tầng trên", openBefore >= 2 && closedBefore > 0, openBefore + " mở, " + closedBefore + " gập");
-  await sleep(500);
-  await snap("6-luong-trang");
-
-  // Bấm vào mũi tên ở đầu dòng: giữa dòng là tên file, bấm vào đó là chọn node.
-  const arrow = await page('(() => { const el = document.querySelector(".flow-tree details:not([open]) > summary"); el.scrollIntoView({ block: "center" }); const r = el.getBoundingClientRect(); return { x: r.x + 5, y: r.y + r.height / 2 }; })()');
-  await click(arrow.x, arrow.y);
-  await until(async () => (await count(".flow-tree details[open]")) === openBefore + 1, "một nhánh mở ra");
-  check("Bấm một nhánh đang gập thì nó mở ra", true, openBefore + " -> " + (openBefore + 1));
-
-  await clickText(".pages .page", "product");
-  await until(async () => (await param("page")) === null && (await count(".flow-tree")) === 0, "bấm lại trang đang chọn thì bỏ chọn");
-  check("Bấm lại trang đang chọn thì bỏ chọn", true);
-
-  // ---- tab tổng quan và nút đổi theme ----
-  await clickOn('.right [data-tab="overview"]');
-  await until(async () => (await count(".stat")) >= 6, "tab tổng quan hiện các con số");
-  check("Tab tổng quan hiện số liệu của theme", true, ((await text(".stat")) ?? "").replace(/(\d)(\D)/, "$1 $2"));
-
+  // ---- nút đổi theme ----
   await clickOn(".switcher-button");
   await until(async () => (await count(".switcher-list li")) > 0, "danh sách theme mở ra");
   check("Nút đổi theme mở danh sách các theme đã phân tích", true, (await count(".switcher-list li")) + " theme");
@@ -473,8 +439,13 @@ try {
 
   // ---- địa chỉ của giao diện cũ ----
   await page("location.hash = " + JSON.stringify("#/t/" + themeId + "/file?path=" + encodeURIComponent(linkedNode)));
-  await until(async () => (await text(".detail-title")) === linkedNode, "địa chỉ cũ mở tab chi tiết");
-  check("Địa chỉ của giao diện cũ (/file?path=) vẫn mở đúng node", true);
+  await until(async () => (await text(".canvas-pill .pill-name")) === linkedNode, "địa chỉ cũ chọn đúng node");
+  check("Địa chỉ của giao diện cũ (/file?path=) vẫn chọn đúng node", true);
+
+  // Địa chỉ từng trỏ vào một tab của panel phải: mở màn làm việc, không báo lỗi.
+  await page("location.hash = " + JSON.stringify("#/t/" + themeId + "?tab=flow&page=product"));
+  await sleep(500);
+  check("Địa chỉ có tab=flow&page=... vẫn mở màn làm việc", (await count(".canvas-stage canvas")) > 0 && (await count(".right, .failure")) === 0);
 
 } catch (error) {
   check("Script chạy hết", false, error instanceof Error ? error.message : String(error));

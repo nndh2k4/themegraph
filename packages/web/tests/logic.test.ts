@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ApiFailure, apiUrl, createApi, getJson } from '../src/api.js';
 import type { Fetcher } from '../src/api.js';
-import { displayName, edgeLabel, formatTime, kindLabel, linesText, sortedCounts } from '../src/labels.js';
+import { displayName, edgeLabel, formatTime, kindLabel } from '../src/labels.js';
 import { formatRoute, MAX_DEPTH, parseRoute, workspaceRoute } from '../src/route.js';
 import type { Route } from '../src/route.js';
 
@@ -20,33 +20,34 @@ describe('parseRoute', () => {
       node: '',
       depth: 0,
       layout: 'force',
-      tab: 'overview',
-      page: '',
     });
     expect(parseRoute('#/t/ab12')).toEqual(workspaceRoute('ab12'));
   });
 
   it('đọc đủ các tham số của màn làm việc', () => {
-    expect(parseRoute('#/t/ab12?kinds=section,snippet&edges=RENDERS&node=snippets%2Fcard.liquid&depth=2&layout=tree&tab=flow&page=product')).toEqual(
+    expect(parseRoute('#/t/ab12?kinds=section,snippet&edges=RENDERS&node=snippets%2Fcard.liquid&depth=2&layout=tree')).toEqual(
       workspaceRoute('ab12', {
         kinds: 'section,snippet',
         edges: 'RENDERS',
         node: 'snippets/card.liquid',
         depth: 2,
         layout: 'tree',
-        tab: 'flow',
-        page: 'product',
       }),
     );
   });
 
-  it('giá trị lạ của layout, tab và depth quay về giá trị ban đầu', () => {
-    expect(parseRoute('#/t/x?layout=circles&tab=chat&depth=abc')).toEqual(workspaceRoute('x'));
+  it('giá trị lạ của layout và depth quay về giá trị ban đầu', () => {
+    expect(parseRoute('#/t/x?layout=circles&depth=abc')).toEqual(workspaceRoute('x'));
     for (const depth of ['0', '4', '9', '-1', '1.5', '12', '01', '002', '']) {
       expect(parseRoute(`#/t/x?depth=${depth}`)).toMatchObject({ depth: 0 });
     }
     for (const depth of [1, 2, 3]) expect(parseRoute(`#/t/x?depth=${depth}`)).toMatchObject({ depth });
     expect(MAX_DEPTH).toBe(3);
+  });
+
+  it('tham số tab và page của panel phải (đã gỡ) bị bỏ qua', () => {
+    expect(parseRoute('#/t/x?node=snippets%2Fa.liquid&tab=detail')).toEqual(workspaceRoute('x', { node: 'snippets/a.liquid' }));
+    expect(parseRoute('#/t/x?tab=flow&page=product')).toEqual(workspaceRoute('x'));
   });
 
   it('giữ nguyên dấu ? và & nằm trong giá trị đã mã hoá', () => {
@@ -66,25 +67,25 @@ describe('parseRoute — địa chỉ của giao diện cũ', () => {
   it('màn đồ thị: giữ bộ lọc và node; near=1 thành độ sâu một bước', () => {
     expect(parseRoute('#/t/ab12/graph')).toEqual(workspaceRoute('ab12'));
     expect(parseRoute('#/t/ab12/graph?kinds=asset')).toEqual(workspaceRoute('ab12', { kinds: 'asset' }));
-    expect(parseRoute('#/t/ab12/graph?node=snippets%2Fa.liquid')).toEqual(workspaceRoute('ab12', { node: 'snippets/a.liquid', tab: 'detail' }));
+    expect(parseRoute('#/t/ab12/graph?node=snippets%2Fa.liquid')).toEqual(workspaceRoute('ab12', { node: 'snippets/a.liquid' }));
     expect(parseRoute('#/t/ab12/graph?node=snippets%2Fa.liquid&near=1')).toEqual(
-      workspaceRoute('ab12', { node: 'snippets/a.liquid', depth: 1, tab: 'detail' }),
+      workspaceRoute('ab12', { node: 'snippets/a.liquid', depth: 1 }),
     );
     // near chỉ có nghĩa khi có node, và chỉ đúng giá trị "1" mới bật.
     expect(parseRoute('#/t/ab12/graph?near=1')).toEqual(workspaceRoute('ab12'));
     expect(parseRoute('#/t/ab12/graph?node=a&near=true')).toMatchObject({ depth: 0 });
   });
 
-  it('màn chi tiết file: chọn node đó và mở tab chi tiết', () => {
-    expect(parseRoute('#/t/ab12/file?path=snippets%2Fcard.liquid')).toEqual(workspaceRoute('ab12', { node: 'snippets/card.liquid', tab: 'detail' }));
+  it('màn chi tiết file: chọn node đó', () => {
+    expect(parseRoute('#/t/ab12/file?path=snippets%2Fcard.liquid')).toEqual(workspaceRoute('ab12', { node: 'snippets/card.liquid' }));
     expect(parseRoute('#/t/ab12/file?path=setting%3Asections%2Fa.liquid%23section.title')).toMatchObject({
       node: 'setting:sections/a.liquid#section.title',
     });
   });
 
-  it('màn cây render: mở tab luồng trang ở trang đó', () => {
-    expect(parseRoute('#/t/ab12/flow?page=customers%2Flogin')).toEqual(workspaceRoute('ab12', { tab: 'flow', page: 'customers/login' }));
-    expect(parseRoute('#/t/ab12/flow')).toEqual(workspaceRoute('ab12', { tab: 'flow' }));
+  it('màn cây render: về màn làm việc', () => {
+    expect(parseRoute('#/t/ab12/flow?page=customers%2Flogin')).toEqual(workspaceRoute('ab12'));
+    expect(parseRoute('#/t/ab12/flow')).toEqual(workspaceRoute('ab12'));
   });
 
   it('màn tìm kiếm: về màn làm việc', () => {
@@ -98,15 +99,12 @@ describe('formatRoute', () => {
     workspaceRoute('ab12'),
     workspaceRoute('ab12', { kinds: 'section,snippet' }),
     workspaceRoute('ab12', { kinds: 'none', edges: 'RENDERS,USES_ASSET' }),
-    workspaceRoute('ab12', { node: 'snippets/card.liquid', tab: 'detail' }),
-    workspaceRoute('ab12', { node: 'page:customers/login', depth: 3, layout: 'tree', tab: 'detail' }),
-    workspaceRoute('ab12', { node: 'setting:sections/a.liquid#section.title', tab: 'detail' }),
+    workspaceRoute('ab12', { node: 'snippets/card.liquid' }),
+    workspaceRoute('ab12', { node: 'page:customers/login', depth: 3, layout: 'tree' }),
+    workspaceRoute('ab12', { node: 'setting:sections/a.liquid#section.title' }),
     workspaceRoute('ab12', { node: 't:a.b?c&d=e' }),
-    workspaceRoute('ab12', { tab: 'flow' }),
-    workspaceRoute('ab12', { tab: 'flow', page: 'customers/login', layout: 'tree' }),
-    // depth và page được giữ nguyên dù chưa có node hay chưa ở tab luồng trang.
+    // depth được giữ nguyên dù chưa có node.
     workspaceRoute('ab12', { depth: 2 }),
-    workspaceRoute('ab12', { page: 'product' }),
   ];
 
   it('đọc lại được đúng route đã viết ra, với mọi ký tự đặc biệt', () => {
@@ -121,9 +119,7 @@ describe('formatRoute', () => {
     expect(formatRoute(workspaceRoute('ab12', { edges: 'RENDERS' }))).toBe('#/t/ab12?edges=RENDERS');
     expect(formatRoute(workspaceRoute('ab12', { depth: 1 }))).toBe('#/t/ab12?depth=1');
     expect(formatRoute(workspaceRoute('ab12', { layout: 'tree' }))).toBe('#/t/ab12?layout=tree');
-    expect(formatRoute(workspaceRoute('ab12', { tab: 'detail' }))).toBe('#/t/ab12?tab=detail');
-    expect(formatRoute(workspaceRoute('ab12', { tab: 'flow', page: 'product' }))).toBe('#/t/ab12?tab=flow&page=product');
-    expect(formatRoute(workspaceRoute('ab12', { node: 'snippets/a.liquid', tab: 'detail' }))).toBe('#/t/ab12?node=snippets%2Fa.liquid&tab=detail');
+    expect(formatRoute(workspaceRoute('ab12', { node: 'snippets/a.liquid' }))).toBe('#/t/ab12?node=snippets%2Fa.liquid');
   });
 
   it('mã hoá dấu # trong id của setting, để nó không cắt ngang hash', () => {
@@ -164,20 +160,6 @@ describe('nhãn', () => {
 
     expect(formatTime(local.toISOString())).toBe('2026-10-05 07:03');
     expect(formatTime('khong-phai-ngay')).toBe('khong-phai-ngay');
-  });
-
-  it('sortedCounts xếp nhiều nhất trước, bằng nhau thì theo tên', () => {
-    expect(sortedCounts({ b: 2, a: 2, c: 9, d: 1 })).toEqual([
-      ['c', 9],
-      ['a', 2],
-      ['b', 2],
-      ['d', 1],
-    ]);
-  });
-
-  it('linesText', () => {
-    expect(linesText([])).toBe('');
-    expect(linesText([12, 30])).toBe('dòng 12, 30');
   });
 });
 

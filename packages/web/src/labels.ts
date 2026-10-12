@@ -62,13 +62,3 @@ export function formatTime(iso: string): string {
   const day = `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())}`;
   return `${day} ${two(date.getHours())}:${two(date.getMinutes())}`;
 }
-
-/** Xếp một bảng đếm thành danh sách, nhiều nhất trước; bằng nhau thì theo tên. */
-export function sortedCounts(counts: Record<string, number>): [string, number][] {
-  return Object.entries(counts).sort(([nameA, a], [nameB, b]) => b - a || (nameA < nameB ? -1 : 1));
-}
-
-/** "dòng 12, 30" từ danh sách số dòng; rỗng khi không có dòng nào. */
-export function linesText(lines: readonly number[]): string {
-  return lines.length === 0 ? "" : `dòng ${lines.join(", ")}`;
-}

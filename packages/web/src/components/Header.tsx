@@ -1,28 +1,16 @@
-import { ChevronDown, PanelRight, Search } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { Api, ApiTheme } from "../api.js";
 import { kindColor } from "../graph-model.js";
 import type { NodeHit } from "../graph-model.js";
-import { displayName, kindLabel } from "../labels.js";
-import { themeHref, useDebounced, useLoaded, useNavigator } from "../ui.js";
+import { kindLabel } from "../labels.js";
+import { themeHref, useLoaded, useNavigator } from "../ui.js";
 
-/** Số kết quả hiện ở mỗi nhóm dưới ô tìm kiếm. */
+/** Số kết quả hiện dưới ô tìm kiếm. */
 const MAX_HITS_SHOWN = 8;
-const MAX_OTHER_SHOWN = 5;
 
-/** Một dòng trong danh sách kết quả: node trên đồ thị, hoặc khoá dịch / setting. */
-interface Row {
-  id: string;
-  kind: string;
-  label: string;
-  hit: NodeHit | null; // null với khoá dịch và setting: chúng không nằm trên đồ thị
-}
-
-/**
- * Thanh trên cùng: tên công cụ, theme đang xem (bấm để đổi), ô tìm kiếm, và
- * nút đóng mở panel phải.
- */
+/** Thanh trên cùng: tên công cụ, theme đang xem (bấm để đổi), và ô tìm kiếm. */
 export function Header({
   api,
   theme,
@@ -30,8 +18,6 @@ export function Header({
   hits,
   onQuery,
   onPick,
-  rightOpen,
-  onToggleRight,
 }: {
   api: Api;
   theme: ApiTheme | undefined;
@@ -39,8 +25,6 @@ export function Header({
   hits: NodeHit[];
   onQuery: (query: string) => void;
   onPick: (hit: NodeHit) => void;
-  rightOpen: boolean;
-  onToggleRight: () => void;
 }) {
   return (
     <header className="topbar">
@@ -52,19 +36,10 @@ export function Header({
         <ThemeSwitcher api={api} theme={theme} />
       </div>
 
-      <SearchBox api={api} query={query} hits={hits} onQuery={onQuery} onPick={onPick} />
+      <SearchBox query={query} hits={hits} onQuery={onQuery} onPick={onPick} />
 
-      <div className="topbar-right">
-        <button
-          type="button"
-          className={rightOpen ? "icon-button active" : "icon-button"}
-          onClick={onToggleRight}
-          aria-pressed={rightOpen}
-          title={rightOpen ? "Ẩn panel bên phải" : "Hiện panel bên phải"}
-        >
-          <PanelRight size={18} />
-        </button>
-      </div>
+      {/* Cột trống, rộng bằng cột trái, để ô tìm kiếm nằm giữa thanh. */}
+      <div className="topbar-right" />
     </header>
   );
 }
@@ -121,35 +96,25 @@ function ThemeSwitcher({ api, theme }: { api: Api; theme: ApiTheme | undefined }
 
 /**
  * Ô tìm kiếm. Gõ tới đâu, danh sách bên dưới và các node khớp trên đồ thị
- * đổi tới đó. Kết quả có hai nhóm: file và trang (tìm ngay trong dữ liệu của
- * đồ thị), rồi khoá dịch và setting (hỏi server, vì chúng không được vẽ).
+ * đổi tới đó. Chỉ tìm file và trang, tức những thứ được vẽ trên đồ thị.
  *
  * Chọn bằng chuột, hoặc bằng phím mũi tên rồi Enter; Enter ngay thì lấy kết
  * quả đầu tiên; Escape xoá từ khoá. Phím "/" đưa con trỏ vào ô từ bất cứ đâu.
  */
 function SearchBox({
-  api,
   query,
   hits,
   onQuery,
   onPick,
 }: {
-  api: Api;
   query: string;
   hits: NodeHit[];
   onQuery: (query: string) => void;
   onPick: (hit: NodeHit) => void;
 }) {
-  const { themeId, go } = useNavigator();
   const input = useRef<HTMLInputElement>(null);
   const [active, setActive] = useState(0);
   const [focused, setFocused] = useState(false);
-
-  // Khoá dịch và setting: hỏi server sau khi người dùng ngừng gõ một nhịp.
-  const settled = useDebounced(query.trim(), 250);
-  const others = useLoaded(`others:${themeId}:${settled}`, () =>
-    settled === "" ? Promise.resolve(null) : api.search(themeId, settled, "translation_key,setting"),
-  );
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -163,21 +128,11 @@ function SearchBox({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const shown = hits.slice(0, MAX_HITS_SHOWN);
-  const otherHits = others.state === "ready" && others.data !== null && settled === query.trim() ? others.data.hits : [];
-  const rows: Row[] = [
-    ...shown.map((hit) => ({ id: hit.id, kind: hit.kind, label: hit.label, hit })),
-    ...otherHits.slice(0, MAX_OTHER_SHOWN).map((hit) => ({ id: hit.id, kind: hit.kind, label: displayName(hit.id), hit: null })),
-  ];
+  const rows = hits.slice(0, MAX_HITS_SHOWN);
   const current = Math.min(active, Math.max(rows.length - 1, 0));
 
-  const pick = (row: Row): void => {
-    if (row.hit !== null) onPick(row.hit);
-    else {
-      // Khoá dịch và setting không có trên đồ thị: chỉ mở tab chi tiết của chúng.
-      go({ node: row.id, tab: "detail" });
-      onQuery("");
-    }
+  const pick = (hit: NodeHit): void => {
+    onPick(hit);
     input.current?.blur();
   };
 
@@ -218,13 +173,11 @@ function SearchBox({
       {open && (
         <div className="popover search-results">
           {rows.length === 0 ? (
-            <p className="muted">{others.state === "loading" ? "Đang tìm…" : "Không có gì khớp."}</p>
+            <p className="muted">Không có gì khớp.</p>
           ) : (
             <ul>
               {rows.map((row, index) => (
                 <li key={row.id}>
-                  {/* Dòng đầu của nhóm thứ hai mang tiêu đề nhóm. */}
-                  {row.hit === null && (index === 0 || rows[index - 1]?.hit !== null) && <p className="eyebrow">Khoá dịch và setting</p>}
                   <button
                     type="button"
                     className={index === current ? "search-hit active" : "search-hit"}
@@ -245,7 +198,7 @@ function SearchBox({
           {hits.length > 0 && (
             <p className="muted note">
               {hits.length} file khớp, đang được làm nổi trên đồ thị
-              {hits.length > shown.length && `; gõ thêm để thu hẹp (đang hiện ${shown.length})`}.
+              {hits.length > rows.length && `; gõ thêm để thu hẹp (đang hiện ${rows.length})`}.
             </p>
           )}
         </div>

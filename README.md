@@ -10,7 +10,7 @@ Có ba cách dùng, cùng một dữ liệu: dòng lệnh, giao diện web, và 
 
 *ThemeGraph builds a knowledge graph of a Shopify Liquid theme and answers impact, render-flow and dead-code questions from the CLI, a web UI, or an MCP server. This README is in Vietnamese.*
 
-![Giao diện web: chọn một snippet để xem ai gọi nó và trang nào bị ảnh hưởng](.github/readme/chi-tiet-node.png)
+![Giao diện web: đồ thị của theme, chọn một snippet để làm nổi những file nối với nó](.github/readme/do-thi.png)
 
 ## Cần gì
 
@@ -79,7 +79,7 @@ Trang (4):
 themegraph serve
 ```
 
-Rồi mở `http://localhost:7777`. Gõ `/` để tìm một file, bấm vào một node để xem chi tiết, hoặc mở tab "Luồng trang" để xem một trang kéo theo những file nào.
+Rồi mở `http://localhost:7777`. Gõ `/` để tìm một file; bấm vào một node để làm nổi những file nối trực tiếp với nó; dùng tab "Bộ lọc" để chọn loại node, loại quan hệ và độ sâu lân cận; hai nút Force và Tree đổi cách xếp đồ thị. Giao diện chỉ vẽ đồ thị: muốn biết sửa một file thì trang nào bị ảnh hưởng, dùng `themegraph impact`; muốn xem một trang kéo theo những file nào, dùng `themegraph render-flow`.
 
 ## Các lệnh
 
