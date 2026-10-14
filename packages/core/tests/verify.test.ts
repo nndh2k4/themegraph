@@ -2,12 +2,12 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { bfsTraverse, diffTraversals, verify } from '../src/graph/verify.service.js';
-import type { PlainEdge } from '../src/graph/verify.service.js';
-import { queryGraph, removeTempTheme, saveToTempTheme } from './helpers.js';
+import { queryGraph, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
 import { openGraph } from '../src/legacy.js';
 import type { GraphRepository } from '../src/graph/graph.repository.js';
 import { graphDbPath } from '../src/infrastructure/sqlite/schema.js';
+import type { PlainEdge } from '../src/graph/dto/index.js';
+import { bfsTraverse, diffTraversals } from '../src/graph/graph-algorithms.js';
 
 const edge = (src: string, dst: string, conditional = false): PlainEdge => ({ src, dst, conditional });
 
@@ -133,7 +133,7 @@ describe('verify', () => {
 
   it('xác nhận SQL và BFS khớp nhau trên mọi node của đồ thị mẫu', () => {
     graph = openGraph(themeRoot);
-    const result = verify(graph);
+    const result = scopeOf(graph).verify.verify();
 
     expect(result.ok).toBe(true);
     expect(result.mismatches).toEqual([]);
@@ -142,7 +142,7 @@ describe('verify', () => {
 
   it('báo số liệu của lần kiểm chứng', () => {
     graph = openGraph(themeRoot);
-    const result = verify(graph);
+    const result = scopeOf(graph).verify.verify();
 
     expect(result.nodes).toBe(graph.countNodes());
     expect(result.edges).toBe(graph.allEdges().length);
@@ -167,7 +167,7 @@ describe('verify', () => {
     db.close();
 
     graph = openGraph(themeRoot);
-    const result = verify(graph);
+    const result = scopeOf(graph).verify.verify();
 
     expect(result.ok).toBe(false);
     expect(result.integrity).toHaveLength(1);
@@ -196,7 +196,7 @@ describe('verify', () => {
     db.close();
 
     graph = openGraph(themeRoot);
-    const result = verify(graph);
+    const result = scopeOf(graph).verify.verify();
 
     // unused.png vốn không ai trỏ tới, nên sai khác duy nhất nằm ở chiều ngược.
     expect(result.mismatches).toEqual([
@@ -218,7 +218,7 @@ describe('verify', () => {
     db.close();
 
     graph = openGraph(themeRoot);
-    const result = verify(graph);
+    const result = scopeOf(graph).verify.verify();
 
     expect(result.mismatches).toEqual([]);
     expect(result.integrity).toHaveLength(1);

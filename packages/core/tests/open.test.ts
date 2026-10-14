@@ -5,9 +5,8 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { findNode } from '../src/graph/node-finder.service.js';
 import { buildGraph } from '../src/analyze/graph-builder.js';
-import { file, queryGraph, removeTempTheme, saveToTempTheme } from './helpers.js';
+import { file, queryGraph, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
 import { GraphNotReadyError, NodeNotFoundError } from '../src/common/errors.js';
 import { findThemeRoot, openGraph } from '../src/legacy.js';
 import type { GraphRepository } from '../src/graph/graph.repository.js';
@@ -152,52 +151,52 @@ describe('findThemeRoot', () => {
 
 describe('findNode', () => {
   it('tìm node theo đúng id', () => {
-    expect(findNode(open(), 'snippets/card.liquid')).toEqual({ id: 'snippets/card.liquid', kind: 'snippet' });
-    expect(findNode(open(), 'page:product')).toEqual({ id: 'page:product', kind: 'page_type' });
+    expect(scopeOf(open()).nodes.find('snippets/card.liquid')).toEqual({ id: 'snippets/card.liquid', kind: 'snippet' });
+    expect(scopeOf(open()).nodes.find('page:product')).toEqual({ id: 'page:product', kind: 'page_type' });
   });
 
   it('chấp nhận dấu gạch chéo ngược và tiền tố ./', () => {
-    expect(findNode(open(), 'snippets\\card.liquid').id).toBe('snippets/card.liquid');
-    expect(findNode(open(), './snippets/card.liquid').id).toBe('snippets/card.liquid');
+    expect(scopeOf(open()).nodes.find('snippets\\card.liquid').id).toBe('snippets/card.liquid');
+    expect(scopeOf(open()).nodes.find('./snippets/card.liquid').id).toBe('snippets/card.liquid');
   });
 
   it('chấp nhận đường dẫn tuyệt đối nằm trong theme', () => {
     const absolute = path.join(themeRoot, 'snippets', 'card.liquid');
 
-    expect(findNode(open(), absolute).id).toBe('snippets/card.liquid');
+    expect(scopeOf(open()).nodes.find(absolute).id).toBe('snippets/card.liquid');
   });
 
   it('hiểu đường dẫn tương đối theo baseDir khi được cho', () => {
     const graph = open();
     const baseDir = path.join(themeRoot, 'snippets');
 
-    expect(findNode(graph, 'card.liquid', { baseDir }).id).toBe('snippets/card.liquid');
-    expect(findNode(graph, '../sections/grid.liquid', { baseDir }).id).toBe('sections/grid.liquid');
+    expect(scopeOf(graph).nodes.find('card.liquid', { baseDir }).id).toBe('snippets/card.liquid');
+    expect(scopeOf(graph).nodes.find('../sections/grid.liquid', { baseDir }).id).toBe('sections/grid.liquid');
   });
 
   it('ưu tiên id khớp nguyên văn hơn cách hiểu theo baseDir', () => {
     // Đứng trong snippets/ mà gõ đủ "snippets/card.liquid" thì vẫn phải đúng.
     const baseDir = path.join(themeRoot, 'snippets');
 
-    expect(findNode(open(), 'snippets/card.liquid', { baseDir }).id).toBe('snippets/card.liquid');
+    expect(scopeOf(open()).nodes.find('snippets/card.liquid', { baseDir }).id).toBe('snippets/card.liquid');
   });
 
   it('hiểu tên trang viết không có tiền tố page:', () => {
-    expect(findNode(open(), 'product')).toEqual({ id: 'page:product', kind: 'page_type' });
+    expect(scopeOf(open()).nodes.find('product')).toEqual({ id: 'page:product', kind: 'page_type' });
   });
 
   it('hiểu tên file không kèm thư mục khi cả theme chỉ có một file tên đó', () => {
     // Có đuôi hay không, hoa hay thường, đều được.
-    expect(findNode(open(), 'price')).toEqual({ id: 'snippets/price.liquid', kind: 'snippet' });
-    expect(findNode(open(), 'price.liquid')).toEqual({ id: 'snippets/price.liquid', kind: 'snippet' });
-    expect(findNode(open(), 'PRICE')).toEqual({ id: 'snippets/price.liquid', kind: 'snippet' });
-    expect(findNode(open(), 'base.css')).toEqual({ id: 'assets/base.css', kind: 'asset' });
+    expect(scopeOf(open()).nodes.find('price')).toEqual({ id: 'snippets/price.liquid', kind: 'snippet' });
+    expect(scopeOf(open()).nodes.find('price.liquid')).toEqual({ id: 'snippets/price.liquid', kind: 'snippet' });
+    expect(scopeOf(open()).nodes.find('PRICE')).toEqual({ id: 'snippets/price.liquid', kind: 'snippet' });
+    expect(scopeOf(open()).nodes.find('base.css')).toEqual({ id: 'assets/base.css', kind: 'asset' });
     // Tên có dấu chấm ở giữa: chỉ bỏ đuôi cuối cùng.
-    expect(findNode(open(), 'product.alt')).toEqual({ id: 'templates/product.alt.json', kind: 'template' });
+    expect(scopeOf(open()).nodes.find('product.alt')).toEqual({ id: 'templates/product.alt.json', kind: 'template' });
   });
 
   it('tên trang thắng tên file: "cart" là page:cart, không phải sections/cart.liquid', () => {
-    expect(findNode(open(), 'cart')).toEqual({ id: 'page:cart', kind: 'page_type' });
+    expect(scopeOf(open()).nodes.find('cart')).toEqual({ id: 'page:cart', kind: 'page_type' });
   });
 
   it('không đoán khi nhiều file trùng tên: báo lỗi và liệt kê đúng các file đó', async () => {
@@ -212,7 +211,7 @@ describe('findNode', () => {
     try {
       const error = (() => {
         try {
-          findNode(handle, 'header');
+          scopeOf(handle).nodes.find('header');
         } catch (thrown) {
           return thrown;
         }
@@ -230,20 +229,20 @@ describe('findNode', () => {
 
   it('tên không kèm thư mục chỉ khớp cả tên, không khớp một phần', () => {
     // "car" là một phần của "card" và "cart": không được tự chọn.
-    expect(() => findNode(open(), 'car')).toThrow(NodeNotFoundError);
-    expect(() => findNode(open(), 'liquid')).toThrow(NodeNotFoundError);
+    expect(() => scopeOf(open()).nodes.find('car')).toThrow(NodeNotFoundError);
+    expect(() => scopeOf(open()).nodes.find('liquid')).toThrow(NodeNotFoundError);
   });
 
   it('tên đã kèm thư mục mà sai thì không được hiểu tắt', () => {
-    expect(() => findNode(open(), 'snippets/price')).toThrow(NodeNotFoundError);
-    expect(() => findNode(open(), 'sections/price.liquid')).toThrow(NodeNotFoundError);
+    expect(() => scopeOf(open()).nodes.find('snippets/price')).toThrow(NodeNotFoundError);
+    expect(() => scopeOf(open()).nodes.find('sections/price.liquid')).toThrow(NodeNotFoundError);
   });
 
   it('cách hiểu tắt không áp dụng cho khoá dịch và setting', () => {
     // t:product.price có "tên" là price nếu coi nó như file; không được lẫn.
-    expect(findNode(open(), 'price').kind).toBe('snippet');
-    expect(() => findNode(open(), 'accent')).toThrow(NodeNotFoundError);
-    expect(() => findNode(open(), 'title')).toThrow(NodeNotFoundError);
+    expect(scopeOf(open()).nodes.find('price').kind).toBe('snippet');
+    expect(() => scopeOf(open()).nodes.find('accent')).toThrow(NodeNotFoundError);
+    expect(() => scopeOf(open()).nodes.find('title')).toThrow(NodeNotFoundError);
   });
 
   it('cách hiểu tắt không tính node loại trang: "login" là file template, không bị coi là trùng tên với trang', async () => {
@@ -253,7 +252,7 @@ describe('findNode', () => {
     const root = await saveToTempTheme(buildGraph([file('templates/customers/login.json', 'template')], [], {}));
     const handle = openGraph(root);
     try {
-      expect(findNode(handle, 'login')).toEqual({ id: 'templates/customers/login.json', kind: 'template' });
+      expect(scopeOf(handle).nodes.find('login')).toEqual({ id: 'templates/customers/login.json', kind: 'template' });
     } finally {
       handle.close();
       await removeTempTheme(root);
@@ -261,7 +260,7 @@ describe('findNode', () => {
   });
 
   it('ném NodeNotFoundError kèm gợi ý khi không tìm thấy', () => {
-    const error = errorOf(() => findNode(open(), 'snippets/card'));
+    const error = errorOf(() => scopeOf(open()).nodes.find('snippets/card'));
 
     expect(error).toBeInstanceOf(NodeNotFoundError);
     expect((error as NodeNotFoundError).input).toBe('snippets/card');
@@ -270,27 +269,27 @@ describe('findNode', () => {
   });
 
   it('gợi ý theo tên file, bỏ qua thư mục và đuôi gõ sai', () => {
-    const error = errorOf(() => findNode(open(), 'sections/price.css'));
+    const error = errorOf(() => scopeOf(open()).nodes.find('sections/price.css'));
 
     // Gợi ý tìm trong mọi node, nên khoá dịch có chữ "price" cũng được đưa ra.
     expect((error as NodeNotFoundError).suggestions).toEqual(['snippets/price.liquid', 't:product.price']);
   });
 
   it('không gợi ý gì khi không có node nào giống', () => {
-    const error = errorOf(() => findNode(open(), 'khong-co-gi-giong'));
+    const error = errorOf(() => scopeOf(open()).nodes.find('khong-co-gi-giong'));
 
     expect((error as NodeNotFoundError).suggestions).toEqual([]);
     expect((error as Error).message).not.toContain('Có phải');
   });
 
   it('không coi ký tự % và _ là ký tự đại diện khi tìm gợi ý', () => {
-    const error = errorOf(() => findNode(open(), '%'));
+    const error = errorOf(() => scopeOf(open()).nodes.find('%'));
 
     expect((error as NodeNotFoundError).suggestions).toEqual([]);
   });
 
   it('không tìm ra node nằm ngoài theme dù đường dẫn có ..', () => {
-    const error = errorOf(() => findNode(open(), '../snippets/card.liquid'));
+    const error = errorOf(() => scopeOf(open()).nodes.find('../snippets/card.liquid'));
 
     expect(error).toBeInstanceOf(NodeNotFoundError);
   });

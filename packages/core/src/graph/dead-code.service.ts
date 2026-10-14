@@ -1,82 +1,6 @@
 import type { GraphNode, NodeKind } from "../models/index.js";
+import type { DeadCodeResult, DeadFile, NeededElement, NotLoadedAsset } from "./dto/dead-code.dto.js";
 import type { GraphRepository } from "./graph.repository.js";
-
-/**
- * Mức tin cậy của một kết luận "file này không được dùng".
- *
- * - certain: mọi cách dùng loại file này đều hiện ra trong đồ thị, và đồ thị
- *   không có cách nào. Xoá được.
- * - review:  đồ thị không thấy ai dùng, nhưng loại file này còn những cách
- *   dùng mà phân tích tĩnh mã Liquid không nhìn thấy (xem REVIEW_ROOT_KINDS).
- *   Phải có người kiểm tra trước khi xoá.
- */
-export type DeadConfidence = "certain" | "review";
-
-/**
- * Vì sao file bị coi là không được dùng.
- *
- * - unreferenced:        không file nào gọi nó
- * - only_used_by_unused: có file gọi nó, nhưng mọi file gọi đều nằm trong
- *                        chính danh sách này
- */
-export type DeadReason = "unreferenced" | "only_used_by_unused";
-
-/** Một file không trang nào dùng tới. */
-export interface DeadFile {
-  id: string;
-  kind: NodeKind;
-  confidence: DeadConfidence;
-  reason: DeadReason;
-  usedBy: string[]; // các file gọi trực tiếp tới nó (đều là file không dùng)
-}
-
-/** Một custom element mà file JavaScript định nghĩa, và những file đang dùng thẻ đó. */
-export interface NeededElement {
-  name: string; // tên thẻ, ví dụ 'disclosures-close'
-  usedBy: string[]; // các file ĐANG DÙNG có viết thẻ này, xếp theo id
-}
-
-/**
- * Một asset không trang nào nạp, nhưng lại định nghĩa custom element mà một
- * file đang dùng viết ra. Đây không phải mã chết mà là một lỗi của theme:
- * thiếu thẻ <script> nạp file, nên thẻ hiện ra mà hành vi không chạy.
- */
-export interface NotLoadedAsset {
-  id: string;
-  elements: NeededElement[]; // xếp theo tên thẻ
-  usedBy: string[]; // các file gọi nó; đều là file không dùng, thường là rỗng
-}
-
-/** Kết quả của deadCode(). */
-export interface DeadCodeResult {
-  // Mức certain trước, rồi review; trong mỗi mức xếp theo id. Không gồm các
-  // asset ở `notLoaded`.
-  files: DeadFile[];
-  certain: number;
-  review: number;
-  // Asset không trang nào nạp nhưng có nơi cần tới (xem NotLoadedAsset), xếp
-  // theo id. Tách khỏi `files` vì lời khuyên ngược hẳn: không xoá, mà nạp nó.
-  notLoaded: NotLoadedAsset[];
-  // Theme có file ĐANG DÙNG nào nhận mọi theme block qua "@theme" hay không.
-  // Nếu có, block công khai không bao giờ bị báo, vì merchant thêm được chúng
-  // vào file đó. Một file nhận "@theme" mà chính nó không ai dùng thì không
-  // tính: không có nó trên trang nào thì cũng không thêm được gì vào nó.
-  acceptsThemeBlocks: boolean;
-  // Khoá dịch có trong locale mặc định mà không file nào gọi bằng tên viết
-  // sẵn. Luôn ở mức cần xem lại: khoá còn có thể được gọi bằng tên ghép lúc
-  // chạy ('products.' | append: handle | t), thứ đồ thị không thấy.
-  unusedTranslationKeys: string[];
-  // Setting có trong schema mà không file nào đọc bằng tên viết sẵn, ghi ở
-  // dạng id không có tiền tố 'setting:'. Cũng luôn ở mức cần xem lại, vì có ba
-  // cách đọc mà đồ thị không thấy:
-  //   - snippet nhận cả bộ setting qua tham số rồi mới đọc
-  //     ({% render 'x', settings: block.settings %}). Theme Horizon của Shopify
-  //     viết kiểu này ở 99 chỗ, nên gần một nửa số setting của nó (810 trên
-  //     1637) nằm trong danh sách này dù đang được dùng;
-  //   - tên là biến: section.settings[ten_bien];
-  //   - vài setting toàn cục do chính Shopify đọc (ví dụ của trang thanh toán).
-  unusedSettings: string[];
-}
 
 /**
  * Các loại file có thể là mã chết. Template, config và locale không có ở đây:
@@ -103,210 +27,214 @@ const REVIEW_ROOT_KINDS: ReadonlySet<NodeKind> = new Set<NodeKind>(["section", "
 /** Tên của theme block riêng tư bắt đầu bằng "_": merchant không thêm được chúng. */
 const PRIVATE_BLOCK_PREFIX = "blocks/_";
 
-/**
- * Tập node ĐANG DÙNG: mọi thứ tới được từ một điểm vào, đi xuôi qua mọi cạnh.
- *
- * Có ba loại điểm vào:
- *   1. Loại trang. Mọi template đều nằm dưới một loại trang.
- *   2. Section có preset: merchant thêm được vào template từ theme editor,
- *      dù hiện chưa template nào dùng.
- *   3. Theme block công khai (tên không bắt đầu bằng "_"), khi có ít nhất
- *      một file ĐANG DÙNG nhận "@theme": merchant thêm được block vào file
- *      đó. Loại này phụ thuộc chính tập đang dùng, nên tập được tính hai
- *      lượt: lượt đầu từ loại 1 và 2; nếu trong đó có file nhận "@theme" thì
- *      lượt hai thêm mọi block công khai. Không cần lượt thứ ba: lượt hai đã
- *      thêm HẾT block công khai, file nhận "@theme" mới lọt vào cũng không
- *      thêm được gì nữa.
- */
-function liveNodes(graph: GraphRepository, acceptors: readonly string[]): Set<string> {
-  const sections = new Set(graph.nodesOfKinds(["section"]).map((node) => node.id));
-  const presetSections = graph
-    .schemas()
-    .filter((schema) => schema.presets > 0 && sections.has(schema.file))
-    .map((schema) => schema.file);
+/** Trả lời câu hỏi: "file nào trong theme không còn được dùng?" */
+export class DeadCodeService {
+  constructor(private readonly graph: GraphRepository) {}
 
-  const entryPoints = [...graph.nodesOfKinds(["page_type"]).map((node) => node.id), ...presetSections];
-  const live = graph.reachableFrom(entryPoints);
+  /**
+   * Một file được coi là không dùng khi không điểm vào nào đi tới được nó (xem
+   * liveNodes). Mỗi kết quả kèm mức tin cậy:
+   *
+   *   - Section không preset, asset, layout: `review`, vì chúng còn cách dùng
+   *     nằm ngoài tầm nhìn của đồ thị.
+   *   - Mọi thứ nằm DƯỚI một file `review` cũng là `review`: nếu file đó hoá ra
+   *     đang được dùng thì những gì nó gọi cũng đang được dùng.
+   *   - Block công khai, khi file nhận "@theme" duy nhất là một file `review`:
+   *     cũng `review`, cùng lý do. Nếu file đó hoá ra đang được dùng thì
+   *     merchant thêm được block vào nó.
+   *   - Còn lại là `certain`.
+   *
+   * Riêng asset định nghĩa một custom element mà file đang dùng có viết thì
+   * không vào danh sách trên mà vào `notLoaded` (xem findNotLoaded).
+   */
+  findUnused(): DeadCodeResult {
+    // Các file nhận "@theme". File nào không nằm trong `unused` là đang dùng.
+    const acceptors = this.graph
+      .schemas()
+      .filter((schema) => schema.acceptsThemeBlocks)
+      .map((schema) => schema.file);
 
-  if (!acceptors.some((id) => live.has(id))) return live;
+    const live = this.liveNodes(acceptors);
 
-  const publicBlocks = graph
-    .nodesOfKinds(["block"])
-    .map((node) => node.id)
-    .filter((id) => !id.startsWith(PRIVATE_BLOCK_PREFIX));
+    // Các file thuộc loại có thể là mã chết mà không nằm trong tập đang dùng,
+    // xếp theo id.
+    const unused: GraphNode[] = this.graph.nodesOfKinds(CANDIDATE_KINDS).filter((node) => !live.has(node.id));
 
-  return graph.reachableFrom([...entryPoints, ...publicBlocks]);
-}
+    const unusedIds = new Set(unused.map((node) => node.id));
 
-/**
- * Tìm các asset không dùng mà thật ra có nơi cần: nó định nghĩa một custom
- * element, và một file ĐANG DÙNG viết thẻ đó.
- *
- * Một thẻ không được tính nếu còn một file đang dùng khác cũng định nghĩa
- * nó: khi đó thẻ vẫn chạy nhờ file kia, và asset này đúng là bản thừa.
- *
- * Giới hạn: hàm chỉ xét asset mà KHÔNG trang nào nạp. Một asset được nạp ở
- * trang này nhưng thẻ của nó được viết ở trang khác thì không bị phát hiện.
- */
-function findNotLoaded(graph: GraphRepository, unused: ReadonlyMap<string, NodeKind>): Map<string, NeededElement[]> {
-  const definersOf = new Map<string, string[]>();
-  for (const { name, role, file } of graph.elements()) {
-    if (role === "define") definersOf.set(name, [...(definersOf.get(name) ?? []), file]);
-  }
+    const acceptsThemeBlocks = acceptors.some((id) => !unusedIds.has(id));
 
-  const result = new Map<string, NeededElement[]>();
+    // Quan hệ gọi giữa các file không dùng với nhau, theo cả hai chiều. Một
+    // file không dùng thì mọi file gọi nó cũng không dùng (nếu một file đang
+    // dùng gọi nó thì nó đã là đang dùng), nên chỉ cần lọc theo đầu đích.
+    const callersOf = new Map<string, string[]>();
+    const calleesOf = new Map<string, string[]>();
 
-  for (const { definer, name, user } of graph.elementPairs()) {
+    for (const node of unused) {
+      const callers = this.graph
+        .edgesTo(node.id)
+        .filter((edge) => edge.from !== edge.to)
+        .map((edge) => edge.from);
+      callersOf.set(node.id, callers);
 
-    if (unused.get(definer) !== "asset") continue;
-    // File dùng thẻ mà chính nó không trang nào dùng thì không ai thấy thẻ đó.
-    if (unused.has(user)) continue;
-    if ((definersOf.get(name) ?? []).some((file) => !unused.has(file))) continue;
-
-    const elements = result.get(definer) ?? [];
-    const last = elements.at(-1);
-
-    // Các dòng đã xếp theo (definer, name, user), nên cùng một thẻ đi liền nhau.
-    if (last !== undefined && last.name === name) last.usedBy.push(user);
-    else elements.push({ name, usedBy: [user] });
-
-    result.set(definer, elements);
-  }
-
-  return result;
-}
-
-/**
- * Trả lời câu hỏi: "file nào trong theme không còn được dùng?"
- *
- * Một file được coi là không dùng khi không điểm vào nào đi tới được nó (xem
- * liveNodes). Mỗi kết quả kèm mức tin cậy:
- *
- *   - Section không preset, asset, layout: `review`, vì chúng còn cách dùng
- *     nằm ngoài tầm nhìn của đồ thị.
- *   - Mọi thứ nằm DƯỚI một file `review` cũng là `review`: nếu file đó hoá ra
- *     đang được dùng thì những gì nó gọi cũng đang được dùng.
- *   - Block công khai, khi file nhận "@theme" duy nhất là một file `review`:
- *     cũng `review`, cùng lý do. Nếu file đó hoá ra đang được dùng thì
- *     merchant thêm được block vào nó.
- *   - Còn lại là `certain`.
- *
- * Riêng asset định nghĩa một custom element mà file đang dùng có viết thì
- * không vào danh sách trên mà vào `notLoaded` (xem findNotLoaded).
- */
-export function deadCode(graph: GraphRepository): DeadCodeResult {
-  // Các file nhận "@theme". File nào không nằm trong `unused` là đang dùng.
-  const acceptors = graph
-    .schemas()
-    .filter((schema) => schema.acceptsThemeBlocks)
-    .map((schema) => schema.file);
-
-  const live = liveNodes(graph, acceptors);
-
-  // Các file thuộc loại có thể là mã chết mà không nằm trong tập đang dùng,
-  // xếp theo id.
-  const unused: GraphNode[] = graph.nodesOfKinds(CANDIDATE_KINDS).filter((node) => !live.has(node.id));
-
-  const unusedIds = new Set(unused.map((node) => node.id));
-
-  const acceptsThemeBlocks = acceptors.some((id) => !unusedIds.has(id));
-
-  // Quan hệ gọi giữa các file không dùng với nhau, theo cả hai chiều. Một
-  // file không dùng thì mọi file gọi nó cũng không dùng (nếu một file đang
-  // dùng gọi nó thì nó đã là đang dùng), nên chỉ cần lọc theo đầu đích.
-  const callersOf = new Map<string, string[]>();
-  const calleesOf = new Map<string, string[]>();
-
-  for (const node of unused) {
-    const callers = graph
-      .edgesTo(node.id)
-      .filter((edge) => edge.from !== edge.to)
-      .map((edge) => edge.from);
-    callersOf.set(node.id, callers);
-
-    for (const caller of callers) {
-      const callees = calleesOf.get(caller) ?? [];
-      callees.push(node.id);
-      calleesOf.set(caller, callees);
-    }
-  }
-
-  // Lan mức `review` từ các file gốc xuống mọi thứ chúng gọi, trực tiếp hay
-  // gián tiếp. Duyệt theo chiều rộng với một hàng đợi; tập needsReview vừa là
-  // kết quả vừa là dấu "đã ghé qua" để dừng được khi có vòng.
-  const needsReview = new Set(unused.filter((node) => REVIEW_ROOT_KINDS.has(node.kind)).map((node) => node.id));
-  const queue = [...needsReview];
-
-  // Các block công khai không dùng. Chúng không có cạnh nào từ file nhận
-  // "@theme" (quan hệ đó là "merchant thêm được", không phải lời gọi), nên
-  // mức `review` phải được lan sang chúng bằng tay, đúng một lần.
-  const publicBlocks = unused
-    .filter((node) => node.kind === "block" && !node.id.startsWith(PRIVATE_BLOCK_PREFIX))
-    .map((node) => node.id);
-  let publicBlocksReviewed = false;
-
-  for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
-    const callees = [...(calleesOf.get(id) ?? [])];
-
-    if (!publicBlocksReviewed && acceptors.includes(id)) {
-      publicBlocksReviewed = true;
-      callees.push(...publicBlocks);
+      for (const caller of callers) {
+        const callees = calleesOf.get(caller) ?? [];
+        callees.push(node.id);
+        calleesOf.set(caller, callees);
+      }
     }
 
-    for (const callee of callees) {
-      if (needsReview.has(callee)) continue;
-      needsReview.add(callee);
-      queue.push(callee);
+    // Lan mức `review` từ các file gốc xuống mọi thứ chúng gọi, trực tiếp hay
+    // gián tiếp. Duyệt theo chiều rộng với một hàng đợi; tập needsReview vừa là
+    // kết quả vừa là dấu "đã ghé qua" để dừng được khi có vòng.
+    const needsReview = new Set(unused.filter((node) => REVIEW_ROOT_KINDS.has(node.kind)).map((node) => node.id));
+    const queue = [...needsReview];
+
+    // Các block công khai không dùng. Chúng không có cạnh nào từ file nhận
+    // "@theme" (quan hệ đó là "merchant thêm được", không phải lời gọi), nên
+    // mức `review` phải được lan sang chúng bằng tay, đúng một lần.
+    const publicBlocks = unused
+      .filter((node) => node.kind === "block" && !node.id.startsWith(PRIVATE_BLOCK_PREFIX))
+      .map((node) => node.id);
+    let publicBlocksReviewed = false;
+
+    for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
+      const callees = [...(calleesOf.get(id) ?? [])];
+
+      if (!publicBlocksReviewed && acceptors.includes(id)) {
+        publicBlocksReviewed = true;
+        callees.push(...publicBlocks);
+      }
+
+      for (const callee of callees) {
+        if (needsReview.has(callee)) continue;
+        needsReview.add(callee);
+        queue.push(callee);
+      }
     }
-  }
 
-  const neededElements = findNotLoaded(graph, new Map(unused.map((node) => [node.id, node.kind])));
+    const neededElements = this.findNotLoaded(new Map(unused.map((node) => [node.id, node.kind])));
 
-  const notLoaded: NotLoadedAsset[] = unused
-    .filter((node) => neededElements.has(node.id))
-    .map((node) => ({
-      id: node.id,
-      elements: neededElements.get(node.id) ?? [],
-      usedBy: callersOf.get(node.id) ?? [],
-    }));
-
-  // Những gì một asset như vậy gọi (ví dụ section nó tải) vẫn ở lại danh
-  // sách: chừng nào asset chưa được nạp thì chúng vẫn không được dùng.
-  const files: DeadFile[] = unused
-    .filter((node) => !neededElements.has(node.id))
-    .map((node) => {
-      const usedBy = callersOf.get(node.id) ?? [];
-
-      return {
+    const notLoaded: NotLoadedAsset[] = unused
+      .filter((node) => neededElements.has(node.id))
+      .map((node) => ({
         id: node.id,
-        kind: node.kind,
-        confidence: needsReview.has(node.id) ? "review" : "certain",
-        reason: usedBy.length === 0 ? "unreferenced" : "only_used_by_unused",
-        usedBy,
-      };
-    });
+        elements: neededElements.get(node.id) ?? [],
+        usedBy: callersOf.get(node.id) ?? [],
+      }));
 
-  // `unused` đã xếp theo id; sort của JavaScript giữ nguyên thứ tự đó giữa
-  // các phần tử cùng mức.
-  files.sort((a, b) => Number(a.confidence === "review") - Number(b.confidence === "review"));
+    // Những gì một asset như vậy gọi (ví dụ section nó tải) vẫn ở lại danh
+    // sách: chừng nào asset chưa được nạp thì chúng vẫn không được dùng.
+    const files: DeadFile[] = unused
+      .filter((node) => !neededElements.has(node.id))
+      .map((node) => {
+        const usedBy = callersOf.get(node.id) ?? [];
 
-  const review = files.filter((entry) => entry.confidence === "review").length;
+        return {
+          id: node.id,
+          kind: node.kind,
+          confidence: needsReview.has(node.id) ? "review" : "certain",
+          reason: usedBy.length === 0 ? "unreferenced" : "only_used_by_unused",
+          usedBy,
+        };
+      });
 
-  // Id của node khoá dịch là 't:<khoá>'; trả về phần khoá, như cách mã gọi nó.
-  const unusedTranslationKeys = graph
-    .nodesWithoutIncomingEdges("translation_key")
-    .map((node) => node.id.slice("t:".length));
+    // `unused` đã xếp theo id; sort của JavaScript giữ nguyên thứ tự đó giữa
+    // các phần tử cùng mức.
+    files.sort((a, b) => Number(a.confidence === "review") - Number(b.confidence === "review"));
 
-  // Id của setting không kèm tiền tố 'setting:'.
-  const unusedSettings = graph.nodesWithoutIncomingEdges("setting").map((node) => node.id.slice("setting:".length));
+    const review = files.filter((entry) => entry.confidence === "review").length;
 
-  return {
-    files,
-    certain: files.length - review,
-    review,
-    notLoaded,
-    acceptsThemeBlocks,
-    unusedTranslationKeys,
-    unusedSettings,
-  };
+    // Id của node khoá dịch là 't:<khoá>'; trả về phần khoá, như cách mã gọi nó.
+    const unusedTranslationKeys = this.graph
+      .nodesWithoutIncomingEdges("translation_key")
+      .map((node) => node.id.slice("t:".length));
+
+    // Id của setting không kèm tiền tố 'setting:'.
+    const unusedSettings = this.graph
+      .nodesWithoutIncomingEdges("setting")
+      .map((node) => node.id.slice("setting:".length));
+
+    return {
+      files,
+      certain: files.length - review,
+      review,
+      notLoaded,
+      acceptsThemeBlocks,
+      unusedTranslationKeys,
+      unusedSettings,
+    };
+  }
+
+  /**
+   * Tập node ĐANG DÙNG: mọi thứ tới được từ một điểm vào, đi xuôi qua mọi cạnh.
+   *
+   * Có ba loại điểm vào:
+   *   1. Loại trang. Mọi template đều nằm dưới một loại trang.
+   *   2. Section có preset: merchant thêm được vào template từ theme editor,
+   *      dù hiện chưa template nào dùng.
+   *   3. Theme block công khai (tên không bắt đầu bằng "_"), khi có ít nhất
+   *      một file ĐANG DÙNG nhận "@theme": merchant thêm được block vào file
+   *      đó. Loại này phụ thuộc chính tập đang dùng, nên tập được tính hai
+   *      lượt: lượt đầu từ loại 1 và 2; nếu trong đó có file nhận "@theme" thì
+   *      lượt hai thêm mọi block công khai. Không cần lượt thứ ba: lượt hai đã
+   *      thêm HẾT block công khai, file nhận "@theme" mới lọt vào cũng không
+   *      thêm được gì nữa.
+   */
+  private liveNodes(acceptors: readonly string[]): Set<string> {
+    const sections = new Set(this.graph.nodesOfKinds(["section"]).map((node) => node.id));
+    const presetSections = this.graph
+      .schemas()
+      .filter((schema) => schema.presets > 0 && sections.has(schema.file))
+      .map((schema) => schema.file);
+
+    const entryPoints = [...this.graph.nodesOfKinds(["page_type"]).map((node) => node.id), ...presetSections];
+    const live = this.graph.reachableFrom(entryPoints);
+
+    if (!acceptors.some((id) => live.has(id))) return live;
+
+    const publicBlocks = this.graph
+      .nodesOfKinds(["block"])
+      .map((node) => node.id)
+      .filter((id) => !id.startsWith(PRIVATE_BLOCK_PREFIX));
+
+    return this.graph.reachableFrom([...entryPoints, ...publicBlocks]);
+  }
+
+  /**
+   * Tìm các asset không dùng mà thật ra có nơi cần: nó định nghĩa một custom
+   * element, và một file ĐANG DÙNG viết thẻ đó.
+   *
+   * Một thẻ không được tính nếu còn một file đang dùng khác cũng định nghĩa
+   * nó: khi đó thẻ vẫn chạy nhờ file kia, và asset này đúng là bản thừa.
+   *
+   * Giới hạn: hàm chỉ xét asset mà KHÔNG trang nào nạp. Một asset được nạp ở
+   * trang này nhưng thẻ của nó được viết ở trang khác thì không bị phát hiện.
+   */
+  private findNotLoaded(unused: ReadonlyMap<string, NodeKind>): Map<string, NeededElement[]> {
+    const definersOf = new Map<string, string[]>();
+    for (const { name, role, file } of this.graph.elements()) {
+      if (role === "define") definersOf.set(name, [...(definersOf.get(name) ?? []), file]);
+    }
+
+    const result = new Map<string, NeededElement[]>();
+
+    for (const { definer, name, user } of this.graph.elementPairs()) {
+      if (unused.get(definer) !== "asset") continue;
+      // File dùng thẻ mà chính nó không trang nào dùng thì không ai thấy thẻ đó.
+      if (unused.has(user)) continue;
+      if ((definersOf.get(name) ?? []).some((file) => !unused.has(file))) continue;
+
+      const elements = result.get(definer) ?? [];
+      const last = elements.at(-1);
+
+      // Các dòng đã xếp theo (definer, name, user), nên cùng một thẻ đi liền nhau.
+      if (last !== undefined && last.name === name) last.usedBy.push(user);
+      else elements.push({ name, usedBy: [user] });
+
+      result.set(definer, elements);
+    }
+
+    return result;
+  }
 }

@@ -6,15 +6,13 @@ import { DatabaseSync } from 'node:sqlite';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { analyze } from '../src/analyze/analyze.service.js';
-import { deadCode } from '../src/graph/dead-code.service.js';
-import type { DeadCodeResult } from '../src/graph/dead-code.service.js';
 import { extractFile } from '../src/analyze/parsers/theme-file.parser.js';
 import { buildGraph } from '../src/analyze/graph-builder.js';
-import { overview } from '../src/graph/overview.service.js';
 import type { ElementRole, FileElement, RawRef, ThemeFile, ThemeGraph } from '../src/models/index.js';
-import { file, ref, removeTempTheme, saveToTempTheme } from './helpers.js';
+import { file, ref, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
 import { openGraph } from '../src/legacy.js';
 import { graphDbPath } from '../src/infrastructure/sqlite/schema.js';
+import type { DeadCodeResult } from '../src/graph/dto/index.js';
 
 const tempDirs: string[] = [];
 const tempThemes: string[] = [];
@@ -44,7 +42,7 @@ async function deadCodeWith(files: ThemeFile[], elements: FileElement[], refs: R
 
   const handle = openGraph(themeRoot);
   try {
-    return deadCode(handle);
+    return scopeOf(handle).deadCode.findUnused();
   } finally {
     handle.close();
   }
@@ -321,7 +319,7 @@ describe('deadCode — asset có nơi dùng thẻ mà không ai nạp', () => {
 
     const handle = openGraph(themeRoot);
     try {
-      const result = overview(handle);
+      const result = scopeOf(handle).overview.summarize();
 
       expect(result.unused).toMatchObject({ certain: 0, review: 1, notLoaded: 1 });
     } finally {
@@ -359,7 +357,7 @@ describe('analyze — custom element, từ file thật tới dead-code', () => {
 
     const handle = openGraph(themeRoot);
     try {
-      return deadCode(handle);
+      return scopeOf(handle).deadCode.findUnused();
     } finally {
       handle.close();
     }

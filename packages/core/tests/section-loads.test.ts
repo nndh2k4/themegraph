@@ -6,14 +6,10 @@ import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { analyze } from '../src/analyze/analyze.service.js';
-import { context } from '../src/graph/context.service.js';
-import { deadCode } from '../src/graph/dead-code.service.js';
 import { extractFile } from '../src/analyze/parsers/theme-file.parser.js';
-import { impact } from '../src/graph/impact.service.js';
-import { renderFlow } from '../src/graph/render-flow.service.js';
 import { resolveRef } from '../src/analyze/ref-resolver.js';
 import { themeStatus } from '../src/theme/status.js';
-import { file, ref } from './helpers.js';
+import { file, ref, scopeOf } from './helpers.js';
 import { openGraph } from '../src/legacy.js';
 import type { GraphRepository } from '../src/graph/graph.repository.js';
 import { graphDbPath } from '../src/infrastructure/sqlite/schema.js';
@@ -140,14 +136,14 @@ describe('section do JavaScript tải — hệ quả ở các truy vấn', () =>
 
   it('dead-code: section hết bị báo khi file .js tải nó nằm trên một trang', async () => {
     await loadFromLayout('cart.js');
-    const result = deadCode(await analyzed());
+    const result = scopeOf(await analyzed()).deadCode.findUnused();
 
     expect(result.files.map((entry) => entry.id)).not.toContain('sections/drawer.liquid');
     expect(result.files.map((entry) => entry.id)).not.toContain('assets/cart.js');
   });
 
   it('dead-code: file .js không ai nạp thì cả nó lẫn section vẫn bị báo, section ghi rõ ai gọi nó', async () => {
-    const result = deadCode(await analyzed());
+    const result = scopeOf(await analyzed()).deadCode.findUnused();
     const drawer = result.files.find((entry) => entry.id === 'sections/drawer.liquid');
 
     expect(drawer).toEqual({
@@ -162,7 +158,7 @@ describe('section do JavaScript tải — hệ quả ở các truy vấn', () =>
 
   it('render-flow: section hiện trong cây của trang, dưới file .js, ở dạng có điều kiện', async () => {
     await loadFromLayout('cart.js');
-    const result = renderFlow(await analyzed(), 'index');
+    const result = scopeOf(await analyzed()).renderFlow.buildFlow('index');
     const drawer = result.files.find((entry) => entry.id === 'sections/drawer.liquid');
 
     // page -> template -> layout -> assets/cart.js -> section
@@ -175,7 +171,7 @@ describe('section do JavaScript tải — hệ quả ở các truy vấn', () =>
     await write('sections/drawer.liquid', "{% render 'drawer-only' %}");
     await loadFromLayout('cart.js');
 
-    const result = impact(await analyzed(), 'snippets/drawer-only.liquid');
+    const result = scopeOf(await analyzed()).impact.findImpact('snippets/drawer-only.liquid');
 
     expect(result.pages.map((page) => [page.id, page.certain, page.via])).toContainEqual([
       'page:index',
@@ -198,7 +194,7 @@ describe('section do JavaScript tải — hệ quả ở các truy vấn', () =>
     await write('sections/drawer.liquid', "{% render 'both' %}");
     await loadFromLayout('cart.js');
 
-    const result = impact(await analyzed(), 'snippets/both.liquid');
+    const result = scopeOf(await analyzed()).impact.findImpact('snippets/both.liquid');
     const byPage = Object.fromEntries(result.pages.map((page) => [page.id, page.scriptOnly]));
 
     expect(byPage['page:gift_card']).toBe(false);
@@ -215,7 +211,7 @@ describe('section do JavaScript tải — hệ quả ở các truy vấn', () =>
     await write('sections/drawer.liquid', "{{ 'only.here' | t }}");
     await loadFromLayout('cart.js');
 
-    const result = impact(await analyzed(), 't:only.here');
+    const result = scopeOf(await analyzed()).impact.findImpact('t:only.here');
     const byPage = Object.fromEntries(result.pages.map((page) => [page.id, page.scriptOnly]));
 
     expect(byPage['page:gift_card']).toBe(false);
@@ -223,7 +219,7 @@ describe('section do JavaScript tải — hệ quả ở các truy vấn', () =>
   });
 
   it('context: file .js hiện trong "được gọi bởi" của section, kèm số dòng và loại cạnh', async () => {
-    const result = context(await analyzed(), 'sections/drawer.liquid');
+    const result = scopeOf(await analyzed()).context.describe('sections/drawer.liquid');
 
     expect(result.usedBy).toEqual([
       { id: 'assets/cart.js', kind: 'asset', type: 'LOADS_SECTION', conditional: true, count: 1, sources: 'js', lines: [1] },

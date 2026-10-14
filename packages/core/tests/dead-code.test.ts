@@ -1,11 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { deadCode } from '../src/graph/dead-code.service.js';
-import type { DeadCodeResult } from '../src/graph/dead-code.service.js';
 import { buildGraph } from '../src/analyze/graph-builder.js';
 import type { FileSchema, RawRef, ThemeFile, ThemeGraph } from '../src/models/index.js';
-import { file, QUERY_SCHEMAS, queryGraph, ref, removeTempTheme, saveToTempTheme } from './helpers.js';
+import { QUERY_SCHEMAS, file, queryGraph, ref, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
 import { openGraph } from '../src/legacy.js';
+import type { DeadCodeResult } from '../src/graph/dto/index.js';
 
 const tempThemes: string[] = [];
 
@@ -20,7 +19,7 @@ async function deadCodeOf(graph: ThemeGraph): Promise<DeadCodeResult> {
 
   const handle = openGraph(themeRoot);
   try {
-    return deadCode(handle);
+    return scopeOf(handle).deadCode.findUnused();
   } finally {
     handle.close();
   }

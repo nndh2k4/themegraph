@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { context } from '../src/graph/context.service.js';
-import { queryGraph, removeTempTheme, saveToTempTheme } from './helpers.js';
+import { queryGraph, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
 import { NodeNotFoundError } from '../src/common/errors.js';
 import { openGraph } from '../src/legacy.js';
 import type { GraphRepository } from '../src/graph/graph.repository.js';
@@ -21,11 +20,11 @@ afterEach(async () => {
 
 describe('context', () => {
   it('trả về node đang hỏi', () => {
-    expect(context(graph, 'snippets/card.liquid').node).toEqual({ id: 'snippets/card.liquid', kind: 'snippet' });
+    expect(scopeOf(graph).context.describe('snippets/card.liquid').node).toEqual({ id: 'snippets/card.liquid', kind: 'snippet' });
   });
 
   it('liệt kê ai gọi file này, kèm dòng gọi trong file gọi', () => {
-    const { usedBy } = context(graph, 'snippets/card.liquid');
+    const { usedBy } = scopeOf(graph).context.describe('snippets/card.liquid');
 
     expect(usedBy).toEqual([
       {
@@ -50,7 +49,7 @@ describe('context', () => {
   });
 
   it('liệt kê file này gọi ai, gộp các lời gọi trùng và giữ đủ số dòng', () => {
-    const { uses } = context(graph, 'snippets/card.liquid');
+    const { uses } = scopeOf(graph).context.describe('snippets/card.liquid');
 
     expect(uses).toEqual([
       {
@@ -66,7 +65,7 @@ describe('context', () => {
   });
 
   it('không có số dòng cho quan hệ lấy từ JSON hoặc suy từ quy ước', () => {
-    const { usedBy, uses } = context(graph, 'templates/product.json');
+    const { usedBy, uses } = scopeOf(graph).context.describe('templates/product.json');
 
     expect(usedBy.map((l) => [l.id, l.type, l.sources, l.lines])).toEqual([
       ['page:product', 'USES_TEMPLATE', 'convention', []],
@@ -78,7 +77,7 @@ describe('context', () => {
   });
 
   it('không lẫn số dòng của lời gọi tới file khác', () => {
-    const { uses } = context(graph, 'sections/main-product.liquid');
+    const { uses } = scopeOf(graph).context.describe('sections/main-product.liquid');
 
     expect(uses.map((l) => [l.id, l.sources, l.conditional, l.lines])).toEqual([
       ['blocks/_used.liquid', 'schema', true, [20]],
@@ -87,7 +86,7 @@ describe('context', () => {
   });
 
   it('liệt kê tham chiếu hỏng của file này', () => {
-    const { broken } = context(graph, 'sections/main-product.liquid');
+    const { broken } = scopeOf(graph).context.describe('sections/main-product.liquid');
 
     expect(broken).toEqual([
       { name: 'da-xoa', kind: 'render', line: 9, conditional: false, expected: 'snippets/da-xoa.liquid' },
@@ -95,11 +94,11 @@ describe('context', () => {
   });
 
   it('trả mảng rỗng khi file không có tham chiếu hỏng', () => {
-    expect(context(graph, 'snippets/card.liquid').broken).toEqual([]);
+    expect(scopeOf(graph).context.describe('snippets/card.liquid').broken).toEqual([]);
   });
 
   it('cho biết file thuộc những trang nào, trên tổng số trang', () => {
-    const result = context(graph, 'snippets/card.liquid');
+    const result = scopeOf(graph).context.describe('snippets/card.liquid');
 
     expect(result.pages.map((p) => [p.id, p.certain])).toEqual([
       ['page:collection', false],
@@ -109,7 +108,7 @@ describe('context', () => {
   });
 
   it('tách khoá dịch khỏi danh sách file được gọi', () => {
-    const result = context(graph, 'snippets/card.liquid');
+    const result = scopeOf(graph).context.describe('snippets/card.liquid');
 
     expect(result.uses.map((l) => l.id)).toEqual(['snippets/price.liquid']);
     expect(result.translations).toEqual([
@@ -126,11 +125,11 @@ describe('context', () => {
   });
 
   it('trả mảng khoá dịch rỗng cho file không dùng khoá nào', () => {
-    expect(context(graph, 'snippets/price.liquid').translations).toEqual([]);
+    expect(scopeOf(graph).context.describe('snippets/price.liquid').translations).toEqual([]);
   });
 
   it('cho biết file nào dùng một khoá dịch', () => {
-    const result = context(graph, 't:product.title');
+    const result = scopeOf(graph).context.describe('t:product.title');
 
     expect(result.node).toEqual({ id: 't:product.title', kind: 'translation_key' });
     expect(result.usedBy.map((l) => [l.id, l.type, l.conditional, l.lines])).toEqual([
@@ -141,7 +140,7 @@ describe('context', () => {
   });
 
   it('tách setting được đọc khỏi danh sách file, và cho biết setting thuộc section nào', () => {
-    const result = context(graph, 'snippets/card.liquid');
+    const result = scopeOf(graph).context.describe('snippets/card.liquid');
 
     // card đọc section.settings.title; trong hai section gọi nó chỉ
     // main-product khai setting này.
@@ -160,14 +159,14 @@ describe('context', () => {
   });
 
   it('không lẫn setting vào danh sách khoá dịch và ngược lại', () => {
-    const result = context(graph, 'sections/main-product.liquid');
+    const result = scopeOf(graph).context.describe('sections/main-product.liquid');
 
     expect(result.translations.map((l) => l.id)).toEqual(['t:product.title']);
     expect(result.settings.map((l) => l.id)).toEqual(['setting:sections/main-product.liquid#section.title']);
   });
 
   it('cho biết file nào đọc một setting', () => {
-    const result = context(graph, 'setting:sections/main-product.liquid#section.title');
+    const result = scopeOf(graph).context.describe('setting:sections/main-product.liquid#section.title');
 
     expect(result.node.kind).toBe('setting');
     expect(result.usedBy.map((l) => [l.id, l.lines])).toEqual([
@@ -178,7 +177,7 @@ describe('context', () => {
   });
 
   it('hiện cạnh tự trỏ ở cả hai phía', () => {
-    const { usedBy, uses } = context(graph, 'snippets/menu.liquid');
+    const { usedBy, uses } = scopeOf(graph).context.describe('snippets/menu.liquid');
 
     expect(usedBy.map((l) => [l.id, l.lines])).toEqual([
       ['sections/header.liquid', [3]],
@@ -188,7 +187,7 @@ describe('context', () => {
   });
 
   it('trả các danh sách rỗng cho file không dính tới ai', () => {
-    const result = context(graph, 'assets/unused.png');
+    const result = scopeOf(graph).context.describe('assets/unused.png');
 
     expect(result.usedBy).toEqual([]);
     expect(result.uses).toEqual([]);
@@ -196,7 +195,7 @@ describe('context', () => {
   });
 
   it('chạy được với node loại trang', () => {
-    const result = context(graph, 'product');
+    const result = scopeOf(graph).context.describe('product');
 
     expect(result.node.id).toBe('page:product');
     expect(result.usedBy).toEqual([]);
@@ -207,12 +206,12 @@ describe('context', () => {
   });
 
   it('hiểu đường dẫn tương đối theo baseDir', () => {
-    const result = context(graph, 'card.liquid', { baseDir: `${themeRoot}/snippets` });
+    const result = scopeOf(graph).context.describe('card.liquid', { baseDir: `${themeRoot}/snippets` });
 
     expect(result.node.id).toBe('snippets/card.liquid');
   });
 
   it('ném NodeNotFoundError cho tên không có trong đồ thị', () => {
-    expect(() => context(graph, 'snippets/khong-co.liquid')).toThrow(NodeNotFoundError);
+    expect(() => scopeOf(graph).context.describe('snippets/khong-co.liquid')).toThrow(NodeNotFoundError);
   });
 });

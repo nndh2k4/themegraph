@@ -31,14 +31,27 @@ export { GraphNotReadyError, NodeNotFoundError, ThemeGraphError } from './common
 export type { GraphNotReadyReason } from './common/errors.js';
 
 // API dạng hàm cũ, giữ tạm cho các lớp vỏ.
-export { findThemeRoot, openGraph, saveGraph } from './legacy.js';
+export {
+  context,
+  deadCode,
+  exportGraph,
+  findNode,
+  findThemeRoot,
+  impact,
+  openGraph,
+  overview,
+  renderFlow,
+  saveGraph,
+  search,
+  verify,
+} from './legacy.js';
 export type { SaveGraphOptions } from './legacy.js';
 
 // Điểm nối của lõi: thư mục theme -> graph.db + thống kê.
 export { analyze } from './analyze/analyze.service.js';
 export type { AnalyzeError, AnalyzeResult, AnalyzeStats } from './analyze/analyze.service.js';
 
-// Đọc đồ thị: cổng đọc của một theme, và tìm node theo tên người dùng gõ.
+// Module graph: cổng đọc đồ thị, các service truy vấn và kết quả của chúng.
 export type {
   Direction,
   ElementPair,
@@ -50,46 +63,20 @@ export type {
   Reached,
   ReferenceCount,
 } from './graph/graph.repository.js';
-export { findNode } from './graph/node-finder.service.js';
-export type { FindNodeOptions } from './graph/node-finder.service.js';
-
-// Truy vấn: sửa file này thì những gì bị ảnh hưởng.
-export { impact } from './graph/impact.service.js';
-export type { ImpactPage, ImpactResult } from './graph/impact.service.js';
-
-// Truy vấn: trang này render những file nào.
-export { renderFlow } from './graph/render-flow.service.js';
-export type { FlowNode, RenderFlowOptions, RenderFlowResult } from './graph/render-flow.service.js';
-
-// Truy vấn: trong theme có node nào tên như thế này.
-export { DEFAULT_SEARCH_LIMIT, search } from './graph/search.service.js';
-export type { SearchHit, SearchMatch, SearchOptions, SearchResult } from './graph/search.service.js';
-
-// Truy vấn: file này là gì, ai gọi nó, nó gọi ai.
-export { context } from './graph/context.service.js';
-export type { BrokenRef, ContextLink, ContextResult } from './graph/context.service.js';
-
-// Truy vấn: file nào không còn được dùng.
-export { deadCode } from './graph/dead-code.service.js';
-export type {
-  DeadCodeResult,
-  DeadConfidence,
-  DeadFile,
-  DeadReason,
-  NeededElement,
-  NotLoadedAsset,
-} from './graph/dead-code.service.js';
+export type * from './graph/dto/index.js';
+export { GraphModule } from './graph/graph.module.js';
+export { GraphScope, GraphScopeFactory } from './graph/graph-scope.js';
+export { NodeFinder } from './graph/node-finder.service.js';
+export { DEFAULT_SEARCH_LIMIT, SearchService } from './graph/search.service.js';
+export { ImpactService } from './graph/impact.service.js';
+export { RenderFlowService } from './graph/render-flow.service.js';
+export { ContextService } from './graph/context.service.js';
+export { DeadCodeService } from './graph/dead-code.service.js';
+export { OverviewService } from './graph/overview.service.js';
+export { EXPORT_GROUPS, ExportGraphService } from './graph/export-graph.service.js';
+export { VerifyService } from './graph/verify.service.js';
+export { bfsTraverse, diffTraversals } from './graph/graph-algorithms.js';
 export { extractElements } from './analyze/parsers/custom-elements.parser.js';
-
-// Tổng quan của cả theme, và xuất đồ thị cho giao diện vẽ.
-export { overview } from './graph/overview.service.js';
-export type { OverviewResult, UsageCount } from './graph/overview.service.js';
-export { EXPORT_GROUPS, exportGraph } from './graph/export-graph.service.js';
-export type { ExportedGraph, ExportGraphOptions, ExportGroup } from './graph/export-graph.service.js';
-
-// Kiểm chứng: đối chiếu truy vấn SQL với phép duyệt bằng JavaScript.
-export { bfsTraverse, diffTraversals, verify } from './graph/verify.service.js';
-export type { PlainEdge, Reach, VerifyMismatch, VerifyResult } from './graph/verify.service.js';
 
 // Sổ đăng ký toàn cục: những theme nào đã được phân tích, nằm ở đâu.
 export { findRegisteredTheme, listThemes, readRegistry, registerTheme, registryDir, registryPath, unregisterTheme } from './infrastructure/registry/json-theme-registry.repository.js';

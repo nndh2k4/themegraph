@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { DEFAULT_SEARCH_LIMIT, search } from '../src/graph/search.service.js';
-import type { SearchHit } from '../src/graph/search.service.js';
+import { DEFAULT_SEARCH_LIMIT } from '../src/graph/search.service.js';
 import { buildGraph } from '../src/analyze/graph-builder.js';
 import { NODE_KINDS } from '../src/models/index.js';
 import type { NodeKind } from '../src/models/index.js';
-import { file, queryGraph, removeTempTheme, saveToTempTheme } from './helpers.js';
+import { file, queryGraph, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
 import { openGraph } from '../src/legacy.js';
 import type { GraphRepository } from '../src/graph/graph.repository.js';
+import type { SearchHit } from '../src/graph/dto/index.js';
 
 let themeRoot: string;
 let graph: GraphRepository;
@@ -30,7 +30,7 @@ describe('search', () => {
     // "cart": trang cart và section cart trùng tên; templates/cart.json cũng
     // trùng tên. Không node nào khác chứa "cart". Cùng mức khớp thì id ngắn
     // đứng trước: templates/cart.json ngắn hơn sections/cart.liquid một ký tự.
-    expect(rows(search(graph, 'cart').hits)).toEqual([
+    expect(rows(scopeOf(graph).search.search('cart').hits)).toEqual([
       ['page:cart', 'exact'],
       ['templates/cart.json', 'exact'],
       ['sections/cart.liquid', 'exact'],
@@ -39,7 +39,7 @@ describe('search', () => {
     // "product": trùng tên (trang, hai template), bắt đầu bằng (khoá dịch
     // product.price, product.title), nằm giữa tên (main-product), và chỉ nằm
     // trong đường dẫn (setting của section main-product).
-    expect(rows(search(graph, 'product').hits)).toEqual([
+    expect(rows(scopeOf(graph).search.search('product').hits)).toEqual([
       ['page:product', 'exact'],
       ['templates/product.json', 'exact'],
       ['templates/product.alt.json', 'exact'],
@@ -51,13 +51,13 @@ describe('search', () => {
   });
 
   it('trong cùng mức khớp thì id ngắn trước, rồi theo bảng chữ cái', () => {
-    expect(rows(search(graph, 'orphan').hits)).toEqual([
+    expect(rows(scopeOf(graph).search.search('orphan').hits)).toEqual([
       ['snippets/orphan.liquid', 'exact'],
       ['snippets/orphan-child.liquid', 'prefix'],
     ]);
 
     // Hai id dài bằng nhau: so theo chữ cái.
-    expect(search(graph, 'snippets/', { limit: 2 }).hits.map((hit) => hit.id)).toEqual([
+    expect(scopeOf(graph).search.search('snippets/', { limit: 2 }).hits.map((hit) => hit.id)).toEqual([
       'snippets/a.liquid',
       'snippets/b.liquid',
     ]);
@@ -72,7 +72,7 @@ describe('search', () => {
     );
     const handle = openGraph(root);
     try {
-      expect(rows(search(handle, 'card').hits)).toEqual([
+      expect(rows(scopeOf(handle).search.search('card').hits)).toEqual([
         ['snippets/card-product-with-a-long-name.liquid', 'prefix'],
         ['t:card_a', 'prefix'],
         ['setting:settings.card_b', 'prefix'],
@@ -84,14 +84,14 @@ describe('search', () => {
   });
 
   it('không phân biệt hoa thường, ở cả từ khoá lẫn id', async () => {
-    expect(search(graph, 'CART').hits.map((hit) => hit.id)).toContain('sections/cart.liquid');
+    expect(scopeOf(graph).search.search('CART').hits.map((hit) => hit.id)).toContain('sections/cart.liquid');
 
     const upperRoot = await saveToTempTheme(buildGraph([file('snippets/Icon-Cart.liquid', 'snippet')], [], {}));
     const upper = openGraph(upperRoot);
     try {
-      expect(rows(search(upper, 'icon-cart').hits)).toEqual([['snippets/Icon-Cart.liquid', 'exact']]);
+      expect(rows(scopeOf(upper).search.search('icon-cart').hits)).toEqual([['snippets/Icon-Cart.liquid', 'exact']]);
       // Cả khi từ khoá chỉ khớp ở phần đường dẫn (ở đây là tên kèm đuôi).
-      expect(rows(search(upper, 'cart.LIQUID').hits)).toEqual([['snippets/Icon-Cart.liquid', 'path']]);
+      expect(rows(scopeOf(upper).search.search('cart.LIQUID').hits)).toEqual([['snippets/Icon-Cart.liquid', 'path']]);
     } finally {
       upper.close();
       await removeTempTheme(upperRoot);
@@ -101,36 +101,36 @@ describe('search', () => {
   it('nhiều từ: mọi từ phải có mặt, mức khớp là mức lỏng nhất', () => {
     // "main" bắt đầu tên main-product, "product" nằm giữa tên -> mức "name".
     // Setting của section đó có cả hai từ nhưng chỉ trong đường dẫn -> "path".
-    expect(rows(search(graph, 'product  main').hits)).toEqual([
+    expect(rows(scopeOf(graph).search.search('product  main').hits)).toEqual([
       ['sections/main-product.liquid', 'name'],
       ['setting:sections/main-product.liquid#section.title', 'path'],
     ]);
 
-    expect(search(graph, 'product khong-co').hits).toEqual([]);
+    expect(scopeOf(graph).search.search('product khong-co').hits).toEqual([]);
   });
 
   it('tìm được khoá dịch và setting theo tên của chúng', () => {
-    expect(rows(search(graph, 'general.unused').hits)).toEqual([['t:general.unused', 'exact']]);
+    expect(rows(scopeOf(graph).search.search('general.unused').hits)).toEqual([['t:general.unused', 'exact']]);
 
-    expect(rows(search(graph, 'accent').hits)).toEqual([['setting:settings.accent', 'exact']]);
-    expect(rows(search(graph, 'title', { kinds: ['setting'] }).hits)).toEqual([
+    expect(rows(scopeOf(graph).search.search('accent').hits)).toEqual([['setting:settings.accent', 'exact']]);
+    expect(rows(scopeOf(graph).search.search('title', { kinds: ['setting'] }).hits)).toEqual([
       ['setting:sections/main-product.liquid#section.title', 'exact'],
     ]);
   });
 
   it('lọc theo loại node', () => {
-    expect(search(graph, 'product', { kinds: ['template', 'section'] }).hits.map((hit) => hit.id)).toEqual([
+    expect(scopeOf(graph).search.search('product', { kinds: ['template', 'section'] }).hits.map((hit) => hit.id)).toEqual([
       'templates/product.json',
       'templates/product.alt.json',
       'sections/main-product.liquid',
     ]);
 
     // Mảng rỗng nghĩa là không lọc.
-    expect(search(graph, 'cart', { kinds: [] }).total).toBe(3);
+    expect(scopeOf(graph).search.search('cart', { kinds: [] }).total).toBe(3);
   });
 
   it('từ khoá rỗng liệt kê mọi node của loại được chọn', () => {
-    const result = search(graph, '  ', { kinds: ['page_type'] });
+    const result = scopeOf(graph).search.search('  ', { kinds: ['page_type'] });
 
     expect(rows(result.hits)).toEqual([
       ['page:cart', 'path'],
@@ -139,33 +139,33 @@ describe('search', () => {
     ]);
 
     // Không lọc loại: mọi node, theo bảng chữ cái của id.
-    const all = search(graph, '', { limit: 1000 }).hits.map((hit) => hit.id);
+    const all = scopeOf(graph).search.search('', { limit: 1000 }).hits.map((hit) => hit.id);
     expect(all).toEqual([...all].sort());
     expect(all).toContain('snippets/card.liquid');
     expect(all).toContain('t:product.price');
   });
 
   it('cắt theo limit nhưng vẫn đếm đủ số node khớp', () => {
-    const all = search(graph, '', { limit: 1000 });
+    const all = scopeOf(graph).search.search('', { limit: 1000 });
     expect(all.hits.length).toBe(all.total);
     expect(all.total).toBeGreaterThan(DEFAULT_SEARCH_LIMIT);
 
-    const byDefault = search(graph, '');
+    const byDefault = scopeOf(graph).search.search('');
     expect(byDefault.hits.length).toBe(DEFAULT_SEARCH_LIMIT);
     expect(byDefault.total).toBe(all.total);
     // Phần giữ lại là phần đầu của danh sách đã xếp hạng.
     expect(byDefault.hits).toEqual(all.hits.slice(0, DEFAULT_SEARCH_LIMIT));
 
-    expect(search(graph, 'product', { limit: 2 }).hits.map((hit) => hit.id)).toEqual([
+    expect(scopeOf(graph).search.search('product', { limit: 2 }).hits.map((hit) => hit.id)).toEqual([
       'page:product',
       'templates/product.json',
     ]);
-    expect(search(graph, 'product', { limit: 0 }).hits).toEqual([]);
-    expect(search(graph, 'product', { limit: -3 }).hits).toEqual([]);
+    expect(scopeOf(graph).search.search('product', { limit: 0 }).hits).toEqual([]);
+    expect(scopeOf(graph).search.search('product', { limit: -3 }).hits).toEqual([]);
   });
 
   it('trả lại từ khoá nguyên văn và danh sách rỗng khi không có gì khớp', () => {
-    expect(search(graph, 'Khong-Co-Gi')).toEqual({ query: 'Khong-Co-Gi', hits: [], total: 0 });
+    expect(scopeOf(graph).search.search('Khong-Co-Gi')).toEqual({ query: 'Khong-Co-Gi', hits: [], total: 0 });
   });
 
   it('tên của file nhiều đuôi và file trong thư mục con là phần trước dấu chấm đầu tiên', async () => {
@@ -178,12 +178,12 @@ describe('search', () => {
     );
     const handle = openGraph(root);
     try {
-      expect(rows(search(handle, 'login', { kinds: ['template'] }).hits)).toEqual([
+      expect(rows(scopeOf(handle).search.search('login', { kinds: ['template'] }).hits)).toEqual([
         ['templates/customers/login.json', 'exact'],
       ]);
-      expect(rows(search(handle, 'theme', { kinds: ['asset'] }).hits)).toEqual([['assets/theme.min.js', 'exact']]);
+      expect(rows(scopeOf(handle).search.search('theme', { kinds: ['asset'] }).hits)).toEqual([['assets/theme.min.js', 'exact']]);
       // "customers" chỉ là tên thư mục.
-      expect(rows(search(handle, 'customers', { kinds: ['template'] }).hits)).toEqual([
+      expect(rows(scopeOf(handle).search.search('customers', { kinds: ['template'] }).hits)).toEqual([
         ['templates/customers/login.json', 'path'],
       ]);
     } finally {

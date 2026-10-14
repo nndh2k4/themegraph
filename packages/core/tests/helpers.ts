@@ -3,6 +3,8 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { buildGraph } from '../src/analyze/graph-builder.js';
+import { GraphScope } from '../src/graph/graph-scope.js';
+import type { GraphRepository } from '../src/graph/graph.repository.js';
 import type { FileKind, FileSchema, RawRef, RefKind, RefSource, ThemeFile, ThemeGraph } from '../src/models/index.js';
 import { saveGraph } from '../src/legacy.js';
 
@@ -157,3 +159,9 @@ export async function saveToTempTheme(graph: ThemeGraph): Promise<string> {
 export async function removeTempTheme(themeRoot: string): Promise<void> {
   await rm(themeRoot, { recursive: true, force: true });
 }
+
+/**
+ * Các service truy vấn trên một đồ thị đã mở, như lớp vỏ dùng chúng:
+ * scopeOf(graph).impact.findImpact('snippets/card.liquid').
+ */
+export const scopeOf = (graph: GraphRepository): GraphScope => new GraphScope(graph);

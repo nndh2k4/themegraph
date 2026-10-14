@@ -1,11 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { renderFlow } from '../src/graph/render-flow.service.js';
-import type { FlowNode } from '../src/graph/render-flow.service.js';
-import { queryGraph, removeTempTheme, saveToTempTheme } from './helpers.js';
+import { queryGraph, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
 import { NodeNotFoundError } from '../src/common/errors.js';
 import { openGraph } from '../src/legacy.js';
 import type { GraphRepository } from '../src/graph/graph.repository.js';
+import type { FlowNode } from '../src/graph/dto/index.js';
 
 let themeRoot: string;
 let graph: GraphRepository;
@@ -39,7 +38,7 @@ function flatten(node: FlowNode): FlowNode[] {
 
 describe('renderFlow — danh sách file', () => {
   it('liệt kê mọi file một trang kéo theo, kèm độ sâu và mức chắc chắn', () => {
-    const result = renderFlow(graph, 'page:product');
+    const result = scopeOf(graph).renderFlow.buildFlow('page:product');
 
     expect(result.root).toEqual({ id: 'page:product', kind: 'page_type' });
     expect(result.files.map((f) => [f.id, f.depth, f.certain])).toEqual([
@@ -61,7 +60,7 @@ describe('renderFlow — danh sách file', () => {
   it('không kể khoá dịch: chỉ đi theo cạnh nối file với file', () => {
     // card và main-product đều dùng khoá dịch, nhưng danh sách ở test trên
     // không có node t: nào.
-    const result = renderFlow(graph, 'page:product');
+    const result = scopeOf(graph).renderFlow.buildFlow('page:product');
     const inTree = flatten(result.tree).map((n) => n.id);
 
     expect(result.files.some((f) => f.kind === 'translation_key' || f.kind === 'setting')).toBe(false);
@@ -69,13 +68,13 @@ describe('renderFlow — danh sách file', () => {
   });
 
   it('không kể node gốc trong danh sách file', () => {
-    const result = renderFlow(graph, 'page:cart');
+    const result = scopeOf(graph).renderFlow.buildFlow('page:cart');
 
     expect(result.files.map((f) => f.id)).not.toContain('page:cart');
   });
 
   it('không liệt kê file của trang khác', () => {
-    const ids = renderFlow(graph, 'page:cart').files.map((f) => f.id);
+    const ids = scopeOf(graph).renderFlow.buildFlow('page:cart').files.map((f) => f.id);
 
     expect(ids).toContain('sections/cart.liquid');
     expect(ids).not.toContain('snippets/card.liquid');
@@ -83,17 +82,17 @@ describe('renderFlow — danh sách file', () => {
   });
 
   it('hiểu tên trang viết không có tiền tố page:', () => {
-    expect(renderFlow(graph, 'cart').root.id).toBe('page:cart');
+    expect(scopeOf(graph).renderFlow.buildFlow('cart').root.id).toBe('page:cart');
   });
 
   it('hiểu đường dẫn tương đối theo baseDir', () => {
-    const result = renderFlow(graph, 'cart.liquid', { baseDir: `${themeRoot}/sections` });
+    const result = scopeOf(graph).renderFlow.buildFlow('cart.liquid', { baseDir: `${themeRoot}/sections` });
 
     expect(result.root.id).toBe('sections/cart.liquid');
   });
 
   it('chạy được từ một file bất kỳ, không chỉ từ trang', () => {
-    const result = renderFlow(graph, 'sections/main-product.liquid');
+    const result = scopeOf(graph).renderFlow.buildFlow('sections/main-product.liquid');
 
     expect(result.files.map((f) => [f.id, f.depth])).toEqual([
       ['blocks/_used.liquid', 1],
@@ -103,13 +102,13 @@ describe('renderFlow — danh sách file', () => {
   });
 
   it('ném NodeNotFoundError cho tên không có trong đồ thị', () => {
-    expect(() => renderFlow(graph, 'page:khong-co')).toThrow(NodeNotFoundError);
+    expect(() => scopeOf(graph).renderFlow.buildFlow('page:khong-co')).toThrow(NodeNotFoundError);
   });
 });
 
 describe('renderFlow — cây', () => {
   it('dựng cây theo thứ tự: cạnh không điều kiện trước, rồi theo tên', () => {
-    const { tree } = renderFlow(graph, 'page:product');
+    const { tree } = scopeOf(graph).renderFlow.buildFlow('page:product');
 
     expect(draw(tree)).toEqual([
       'page:product',
@@ -131,7 +130,7 @@ describe('renderFlow — cây', () => {
   });
 
   it('ghi loại cạnh, số lời gọi và kind trên từng node của cây', () => {
-    const nodes = flatten(renderFlow(graph, 'page:product').tree);
+    const nodes = flatten(scopeOf(graph).renderFlow.buildFlow('page:product').tree);
     const pick = (id: string) => nodes.find((n) => n.id === id);
 
     expect(pick('page:product')).toMatchObject({ kind: 'page_type', edge: null, count: 0, depth: 0 });
@@ -143,7 +142,7 @@ describe('renderFlow — cây', () => {
   });
 
   it('mở mỗi node đúng một lần, ở đúng độ sâu nhỏ nhất của nó', () => {
-    const { tree, files } = renderFlow(graph, 'page:product');
+    const { tree, files } = scopeOf(graph).renderFlow.buildFlow('page:product');
     const expanded = flatten(tree).filter((n) => !n.repeated && n.id !== tree.id);
 
     // Tập node được mở trong cây trùng khít với danh sách file, cả độ sâu.
@@ -151,14 +150,14 @@ describe('renderFlow — cây', () => {
   });
 
   it('không mở lại node đã liệt kê: nhánh lặp không có con', () => {
-    const repeated = flatten(renderFlow(graph, 'page:product').tree).filter((n) => n.repeated);
+    const repeated = flatten(scopeOf(graph).renderFlow.buildFlow('page:product').tree).filter((n) => n.repeated);
 
     expect(repeated.map((n) => n.id)).toEqual(['snippets/menu.liquid', 'layout/theme.liquid']);
     expect(repeated.every((n) => n.children.length === 0)).toBe(true);
   });
 
   it('dừng được khi đồ thị có vòng', () => {
-    const { tree } = renderFlow(graph, 'sections/cart.liquid');
+    const { tree } = scopeOf(graph).renderFlow.buildFlow('sections/cart.liquid');
 
     // a -> b -> a: lần gặp lại a được đánh dấu thay vì đi tiếp.
     expect(draw(tree)).toEqual([
@@ -170,7 +169,7 @@ describe('renderFlow — cây', () => {
   });
 
   it('trả cây chỉ có gốc cho node không gọi gì', () => {
-    const result = renderFlow(graph, 'assets/unused.png');
+    const result = scopeOf(graph).renderFlow.buildFlow('assets/unused.png');
 
     expect(result.files).toEqual([]);
     expect(result.tree.children).toEqual([]);
@@ -178,7 +177,7 @@ describe('renderFlow — cây', () => {
   });
 
   it('đánh dấu lặp khi vòng quay về chính node gốc', () => {
-    const { tree } = renderFlow(graph, 'snippets/a.liquid');
+    const { tree } = scopeOf(graph).renderFlow.buildFlow('snippets/a.liquid');
 
     expect(draw(tree)).toEqual(['snippets/a.liquid', '  snippets/b.liquid', '    snippets/a.liquid ? ^']);
   });
@@ -194,14 +193,14 @@ describe('renderFlow — giới hạn độ sâu', () => {
   }
 
   it('không nêu maxDepth thì cây đi tới hết và không node nào giấu con', () => {
-    const result = renderFlow(graph, 'page:product');
+    const result = scopeOf(graph).renderFlow.buildFlow('page:product');
 
     expect(result.maxDepth).toBeNull();
     expect(flatten(result.tree).every((node) => node.hidden === 0)).toBe(true);
   });
 
   it('dừng ở tầng maxDepth và đếm số file con bị giấu của từng node', () => {
-    const result = renderFlow(graph, 'page:product', { maxDepth: 2 });
+    const result = scopeOf(graph).renderFlow.buildFlow('page:product', { maxDepth: 2 });
 
     expect(result.maxDepth).toBe(2);
     // theme.liquid gọi base.css và header-group; main-product gọi card và
@@ -219,7 +218,7 @@ describe('renderFlow — giới hạn độ sâu', () => {
   });
 
   it('maxDepth 1 chỉ để lại các con trực tiếp của gốc', () => {
-    expect(drawCut(renderFlow(graph, 'page:product', { maxDepth: 1 }).tree)).toEqual([
+    expect(drawCut(scopeOf(graph).renderFlow.buildFlow('page:product', { maxDepth: 1 }).tree)).toEqual([
       'page:product',
       '  templates/product.json +2',
       '  templates/product.alt.json +2',
@@ -227,17 +226,17 @@ describe('renderFlow — giới hạn độ sâu', () => {
   });
 
   it('danh sách files vẫn đầy đủ dù cây bị cắt', () => {
-    const full = renderFlow(graph, 'page:product');
-    const cut = renderFlow(graph, 'page:product', { maxDepth: 1 });
+    const full = scopeOf(graph).renderFlow.buildFlow('page:product');
+    const cut = scopeOf(graph).renderFlow.buildFlow('page:product', { maxDepth: 1 });
 
     expect(cut.files).toEqual(full.files);
   });
 
   it('maxDepth bằng hoặc lớn hơn độ sâu của cây thì không giấu gì', () => {
-    const full = renderFlow(graph, 'page:product');
+    const full = scopeOf(graph).renderFlow.buildFlow('page:product');
     // Node sâu nhất (snippets/menu.liquid) ở tầng 5 và không có con nào chưa
     // được mở, nên cắt ở tầng 6 cho cùng một cây.
-    const cut = renderFlow(graph, 'page:product', { maxDepth: 6 });
+    const cut = scopeOf(graph).renderFlow.buildFlow('page:product', { maxDepth: 6 });
 
     expect(cut.tree).toEqual(full.tree);
     expect(cut.maxDepth).toBe(6);
@@ -245,7 +244,7 @@ describe('renderFlow — giới hạn độ sâu', () => {
 
   it('node lá ở đúng tầng bị cắt không bị coi là giấu con', () => {
     // promo ở tầng 2 và không gọi file nào.
-    const promo = flatten(renderFlow(graph, 'page:product', { maxDepth: 2 }).tree).find(
+    const promo = flatten(scopeOf(graph).renderFlow.buildFlow('page:product', { maxDepth: 2 }).tree).find(
       (node) => node.id === 'sections/promo.liquid',
     );
 
@@ -255,8 +254,8 @@ describe('renderFlow — giới hạn độ sâu', () => {
 
   it('từ chối maxDepth không phải số nguyên từ 1 trở lên', () => {
     for (const bad of [0, -1, 1.5, Number.NaN]) {
-      expect(() => renderFlow(graph, 'page:product', { maxDepth: bad })).toThrow(RangeError);
+      expect(() => scopeOf(graph).renderFlow.buildFlow('page:product', { maxDepth: bad })).toThrow(RangeError);
     }
-    expect(() => renderFlow(graph, 'page:product', { maxDepth: 0 })).toThrow(/từ 1 trở lên/);
+    expect(() => scopeOf(graph).renderFlow.buildFlow('page:product', { maxDepth: 0 })).toThrow(/từ 1 trở lên/);
   });
 });

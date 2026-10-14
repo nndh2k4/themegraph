@@ -1,40 +1,12 @@
 import type { NodeKind } from "../models/index.js";
+import type { SearchHit, SearchMatch, SearchOptions, SearchResult } from "./dto/search.dto.js";
 import type { GraphRepository } from "./graph.repository.js";
 
 /** Số kết quả trả về khi người gọi không nêu giới hạn. */
 export const DEFAULT_SEARCH_LIMIT = 20;
 
-/**
- * Mức khớp của một kết quả, từ sát nhất tới lỏng nhất:
- *   - exact:    từ khoá trùng cả tên của node ("card" với snippets/card.liquid)
- *   - prefix:   tên của node bắt đầu bằng từ khoá ("card" với card-product)
- *   - name:     từ khoá nằm giữa tên ("product" với card-product)
- *   - path:     từ khoá chỉ nằm ở phần còn lại của id, ví dụ tên thư mục
- */
-export type SearchMatch = "exact" | "prefix" | "name" | "path";
-
 /** Thứ tự xếp hạng của các mức khớp: số nhỏ đứng trước. */
 const MATCH_ORDER: readonly SearchMatch[] = ["exact", "prefix", "name", "path"];
-
-export interface SearchHit {
-  id: string;
-  kind: NodeKind;
-  match: SearchMatch;
-}
-
-export interface SearchOptions {
-  /** Chỉ lấy node thuộc các loại này. Không nêu, hoặc mảng rỗng: mọi loại. */
-  kinds?: readonly NodeKind[];
-  /** Số kết quả tối đa. Mặc định DEFAULT_SEARCH_LIMIT. */
-  limit?: number;
-}
-
-/** Kết quả của search(). */
-export interface SearchResult {
-  query: string; // từ khoá như người gọi đưa vào
-  hits: SearchHit[]; // các node khớp, sát nhất trước, đã cắt theo limit
-  total: number; // số node khớp trước khi cắt, để nói "20 trên 57"
-}
 
 /**
  * Tên của một node, tức phần người dùng thường gõ khi tìm nó:
@@ -84,62 +56,67 @@ function matchOf(term: string, id: string, name: string): SearchMatch | null {
  * tên như thế này?"
  *
  * Dùng khi chưa biết id chính xác của thứ cần hỏi: người gõ "card" để ra
- * snippets/card-product.liquid rồi mới gọi impact() hay context() với id đó.
- *
- * Cách khớp:
- *   - không phân biệt hoa thường
- *   - từ khoá có nhiều từ cách nhau bằng dấu cách thì MỌI từ phải có trong id
- *     ("product card" ra card-product); mức khớp của node là mức LỎNG nhất
- *     trong các từ
- *   - từ khoá rỗng khớp mọi node, để liệt kê được cả một loại bằng `kinds`;
- *     khi đó không có gì để xếp hạng nên kết quả chỉ xếp theo bảng chữ cái
- *
- * Thứ tự kết quả: mức khớp sát trước; cùng mức thì file và trang đứng trước
- * khoá dịch và setting; rồi id ngắn trước; rồi theo bảng chữ cái.
+ * snippets/card-product.liquid rồi mới hỏi ImpactService hay ContextService
+ * với id đó.
  */
-export function search(graph: GraphRepository, query: string, options: SearchOptions = {}): SearchResult {
-  const terms = query.toLowerCase().split(/\s+/).filter((term) => term !== "");
-  const kinds = new Set(options.kinds ?? []);
-  const limit = Math.max(0, options.limit ?? DEFAULT_SEARCH_LIMIT);
+export class SearchService {
+  constructor(private readonly graph: GraphRepository) {}
 
-  // Theme lớn nhất đã đo có chưa tới 4000 node, nên đọc hết rồi lọc ở đây
-  // vẫn chỉ mất vài mili giây, và giữ được luật khớp ở một chỗ.
-  const hits: SearchHit[] = [];
+  /**
+   * Cách khớp:
+   *   - không phân biệt hoa thường
+   *   - từ khoá có nhiều từ cách nhau bằng dấu cách thì MỌI từ phải có trong id
+   *     ("product card" ra card-product); mức khớp của node là mức LỎNG nhất
+   *     trong các từ
+   *   - từ khoá rỗng khớp mọi node, để liệt kê được cả một loại bằng `kinds`;
+   *     khi đó không có gì để xếp hạng nên kết quả chỉ xếp theo bảng chữ cái
+   *
+   * Thứ tự kết quả: mức khớp sát trước; cùng mức thì file và trang đứng trước
+   * khoá dịch và setting; rồi id ngắn trước; rồi theo bảng chữ cái.
+   */
+  search(query: string, options: SearchOptions = {}): SearchResult {
+    const terms = query.toLowerCase().split(/\s+/).filter((term) => term !== "");
+    const kinds = new Set(options.kinds ?? []);
+    const limit = Math.max(0, options.limit ?? DEFAULT_SEARCH_LIMIT);
 
-  for (const { id, kind } of graph.allNodes()) {
+    // Theme lớn nhất đã đo có chưa tới 4000 node, nên đọc hết rồi lọc ở đây
+    // vẫn chỉ mất vài mili giây, và giữ được luật khớp ở một chỗ.
+    const hits: SearchHit[] = [];
 
-    if (kinds.size > 0 && !kinds.has(kind)) continue;
+    for (const { id, kind } of this.graph.allNodes()) {
+      if (kinds.size > 0 && !kinds.has(kind)) continue;
 
-    const lowerId = id.toLowerCase();
-    const name = nameOf(id, kind);
+      const lowerId = id.toLowerCase();
+      const name = nameOf(id, kind);
 
-    // Không có từ nào thì node khớp ở mức lỏng nhất.
-    let worst = terms.length === 0 ? MATCH_ORDER.length - 1 : 0;
-    let matched = true;
+      // Không có từ nào thì node khớp ở mức lỏng nhất.
+      let worst = terms.length === 0 ? MATCH_ORDER.length - 1 : 0;
+      let matched = true;
 
-    for (const term of terms) {
-      const match = matchOf(term, lowerId, name);
-      if (match === null) {
-        matched = false;
-        break;
+      for (const term of terms) {
+        const match = matchOf(term, lowerId, name);
+        if (match === null) {
+          matched = false;
+          break;
+        }
+        worst = Math.max(worst, MATCH_ORDER.indexOf(match));
       }
-      worst = Math.max(worst, MATCH_ORDER.indexOf(match));
+
+      if (matched) hits.push({ id, kind, match: MATCH_ORDER[worst] ?? "path" });
     }
 
-    if (matched) hits.push({ id, kind, match: MATCH_ORDER[worst] ?? "path" });
+    const byId = (a: SearchHit, b: SearchHit): number => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+    hits.sort(
+      terms.length === 0
+        ? byId
+        : (a, b) =>
+            MATCH_ORDER.indexOf(a.match) - MATCH_ORDER.indexOf(b.match) ||
+            Number(isSecondary(a.kind)) - Number(isSecondary(b.kind)) ||
+            a.id.length - b.id.length ||
+            byId(a, b),
+    );
+
+    return { query, hits: hits.slice(0, limit), total: hits.length };
   }
-
-  const byId = (a: SearchHit, b: SearchHit): number => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
-
-  hits.sort(
-    terms.length === 0
-      ? byId
-      : (a, b) =>
-          MATCH_ORDER.indexOf(a.match) - MATCH_ORDER.indexOf(b.match) ||
-          Number(isSecondary(a.kind)) - Number(isSecondary(b.kind)) ||
-          a.id.length - b.id.length ||
-          byId(a, b),
-  );
-
-  return { query, hits: hits.slice(0, limit), total: hits.length };
 }

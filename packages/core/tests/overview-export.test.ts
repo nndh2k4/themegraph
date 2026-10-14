@@ -1,11 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { deadCode } from '../src/graph/dead-code.service.js';
-import { exportGraph } from '../src/graph/export-graph.service.js';
 import { buildGraph } from '../src/analyze/graph-builder.js';
-import { overview } from '../src/graph/overview.service.js';
 import type { ThemeGraph } from '../src/models/index.js';
-import { file, queryGraph, ref, removeTempTheme, saveToTempTheme } from './helpers.js';
+import { file, queryGraph, ref, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
 import { openGraph } from '../src/legacy.js';
 import type { GraphRepository } from '../src/graph/graph.repository.js';
 
@@ -33,7 +30,7 @@ function countBy<T>(items: readonly T[], key: (item: T) => string): Record<strin
 
 describe('overview', () => {
   it('đếm node, cạnh và tham chiếu đúng như đồ thị trong bộ nhớ', () => {
-    const result = overview(graph);
+    const result = scopeOf(graph).overview.summarize();
 
     expect(result.nodes).toBe(memory.nodes.length);
     expect(result.edges).toBe(memory.edges.length);
@@ -45,29 +42,29 @@ describe('overview', () => {
   });
 
   it('ghi theme và lần phân tích', () => {
-    const result = overview(graph);
+    const result = scopeOf(graph).overview.summarize();
 
     expect(result.themeRoot).toBe(graph.themeRoot);
     expect(result.meta).toEqual(graph.meta);
   });
 
   it('liệt kê tên các loại trang, không có tiền tố, theo bảng chữ cái', () => {
-    expect(overview(graph).pages).toEqual(['cart', 'collection', 'product']);
+    expect(scopeOf(graph).overview.summarize().pages).toEqual(['cart', 'collection', 'product']);
   });
 
   it('đếm tham chiếu hỏng', () => {
     // Đồ thị mẫu có đúng một lời gọi tới snippet không tồn tại ('da-xoa').
-    expect(overview(graph).brokenRefs).toBe(1);
-    expect(overview(graph).brokenRefs).toBe(memory.refs.filter((entry) => entry.status === 'missing').length);
+    expect(scopeOf(graph).overview.summarize().brokenRefs).toBe(1);
+    expect(scopeOf(graph).overview.summarize().brokenRefs).toBe(memory.refs.filter((entry) => entry.status === 'missing').length);
   });
 
   it('brokenRefs là 0 khi không có tham chiếu hỏng nào', async () => {
     const root = await saveToTempTheme(buildGraph([file('snippets/a.liquid', 'snippet')], [], {}));
     const handle = openGraph(root);
     try {
-      expect(overview(handle).brokenRefs).toBe(0);
-      expect(overview(handle).mostUsed).toEqual([]);
-      expect(overview(handle).pages).toEqual([]);
+      expect(scopeOf(handle).overview.summarize().brokenRefs).toBe(0);
+      expect(scopeOf(handle).overview.summarize().mostUsed).toEqual([]);
+      expect(scopeOf(handle).overview.summarize().pages).toEqual([]);
     } finally {
       handle.close();
       await removeTempTheme(root);
@@ -75,8 +72,8 @@ describe('overview', () => {
   });
 
   it('phần file không dùng trùng với deadCode()', () => {
-    const dead = deadCode(graph);
-    const { unused } = overview(graph);
+    const dead = scopeOf(graph).deadCode.findUnused();
+    const { unused } = scopeOf(graph).overview.summarize();
 
     expect(unused).toEqual({
       certain: dead.certain,
@@ -104,7 +101,7 @@ describe('overview', () => {
     );
     const handle = openGraph(root);
     try {
-      const result = overview(handle);
+      const result = scopeOf(handle).overview.summarize();
 
       expect(result.unused).toEqual({ certain: 1, review: 2, notLoaded: 0, translationKeys: 2, settings: 1 });
     } finally {
@@ -114,7 +111,7 @@ describe('overview', () => {
   });
 
   it('xếp file được dùng nhiều nhất: theo số nơi gọi khác nhau, bằng nhau thì theo id', () => {
-    const { mostUsed } = overview(graph);
+    const { mostUsed } = scopeOf(graph).overview.summarize();
 
     // layout được bốn template dùng; a được cart và b gọi; card được
     // main-product và grid gọi. a đứng trước card vì cùng số nơi gọi.
@@ -145,7 +142,7 @@ describe('overview', () => {
     );
     const handle = openGraph(root);
     try {
-      expect(overview(handle).mostUsed).toEqual([{ id: 'snippets/x.liquid', kind: 'snippet', usedBy: 2 }]);
+      expect(scopeOf(handle).overview.summarize().mostUsed).toEqual([{ id: 'snippets/x.liquid', kind: 'snippet', usedBy: 2 }]);
     } finally {
       handle.close();
       await removeTempTheme(root);
@@ -153,7 +150,7 @@ describe('overview', () => {
   });
 
   it('không đưa loại trang, template, khoá dịch hay setting vào danh sách dùng nhiều', () => {
-    const kinds = new Set(overview(graph).mostUsed.map((entry) => entry.kind));
+    const kinds = new Set(scopeOf(graph).overview.summarize().mostUsed.map((entry) => entry.kind));
 
     // Đồ thị mẫu có assets/base.css được layout dùng: nó không được lọt vào.
     for (const kind of ['page_type', 'template', 'asset', 'translation_key', 'setting']) {
@@ -180,7 +177,7 @@ describe('overview', () => {
     );
     const handle = openGraph(root);
     try {
-      const { mostUsed } = overview(handle);
+      const { mostUsed } = scopeOf(handle).overview.summarize();
 
       expect(mostUsed).toHaveLength(10);
       expect(mostUsed[0]).toEqual({ id: 'snippets/s12.liquid', kind: 'snippet', usedBy: 12 });
@@ -196,7 +193,7 @@ describe('exportGraph', () => {
   const FILE_KINDS_EXCLUDED = ['translation_key', 'setting'];
 
   it('mặc định chỉ xuất file và loại trang, cùng các cạnh giữa chúng', () => {
-    const result = exportGraph(graph);
+    const result = scopeOf(graph).exportGraph.export();
 
     const expectedNodes = memory.nodes.filter((node) => !FILE_KINDS_EXCLUDED.includes(node.kind));
     const ids = new Set(expectedNodes.map((node) => node.id));
@@ -209,7 +206,7 @@ describe('exportGraph', () => {
 
   it('mọi cạnh đều có đủ hai đầu trong danh sách node, ở mọi cách chọn nhóm', () => {
     for (const include of [[], ['translations'], ['settings'], ['translations', 'settings']] as const) {
-      const result = exportGraph(graph, { include });
+      const result = scopeOf(graph).exportGraph.export({ include });
       const ids = new Set(result.nodes.map((node) => node.id));
 
       expect(result.edges.every((edge) => ids.has(edge.from) && ids.has(edge.to))).toBe(true);
@@ -217,7 +214,7 @@ describe('exportGraph', () => {
   });
 
   it('xin nhóm nào thì có thêm node và cạnh của đúng nhóm đó', () => {
-    const translations = exportGraph(graph, { include: ['translations'] });
+    const translations = scopeOf(graph).exportGraph.export({ include: ['translations'] });
 
     expect(translations.nodes.filter((node) => node.kind === 'translation_key').map((node) => node.id)).toEqual([
       't:general.unused',
@@ -228,7 +225,7 @@ describe('exportGraph', () => {
     expect(translations.edges.some((edge) => edge.type === 'USES_TRANSLATION')).toBe(true);
     expect(translations.edges.some((edge) => edge.type === 'READS_SETTING')).toBe(false);
 
-    const settings = exportGraph(graph, { include: ['settings'] });
+    const settings = scopeOf(graph).exportGraph.export({ include: ['settings'] });
 
     expect(settings.nodes.some((node) => node.kind === 'setting')).toBe(true);
     expect(settings.nodes.some((node) => node.kind === 'translation_key')).toBe(false);
@@ -236,14 +233,14 @@ describe('exportGraph', () => {
   });
 
   it('xin cả hai nhóm thì ra toàn bộ đồ thị', () => {
-    const result = exportGraph(graph, { include: ['translations', 'settings'] });
+    const result = scopeOf(graph).exportGraph.export({ include: ['translations', 'settings'] });
 
     expect(result.nodes).toHaveLength(memory.nodes.length);
     expect(result.edges).toHaveLength(memory.edges.length);
   });
 
   it('giữ nguyên mọi trường của cạnh', () => {
-    const edge = exportGraph(graph).edges.find(
+    const edge = scopeOf(graph).exportGraph.export().edges.find(
       (entry) => entry.from === 'snippets/card.liquid' && entry.to === 'snippets/price.liquid',
     );
 
@@ -257,13 +254,13 @@ describe('exportGraph', () => {
     });
     // Cạnh có điều kiện.
     expect(
-      exportGraph(graph).edges.find((entry) => entry.from === 'sections/grid.liquid' && entry.to === 'snippets/card.liquid')
+      scopeOf(graph).exportGraph.export().edges.find((entry) => entry.from === 'sections/grid.liquid' && entry.to === 'snippets/card.liquid')
         ?.conditional,
     ).toBe(true);
   });
 
   it('xếp node theo id và cạnh theo (from, to, type)', () => {
-    const { nodes, edges } = exportGraph(graph, { include: ['translations', 'settings'] });
+    const { nodes, edges } = scopeOf(graph).exportGraph.export({ include: ['translations', 'settings'] });
 
     expect(nodes.map((node) => node.id)).toEqual(nodes.map((node) => node.id).sort());
     const keys = edges.map((edge) => `${edge.from}\u0000${edge.to}\u0000${edge.type}`);

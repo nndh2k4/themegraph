@@ -1,8 +1,23 @@
 import path from "node:path";
 
+import type {
+  ContextResult,
+  DeadCodeResult,
+  ExportedGraph,
+  ExportGraphOptions,
+  FindNodeOptions,
+  ImpactResult,
+  OverviewResult,
+  RenderFlowOptions,
+  RenderFlowResult,
+  SearchOptions,
+  SearchResult,
+  VerifyResult,
+} from "./graph/dto/index.js";
+import { GraphScope } from "./graph/graph-scope.js";
 import type { GraphRepository } from "./graph/graph.repository.js";
-import type { ThemeGraph } from "./models/index.js";
 import { SqliteGraphStore } from "./infrastructure/sqlite/sqlite-graph.store.js";
+import type { GraphNode, ThemeGraph } from "./models/index.js";
 
 /**
  * API dạng hàm của bản cũ, giữ TẠM trong lúc các lớp vỏ chuyển sang module
@@ -46,3 +61,21 @@ export function findThemeRoot(startDir: string): string | null {
     dir = parent;
   }
 }
+
+// ---- Truy vấn dạng hàm: mỗi hàm mở một GraphScope trên đồ thị đã mở ----
+
+export const findNode = (graph: GraphRepository, input: string, options?: FindNodeOptions): GraphNode =>
+  new GraphScope(graph).nodes.find(input, options);
+export const search = (graph: GraphRepository, query: string, options?: SearchOptions): SearchResult =>
+  new GraphScope(graph).search.search(query, options);
+export const impact = (graph: GraphRepository, name: string, options?: FindNodeOptions): ImpactResult =>
+  new GraphScope(graph).impact.findImpact(name, options);
+export const renderFlow = (graph: GraphRepository, name: string, options?: RenderFlowOptions): RenderFlowResult =>
+  new GraphScope(graph).renderFlow.buildFlow(name, options);
+export const context = (graph: GraphRepository, name: string, options?: FindNodeOptions): ContextResult =>
+  new GraphScope(graph).context.describe(name, options);
+export const deadCode = (graph: GraphRepository): DeadCodeResult => new GraphScope(graph).deadCode.findUnused();
+export const overview = (graph: GraphRepository): OverviewResult => new GraphScope(graph).overview.summarize();
+export const exportGraph = (graph: GraphRepository, options?: ExportGraphOptions): ExportedGraph =>
+  new GraphScope(graph).exportGraph.export(options);
+export const verify = (graph: GraphRepository): VerifyResult => new GraphScope(graph).verify.verify();
