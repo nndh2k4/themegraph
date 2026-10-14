@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
+import type { DeadCodeResult } from '../src/graph/dto/index.js';
 import type { FileSchema, RawRef, ThemeFile, ThemeGraph } from '../src/models/index.js';
 import { QUERY_SCHEMAS, buildGraph, file, openGraph, queryGraph, ref, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
-import type { DeadCodeResult } from '../src/graph/dto/index.js';
 
 const tempThemes: string[] = [];
 

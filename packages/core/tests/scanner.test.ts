@@ -3,9 +3,9 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
-import { ThemeScanner } from '../src/theme/theme-scanner.js';
-import { FsThemeFileRepository } from '../src/infrastructure/fs/fs-theme-file.repository.js';
 
+import { FsThemeFileRepository } from '../src/infrastructure/fs/fs-theme-file.repository.js';
+import { ThemeScanner } from '../src/theme/theme-scanner.js';
 
 // Vị trí fixture tính theo vị trí của chính file test này,
 // KHÔNG theo process.cwd() — scanner phải độc lập với thư mục làm việc.

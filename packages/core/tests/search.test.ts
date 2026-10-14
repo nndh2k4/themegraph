@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import type { SearchHit } from '../src/graph/dto/index.js';
+import type { GraphRepository } from '../src/graph/graph.repository.js';
 import { DEFAULT_SEARCH_LIMIT } from '../src/graph/search.service.js';
 import { NODE_KINDS } from '../src/models/index.js';
 import type { NodeKind } from '../src/models/index.js';
 import { buildGraph, file, openGraph, queryGraph, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
-import type { GraphRepository } from '../src/graph/graph.repository.js';
-import type { SearchHit } from '../src/graph/dto/index.js';
 
 let themeRoot: string;
 let graph: GraphRepository;

@@ -6,9 +6,9 @@ import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { resolveRef } from '../src/analyze/ref-resolver.js';
-import { core, file, openGraph, parseFile, ref, scopeOf } from './helpers.js';
 import type { GraphRepository } from '../src/graph/graph.repository.js';
 import { graphDbPath } from '../src/infrastructure/sqlite/schema.js';
+import { core, file, openGraph, parseFile, ref, scopeOf } from './helpers.js';
 
 /**
  * Các test ở đây đi từ đầu tới cuối: file thật trên đĩa -> analyze -> truy vấn.

@@ -5,11 +5,11 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { buildGraph, core, file, openGraph, queryGraph, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
 import { GraphNotReadyError, NodeNotFoundError } from '../src/common/errors.js';
 import type { GraphRepository } from '../src/graph/graph.repository.js';
 import { SCHEMA_VERSION, graphDbPath } from '../src/infrastructure/sqlite/schema.js';
 import { SqliteGraphStore } from '../src/infrastructure/sqlite/sqlite-graph.store.js';
+import { buildGraph, core, file, openGraph, queryGraph, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
 
 let themeRoot: string;
 let opened: GraphRepository[];

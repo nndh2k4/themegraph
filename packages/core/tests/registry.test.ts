@@ -7,9 +7,9 @@ import { pathToFileURL } from 'node:url';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { core, queryGraph, registry, removeTempTheme, saveToTempTheme } from './helpers.js';
-import type { RegistryEntry } from '../src/models/index.js';
 import { defaultRegistryDir } from '../src/infrastructure/registry/json-theme-registry.repository.js';
+import type { RegistryEntry } from '../src/models/index.js';
+import { core, queryGraph, registry, removeTempTheme, saveToTempTheme } from './helpers.js';
 
 let home: string;
 let previousHome: string | undefined;

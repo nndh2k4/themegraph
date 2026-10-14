@@ -2,10 +2,9 @@ import { existsSync } from 'node:fs';
 import { appendFile, cp, mkdir, mkdtemp, readdir, readFile, rm, utimes, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-
-import { DatabaseSync } from 'node:sqlite';
 
 import { GraphNotReadyError } from '../src/common/errors.js';
 import { graphDbPath } from '../src/infrastructure/sqlite/schema.js';

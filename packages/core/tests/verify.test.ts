@@ -2,11 +2,11 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { openGraph, queryGraph, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
-import type { GraphRepository } from '../src/graph/graph.repository.js';
-import { graphDbPath } from '../src/infrastructure/sqlite/schema.js';
 import type { PlainEdge } from '../src/graph/dto/index.js';
 import { bfsTraverse, diffTraversals } from '../src/graph/graph-algorithms.js';
+import type { GraphRepository } from '../src/graph/graph.repository.js';
+import { graphDbPath } from '../src/infrastructure/sqlite/schema.js';
+import { openGraph, queryGraph, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
 
 const edge = (src: string, dst: string, conditional = false): PlainEdge => ({ src, dst, conditional });
 

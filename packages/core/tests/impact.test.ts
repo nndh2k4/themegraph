@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { buildGraph, file, openGraph, queryGraph, ref, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
 import { NodeNotFoundError } from '../src/common/errors.js';
 import type { GraphRepository, Reached } from '../src/graph/graph.repository.js';
+import { buildGraph, file, openGraph, queryGraph, ref, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
 
 let themeRoot: string;
 let graph: GraphRepository;

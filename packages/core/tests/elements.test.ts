@@ -5,10 +5,10 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import type { DeadCodeResult } from '../src/graph/dto/index.js';
+import { graphDbPath } from '../src/infrastructure/sqlite/schema.js';
 import type { ElementRole, FileElement, RawRef, ThemeFile, ThemeGraph } from '../src/models/index.js';
 import { buildGraph, core, file, openGraph, parseFile, ref, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
-import { graphDbPath } from '../src/infrastructure/sqlite/schema.js';
-import type { DeadCodeResult } from '../src/graph/dto/index.js';
 
 const tempDirs: string[] = [];
 const tempThemes: string[] = [];
