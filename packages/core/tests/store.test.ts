@@ -7,8 +7,9 @@ import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { buildGraph } from '../src/analyze/graph-builder.js';
-import { graphDbPath, saveGraph, SCHEMA_VERSION } from '../src/infrastructure/sqlite/sqlite-graph.store.js';
 import type { FileKind, RawRef, RefKind, RefSource, ThemeFile, ThemeGraph } from '../src/models/index.js';
+import { SCHEMA_VERSION, graphDbPath } from '../src/infrastructure/sqlite/schema.js';
+import { saveGraph } from '../src/legacy.js';
 
 const file = (p: string, kind: FileKind): ThemeFile => ({
   path: p,

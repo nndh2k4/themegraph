@@ -1,15 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { NodeNotFoundError } from '../src/graph/node-finder.service.js';
 import { impact } from '../src/graph/impact.service.js';
-import { openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
-import type { GraphHandle } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
-import type { Reached } from '../src/infrastructure/sqlite/traverse.sql.js';
 import { buildGraph } from '../src/analyze/graph-builder.js';
 import { file, queryGraph, ref, removeTempTheme, saveToTempTheme } from './helpers.js';
+import { NodeNotFoundError } from '../src/common/errors.js';
+import { openGraph } from '../src/legacy.js';
+import type { GraphRepository, Reached } from '../src/graph/graph.repository.js';
 
 let themeRoot: string;
-let graph: GraphHandle;
+let graph: GraphRepository;
 
 beforeEach(async () => {
   themeRoot = await saveToTempTheme(queryGraph());
@@ -228,7 +227,7 @@ describe('impact — trang nào đi qua file nào', () => {
 
   describe('đồ thị vừa có file trên trang vừa có file ngoài trang', () => {
     let mixedRoot: string;
-    let mixed: GraphHandle;
+    let mixed: GraphRepository;
 
     beforeEach(async () => {
       //   page:index -> templates/index.json -> sections/on-b.liquid -> snippets/x.liquid

@@ -22,22 +22,36 @@ export type { Ancestor, SettingResolution } from './analyze/setting-resolver.js'
 export { buildGraph } from './analyze/graph-builder.js';
 
 // Lưu trữ: đồ thị -> <theme>/.themegraph/graph.db.
-export { graphDbPath, saveGraph, SCHEMA_VERSION } from './infrastructure/sqlite/sqlite-graph.store.js';
-export type { SaveGraphOptions } from './infrastructure/sqlite/sqlite-graph.store.js';
+export { graphDbPath, SCHEMA_VERSION } from './infrastructure/sqlite/schema.js';
+export { SqliteGraphStore } from './infrastructure/sqlite/sqlite-graph.store.js';
+export type { GraphStore, RemovedData } from './graph/graph.store.js';
+
+// Lỗi mà lớp vỏ cần phân biệt.
+export { GraphNotReadyError, NodeNotFoundError, ThemeGraphError } from './common/errors.js';
+export type { GraphNotReadyReason } from './common/errors.js';
+
+// API dạng hàm cũ, giữ tạm cho các lớp vỏ.
+export { findThemeRoot, openGraph, saveGraph } from './legacy.js';
+export type { SaveGraphOptions } from './legacy.js';
 
 // Điểm nối của lõi: thư mục theme -> graph.db + thống kê.
 export { analyze } from './analyze/analyze.service.js';
 export type { AnalyzeError, AnalyzeResult, AnalyzeStats } from './analyze/analyze.service.js';
 
-// Đọc đồ thị: mở graph.db của một theme và tìm node theo tên người dùng gõ.
-export { findThemeRoot, GraphNotReadyError, openGraph } from './infrastructure/sqlite/sqlite-graph.repository.js';
-export type { GraphHandle, GraphMeta, GraphNotReadyReason } from './infrastructure/sqlite/sqlite-graph.repository.js';
-export { findNode, NodeNotFoundError } from './graph/node-finder.service.js';
+// Đọc đồ thị: cổng đọc của một theme, và tìm node theo tên người dùng gõ.
+export type {
+  Direction,
+  ElementPair,
+  GraphCounts,
+  GraphMeta,
+  GraphRepository,
+  IntegrityReport,
+  NeighborEdge,
+  Reached,
+  ReferenceCount,
+} from './graph/graph.repository.js';
+export { findNode } from './graph/node-finder.service.js';
 export type { FindNodeOptions } from './graph/node-finder.service.js';
-
-// Duyệt đồ thị bằng truy vấn đệ quy; nền của impact và renderFlow.
-export { traverse } from './infrastructure/sqlite/traverse.sql.js';
-export type { Direction, Reached, TraverseOptions } from './infrastructure/sqlite/traverse.sql.js';
 
 // Truy vấn: sửa file này thì những gì bị ảnh hưởng.
 export { impact } from './graph/impact.service.js';

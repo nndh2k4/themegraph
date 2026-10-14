@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { buildGraph } from '../src/analyze/graph-builder.js';
-import { openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
-import type { GraphHandle } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
-import { traverse } from '../src/infrastructure/sqlite/traverse.sql.js';
 import { FILE_EDGE_TYPES } from '../src/models/index.js';
+import type { EdgeType } from '../src/models/index.js';
 import { file, queryGraph, ref, removeTempTheme, saveToTempTheme } from './helpers.js';
+import { openGraph } from '../src/legacy.js';
+import type { GraphRepository } from '../src/graph/graph.repository.js';
 
 let themeRoot: string;
-let graph: GraphHandle;
+let graph: GraphRepository;
 
 beforeEach(async () => {
   themeRoot = await saveToTempTheme(queryGraph());
@@ -20,10 +20,9 @@ afterEach(async () => {
   await removeTempTheme(themeRoot);
 });
 
-const ids = (start: string, edgeTypes?: Parameters<typeof traverse>[3]) =>
-  traverse(graph, start, 'forward', edgeTypes).map((n) => n.id);
+const ids = (start: string, edgeTypes?: readonly EdgeType[]) => graph.reach(start, 'forward', edgeTypes).map((n) => n.id);
 
-describe('traverse — lọc theo loại cạnh', () => {
+describe('GraphRepository.reach — lọc theo loại cạnh', () => {
   it('đi qua mọi loại cạnh khi không có tuỳ chọn', () => {
     expect(ids('snippets/card.liquid')).toEqual([
       'snippets/card.liquid',
@@ -34,11 +33,11 @@ describe('traverse — lọc theo loại cạnh', () => {
   });
 
   it('chỉ đi qua các loại cạnh được liệt kê', () => {
-    expect(ids('snippets/card.liquid', { edgeTypes: FILE_EDGE_TYPES })).toEqual([
+    expect(ids('snippets/card.liquid', FILE_EDGE_TYPES)).toEqual([
       'snippets/card.liquid',
       'snippets/price.liquid',
     ]);
-    expect(ids('snippets/card.liquid', { edgeTypes: ['USES_TRANSLATION'] })).toEqual([
+    expect(ids('snippets/card.liquid', ['USES_TRANSLATION'])).toEqual([
       'snippets/card.liquid',
       't:product.price',
     ]);
@@ -47,7 +46,7 @@ describe('traverse — lọc theo loại cạnh', () => {
   it('áp bộ lọc ở mọi tầng, không chỉ tầng đầu', () => {
     // Chỉ theo RENDERS: từ template xuống section, snippet; không sang layout
     // (USES_LAYOUT) nên cũng không tới được những gì layout gọi.
-    const reached = ids('templates/product.json', { edgeTypes: ['RENDERS'] });
+    const reached = ids('templates/product.json', ['RENDERS']);
 
     expect(reached).toEqual([
       'templates/product.json',
@@ -61,7 +60,7 @@ describe('traverse — lọc theo loại cạnh', () => {
   it('tính mức chắc chắn chỉ trên các cạnh được phép đi', () => {
     // card -> price là RENDERS không điều kiện; nếu chỉ cho đi USES_ASSET thì
     // price không tới được, kể cả trong phép tính "chắc chắn".
-    const reached = traverse(graph, 'layout/theme.liquid', 'forward', { edgeTypes: ['USES_ASSET'] });
+    const reached = graph.reach('layout/theme.liquid', 'forward', ['USES_ASSET']);
 
     expect(reached.map((n) => [n.id, n.depth, n.certain])).toEqual([
       ['layout/theme.liquid', 0, true],
@@ -82,13 +81,14 @@ describe('traverse — lọc theo loại cạnh', () => {
     const otherGraph = openGraph(other);
 
     try {
-      const brief = (edgeTypes?: Parameters<typeof traverse>[3]) =>
-        traverse(otherGraph, 'templates/x.liquid', 'forward', edgeTypes)
+      const brief = (edgeTypes?: readonly EdgeType[]) =>
+        otherGraph
+          .reach('templates/x.liquid', 'forward', edgeTypes)
           .filter((n) => n.id === 'snippets/s.liquid')
           .map((n) => [n.depth, n.certain]);
 
       expect(brief()).toEqual([[1, true]]);
-      expect(brief({ edgeTypes: ['RENDERS'] })).toEqual([[1, false]]);
+      expect(brief(['RENDERS'])).toEqual([[1, false]]);
     } finally {
       otherGraph.close();
       await removeTempTheme(other);
@@ -96,13 +96,13 @@ describe('traverse — lọc theo loại cạnh', () => {
   });
 
   it('trả về chỉ node xuất phát khi danh sách loại cạnh rỗng', () => {
-    expect(ids('snippets/card.liquid', { edgeTypes: [] })).toEqual(['snippets/card.liquid']);
+    expect(ids('snippets/card.liquid', [])).toEqual(['snippets/card.liquid']);
   });
 });
 
 describe('traverse — đường đi dài và vòng', () => {
   /** Dựng một chuỗi snippet s00 -> s01 -> ... dài `length` node, rồi chạy `run` trên nó. */
-  async function withChain<T>(length: number, loopBack: boolean, run: (chain: GraphHandle) => T): Promise<T> {
+  async function withChain<T>(length: number, loopBack: boolean, run: (chain: GraphRepository) => T): Promise<T> {
     const name = (i: number) => `s${String(i).padStart(2, '0')}`;
     const files = [file('layout/theme.liquid', 'layout')];
     const refs = [];
@@ -126,7 +126,7 @@ describe('traverse — đường đi dài và vòng', () => {
 
   it('tính đúng độ sâu của node nằm xa hơn mức chặn ban đầu', async () => {
     // Mức chặn ban đầu là 16; chuỗi 40 node buộc truy vấn phải nới mức chặn.
-    const reached = await withChain(40, false, (chain) => traverse(chain, 'snippets/s00.liquid', 'forward'));
+    const reached = await withChain(40, false, (chain) => chain.reach('snippets/s00.liquid', 'forward'));
 
     expect(reached).toHaveLength(40);
     expect(reached.map((n) => n.depth)).toEqual(Array.from({ length: 40 }, (_, i) => i));
@@ -134,13 +134,13 @@ describe('traverse — đường đi dài và vòng', () => {
   });
 
   it('cũng đúng theo chiều ngược', async () => {
-    const reached = await withChain(40, false, (chain) => traverse(chain, 'snippets/s39.liquid', 'backward'));
+    const reached = await withChain(40, false, (chain) => chain.reach('snippets/s39.liquid', 'backward'));
 
     expect(reached.at(-1)).toMatchObject({ id: 'snippets/s00.liquid', depth: 39 });
   });
 
   it('dừng được và tính đúng trên một vòng dài hơn mức chặn ban đầu', async () => {
-    const reached = await withChain(40, true, (chain) => traverse(chain, 'snippets/s10.liquid', 'forward'));
+    const reached = await withChain(40, true, (chain) => chain.reach('snippets/s10.liquid', 'forward'));
 
     expect(reached).toHaveLength(40);
     // Đi xuôi từ s10: s11 cách 1, s39 cách 29, rồi quay về s00 cách 30, s09 cách 39.
@@ -149,7 +149,7 @@ describe('traverse — đường đi dài và vòng', () => {
   });
 
   it('trả mảng rỗng cho node không có trong đồ thị', async () => {
-    const reached = await withChain(3, false, (chain) => traverse(chain, 'snippets/khong-co.liquid', 'forward'));
+    const reached = await withChain(3, false, (chain) => chain.reach('snippets/khong-co.liquid', 'forward'));
 
     expect(reached).toEqual([]);
   });

@@ -1,10 +1,8 @@
-import { findNode } from "./node-finder.service.js";
-import type { FindNodeOptions } from "./node-finder.service.js";
-import type { GraphHandle } from "../infrastructure/sqlite/sqlite-graph.repository.js";
-import { traverse } from "../infrastructure/sqlite/traverse.sql.js";
-import type { Reached } from "../infrastructure/sqlite/traverse.sql.js";
 import { FILE_EDGE_TYPES } from "../models/index.js";
 import type { EdgeType, GraphNode, NodeKind } from "../models/index.js";
+import type { GraphRepository, Reached } from "./graph.repository.js";
+import { findNode } from "./node-finder.service.js";
+import type { FindNodeOptions } from "./node-finder.service.js";
 
 /** Một node trong cây render. */
 export interface FlowNode {
@@ -71,7 +69,7 @@ export interface RenderFlowResult {
  * `name` được hiểu theo findNode(). Ném NodeNotFoundError nếu không có node,
  * RangeError nếu maxDepth không phải số nguyên từ 1 trở lên.
  */
-export function renderFlow(graph: GraphHandle, name: string, options: RenderFlowOptions = {}): RenderFlowResult {
+export function renderFlow(graph: GraphRepository, name: string, options: RenderFlowOptions = {}): RenderFlowResult {
   const { maxDepth } = options;
   if (maxDepth !== undefined && (!Number.isInteger(maxDepth) || maxDepth < 1)) {
     throw new RangeError(`Độ sâu tối đa phải là số nguyên từ 1 trở lên, nhận được: ${String(maxDepth)}.`);
@@ -79,19 +77,22 @@ export function renderFlow(graph: GraphHandle, name: string, options: RenderFlow
 
   const root = findNode(graph, name, options);
 
-  const reached = traverse(graph, root.id, "forward", { edgeTypes: FILE_EDGE_TYPES });
+  const reached = graph.reach(root.id, "forward", FILE_EDGE_TYPES);
 
   // Tra nhanh độ sâu nhỏ nhất của từng node khi dựng cây.
   const depthOf = new Map(reached.map((node) => [node.id, node.depth]));
 
-  // Thứ tự các con: cạnh không điều kiện trước (đó là luồng render chính),
-  // rồi theo tên để kết quả ổn định.
-  const outgoing = graph.db.prepare(
-    `SELECT e.dst, n.kind, e.type, e.conditional, e.count
-     FROM edges e JOIN nodes n ON n.id = e.dst
-     WHERE e.src = ? AND e.type IN (${FILE_EDGE_TYPES.map((type) => `'${type}'`).join(", ")})
-     ORDER BY e.conditional, e.dst, e.type`,
-  );
+  /**
+   * Các cạnh nối file với file đi ra từ một node. Thứ tự các con: cạnh không
+   * điều kiện trước (đó là luồng render chính), rồi theo tên để kết quả ổn
+   * định. Repository đã xếp theo (đích, loại); sort() giữ thứ tự đó trong
+   * từng nhóm.
+   */
+  const outgoing = (id: string) =>
+    graph
+      .edgesFrom(id)
+      .filter((edge) => FILE_EDGE_TYPES.includes(edge.type))
+      .sort((a, b) => Number(a.conditional) - Number(b.conditional));
 
   // Các node đã được mở. Không cần ghi gốc vào đây: gốc có độ sâu 0, không
   // bao giờ khớp điều kiện về tầng bên dưới, nên vòng quay về gốc tự bị chặn.
@@ -99,16 +100,16 @@ export function renderFlow(graph: GraphHandle, name: string, options: RenderFlow
 
   /** Dựng danh sách con của một node đang được mở ở tầng `depth`. */
   const childrenOf = (id: string, depth: number): FlowNode[] =>
-    outgoing.all(id).map((row) => {
-      const childId = String(row.dst);
+    outgoing(id).map((edge) => {
+      const childId = edge.to;
 
       const child: FlowNode = {
         id: childId,
-        kind: String(row.kind) as NodeKind,
+        kind: edge.neighborKind,
         depth: depth + 1,
-        edge: String(row.type) as EdgeType,
-        conditional: row.conditional === 1,
-        count: Number(row.count),
+        edge: edge.type,
+        conditional: edge.conditional,
+        count: edge.count,
         repeated: true,
         hidden: 0,
         children: [],
@@ -124,7 +125,7 @@ export function renderFlow(graph: GraphHandle, name: string, options: RenderFlow
         if (depth + 1 === maxDepth) {
           // Đây là chỗ đáng lẽ mở node ra, nhưng các con của nó nằm dưới tầng
           // bị cắt. Chỉ đếm chúng, để người đọc biết ở đây còn gì.
-          child.hidden = outgoing.all(childId).length;
+          child.hidden = outgoing(childId).length;
         } else {
           child.children = childrenOf(childId, depth + 1);
         }

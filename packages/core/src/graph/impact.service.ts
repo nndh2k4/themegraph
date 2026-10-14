@@ -1,10 +1,8 @@
-import { findNode } from "./node-finder.service.js";
-import type { FindNodeOptions } from "./node-finder.service.js";
-import type { GraphHandle } from "../infrastructure/sqlite/sqlite-graph.repository.js";
-import { traverse } from "../infrastructure/sqlite/traverse.sql.js";
-import type { Reached } from "../infrastructure/sqlite/traverse.sql.js";
 import { FILE_EDGE_TYPES } from "../models/index.js";
 import type { EdgeType, GraphNode } from "../models/index.js";
+import type { GraphRepository, Reached } from "./graph.repository.js";
+import { findNode } from "./node-finder.service.js";
+import type { FindNodeOptions } from "./node-finder.service.js";
 
 /**
  * Các loại cạnh của luồng render "tĩnh": mọi cạnh nối file với file, trừ cạnh
@@ -61,14 +59,12 @@ export interface ImpactResult {
  *
  * `name` được hiểu theo findNode(). Ném NodeNotFoundError nếu không có node.
  */
-export function impact(graph: GraphHandle, name: string, options: FindNodeOptions = {}): ImpactResult {
+export function impact(graph: GraphRepository, name: string, options: FindNodeOptions = {}): ImpactResult {
   const target = findNode(graph, name, options);
 
   // Bỏ chính target: nó có độ sâu 0, và trong đồ thị có vòng nó còn tự "ảnh
   // hưởng" tới mình, điều không có ích gì cho người hỏi.
-  const affected = traverse(graph, target.id, "backward").filter((node) => node.id !== target.id);
-
-  const totalPages = graph.db.prepare("SELECT count(*) AS n FROM nodes WHERE kind = 'page_type'").get();
+  const affected = graph.reach(target.id, "backward").filter((node) => node.id !== target.id);
 
   // Các file gọi target trực tiếp: đúng những node ở độ sâu 1.
   const direct = new Set(affected.filter((node) => node.depth === 1).map((node) => node.id));
@@ -79,7 +75,7 @@ export function impact(graph: GraphHandle, name: string, options: FindNodeOption
   // trực tiếp target thay vì từ chính target.
   const reachesStatically = new Set<string>(direct);
   for (const id of direct) {
-    for (const node of traverse(graph, id, "backward", { edgeTypes: STATIC_EDGE_TYPES })) {
+    for (const node of graph.reach(id, "backward", STATIC_EDGE_TYPES)) {
       reachesStatically.add(node.id);
     }
   }
@@ -90,7 +86,7 @@ export function impact(graph: GraphHandle, name: string, options: FindNodeOption
   const pages: ImpactPage[] = affected
     .filter((node) => node.kind === "page_type")
     .map((page) => {
-      const reachable = traverse(graph, page.id, "forward").map((node) => node.id);
+      const reachable = graph.reach(page.id, "forward").map((node) => node.id);
       for (const id of reachable) onSomePage.add(id);
 
       return {
@@ -107,6 +103,6 @@ export function impact(graph: GraphHandle, name: string, options: FindNodeOption
     offPage: affected
       .filter((node) => node.kind !== "page_type" && !onSomePage.has(node.id))
       .map((node) => node.id),
-    totalPages: Number(totalPages?.n ?? 0),
+    totalPages: graph.countNodes("page_type"),
   };
 }

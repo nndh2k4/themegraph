@@ -1,7 +1,7 @@
-import { deadCode } from "./dead-code.service.js";
-import type { GraphHandle, GraphMeta } from "../infrastructure/sqlite/sqlite-graph.repository.js";
 import { FILE_EDGE_TYPES } from "../models/index.js";
 import type { NodeKind } from "../models/index.js";
+import { deadCode } from "./dead-code.service.js";
+import type { GraphMeta, GraphRepository } from "./graph.repository.js";
 
 /** Số file được nêu trong mục "được dùng nhiều nhất". */
 const MOST_USED_LIMIT = 10;
@@ -38,11 +38,6 @@ export interface OverviewResult {
   mostUsed: UsageCount[];
 }
 
-/** Đổi các dòng (name, n) của một câu GROUP BY thành object, giữ thứ tự. */
-function toCounts(rows: Record<string, unknown>[]): Record<string, number> {
-  return Object.fromEntries(rows.map((row) => [String(row.name), Number(row.n)]));
-}
-
 /**
  * Trả lời câu hỏi: "theme này gồm những gì, và có gì đáng để ý?"
  *
@@ -52,42 +47,21 @@ function toCounts(rows: Record<string, unknown>[]): Record<string, number> {
  * Số liệu ở đây trùng với phần thống kê lệnh analyze in ra, cộng thêm ba thứ
  * analyze không tính: tham chiếu hỏng, file không dùng, file được dùng nhiều.
  */
-export function overview(graph: GraphHandle): OverviewResult {
-  const { db } = graph;
-
-  const nodesByKind = toCounts(db.prepare("SELECT kind AS name, count(*) AS n FROM nodes GROUP BY kind ORDER BY kind").all());
-  const edgesByType = toCounts(db.prepare("SELECT type AS name, count(*) AS n FROM edges GROUP BY type ORDER BY type").all());
-  const refsByStatus = toCounts(
-    db.prepare("SELECT status AS name, count(*) AS n FROM refs GROUP BY status ORDER BY status").all(),
-  );
+export function overview(graph: GraphRepository): OverviewResult {
+  const { nodesByKind, edgesByType, refsByStatus } = graph.counts();
 
   const sum = (counts: Record<string, number>): number => Object.values(counts).reduce((total, n) => total + n, 0);
 
-  // 'page:' dài 5 ký tự; substr đếm từ 1.
-  const pages = db
-    .prepare("SELECT substr(id, 6) AS name FROM nodes WHERE kind = 'page_type' ORDER BY name")
-    .all()
-    .map((row) => String(row.name));
+  // 'page:' dài 5 ký tự.
+  const pages = graph.nodesOfKinds(["page_type"]).map((node) => node.id.slice("page:".length));
 
-  // Chỉ đếm cạnh của luồng render (file gọi file), và đếm số NƠI GỌI khác
-  // nhau chứ không cộng số lời gọi: một file gọi icon mười lần vẫn là một nơi.
-  // Loại trang và template bị loại khỏi kết quả: template nào cũng "được dùng"
-  // bởi đúng một loại trang, điều không nói lên gì. Asset cũng bị loại: trên
-  // theme thật, mười chỗ đầu bảng toàn là icon SVG, che mất các file Liquid mà
-  // người sửa theme cần biết.
-  const mostUsed = db
-    .prepare(
-      `SELECT e.dst AS id, n.kind AS kind, count(DISTINCT e.src) AS used_by
-       FROM edges e JOIN nodes n ON n.id = e.dst
-       WHERE e.type IN (${FILE_EDGE_TYPES.map((type) => `'${type}'`).join(", ")})
-         AND e.src <> e.dst
-         AND n.kind NOT IN ('page_type', 'template', 'asset')
-       GROUP BY e.dst
-       ORDER BY used_by DESC, e.dst
-       LIMIT ?`,
-    )
-    .all(MOST_USED_LIMIT)
-    .map((row) => ({ id: String(row.id), kind: String(row.kind) as NodeKind, usedBy: Number(row.used_by) }));
+  // Chỉ đếm cạnh của luồng render (file gọi file). Loại trang và template bị
+  // loại khỏi kết quả: template nào cũng "được dùng" bởi đúng một loại trang,
+  // điều không nói lên gì. Asset cũng bị loại: trên theme thật, mười chỗ đầu
+  // bảng toàn là icon SVG, che mất các file Liquid mà người sửa theme cần biết.
+  const mostUsed = graph
+    .mostReferenced({ edgeTypes: FILE_EDGE_TYPES, excludeKinds: ["page_type", "template", "asset"], limit: MOST_USED_LIMIT })
+    .map(({ node, callers }) => ({ id: node.id, kind: node.kind, usedBy: callers }));
 
   const dead = deadCode(graph);
 

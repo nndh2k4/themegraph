@@ -1,226 +1,225 @@
-import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-import type { ThemeGraph } from "../../models/index.js";
+import { GraphNotReadyError } from "../../common/errors.js";
 import { VERSION } from "../../common/version.js";
+import type { GraphRepository } from "../../graph/graph.repository.js";
+import type { GraphStore, RemovedData } from "../../graph/graph.store.js";
+import type { ThemeGraph } from "../../models/index.js";
+import { DATA_DIR, graphDbPath, OWN_FILES, SCHEMA_SQL, SCHEMA_VERSION } from "./schema.js";
+import { SqliteGraphRepository } from "./sqlite-graph.repository.js";
 
 /**
- * Phiên bản của lược đồ bảng bên dưới. Tăng số này mỗi khi đổi cấu trúc bảng,
- * hoặc khi analyze bắt đầu ghi thêm một loại quan hệ (bản 5: cạnh
- * LOADS_SECTION và hash của file .js; bản 6: bảng elements), để công cụ đọc
- * biết một graph.db cũ có còn dùng được hay phải analyze lại.
+ * Bản hiện thực GraphStore bằng SQLite: đồ thị của mỗi theme là một file
+ * <theme>/.themegraph/graph.db.
  */
-export const SCHEMA_VERSION = 6;
-
-/** Thư mục công cụ ghi dữ liệu vào, nằm ngay trong thư mục theme. */
-const DATA_DIR = ".themegraph";
-
-/**
- * Lược đồ của graph.db.
- *
- * STRICT: SQLite mặc định cho ghi chuỗi vào cột số; STRICT bắt đúng kiểu.
- *
- * WITHOUT ROWID: dữ liệu của bảng được xếp ngay theo khoá chính thay vì theo
- * một số thứ tự ẩn. Với `edges`, khoá chính bắt đầu bằng `src`, nên chính
- * bảng đã là một index cho câu hỏi "node này trỏ tới đâu" (đi XUÔI).
- *
- * edges_by_dst: index cho chiều ngược lại, "ai trỏ tới node này" (đi NGƯỢC).
- * Không có nó, mỗi bước của truy vấn ngược phải đọc toàn bộ bảng edges.
- *
- * schemas: dữ kiện đọc từ {% schema %} của section và block. Để ở bảng riêng
- * thay vì thêm cột vào nodes, vì phần lớn node (snippet, asset, loại trang...)
- * không có schema.
- *
- * file_hashes: hash nội dung của từng file analyze đã đọc. Lệnh status so nó
- * với nội dung hiện có trên đĩa để biết đồ thị còn khớp hay không.
- *
- * elements: file nào định nghĩa và file nào dùng mỗi custom element. Để ở
- * bảng riêng chứ không thành cạnh, vì "file này viết thẻ <cart-drawer>" không
- * phải là "file này gọi assets/cart-drawer.js": thẻ chỉ chạy khi có một thẻ
- * <script> nạp file kia, và chính chỗ lệch giữa hai điều đó là thứ dead-code
- * cần tìm.
- */
-const SCHEMA_SQL = `
-CREATE TABLE meta (
-  key   TEXT PRIMARY KEY,
-  value TEXT NOT NULL
-) STRICT, WITHOUT ROWID;
-
-CREATE TABLE nodes (
-  id   TEXT PRIMARY KEY,
-  kind TEXT NOT NULL
-) STRICT, WITHOUT ROWID;
-
-CREATE TABLE edges (
-  src         TEXT    NOT NULL REFERENCES nodes (id),
-  dst         TEXT    NOT NULL REFERENCES nodes (id),
-  type        TEXT    NOT NULL,
-  conditional INTEGER NOT NULL CHECK (conditional IN (0, 1)),
-  sources     TEXT    NOT NULL,
-  count       INTEGER NOT NULL CHECK (count >= 1),
-  PRIMARY KEY (src, dst, type)
-) STRICT, WITHOUT ROWID;
-
-CREATE INDEX edges_by_dst ON edges (dst, type);
-
-CREATE TABLE refs (
-  id          INTEGER PRIMARY KEY,
-  src         TEXT    NOT NULL REFERENCES nodes (id),
-  name        TEXT    NOT NULL,
-  kind        TEXT    NOT NULL,
-  source      TEXT    NOT NULL,
-  conditional INTEGER NOT NULL CHECK (conditional IN (0, 1)),
-  line        INTEGER NOT NULL,
-  status      TEXT    NOT NULL,
-  target      TEXT
-) STRICT;
-
-CREATE INDEX refs_by_src ON refs (src);
-CREATE INDEX refs_by_target ON refs (target);
-
-CREATE TABLE schemas (
-  file                 TEXT    PRIMARY KEY REFERENCES nodes (id),
-  presets              INTEGER NOT NULL CHECK (presets >= 0),
-  accepts_theme_blocks INTEGER NOT NULL CHECK (accepts_theme_blocks IN (0, 1))
-) STRICT, WITHOUT ROWID;
-
-CREATE TABLE file_hashes (
-  file TEXT PRIMARY KEY REFERENCES nodes (id),
-  hash TEXT NOT NULL
-) STRICT, WITHOUT ROWID;
-
-CREATE TABLE elements (
-  name TEXT    NOT NULL,
-  role TEXT    NOT NULL CHECK (role IN ('define', 'use')),
-  file TEXT    NOT NULL REFERENCES nodes (id),
-  line INTEGER NOT NULL,
-  PRIMARY KEY (name, role, file)
-) STRICT, WITHOUT ROWID;
-`;
-
-/** Đường dẫn tới graph.db của một theme. */
-export function graphDbPath(themeRoot: string): string {
-  return path.join(themeRoot, DATA_DIR, "graph.db");
-}
-
-export interface SaveGraphOptions {
-  /** Thời điểm ghi vào bảng meta. Mặc định là lúc gọi hàm; test truyền giá trị cố định. */
-  analyzedAt?: Date;
-}
-
-/**
- * Ghi đồ thị của một theme vào <themeRoot>/.themegraph/graph.db, thay hẳn
- * database cũ nếu có.
- *
- * Ghi vào một file tạm rồi mới đổi tên thành graph.db. Nhờ vậy graph.db luôn
- * là một database hoàn chỉnh: hoặc bản cũ, hoặc bản mới, không bao giờ là
- * bản đang ghi dở nếu tiến trình bị ngắt giữa chừng.
- */
-export function saveGraph(themeRoot: string, graph: ThemeGraph, options: SaveGraphOptions = {}): void {
-  const dataDir = path.join(themeRoot, DATA_DIR);
-  const finalPath = graphDbPath(themeRoot);
-  const tempPath = `${finalPath}.tmp`;
-
-  mkdirSync(dataDir, { recursive: true });
-
-  // File .gitignore chứa "*" khiến git bỏ qua mọi thứ trong thư mục này, kể cả
-  // chính nó. Theme không cần sửa .gitignore của mình để tránh commit graph.db.
-  writeFileSync(path.join(dataDir, ".gitignore"), "*\n");
-
-  // Dọn file tạm còn sót từ một lần chạy bị ngắt trước đó.
-  rmSync(tempPath, { force: true });
-
-  const db = new DatabaseSync(tempPath);
-  try {
-    db.exec("PRAGMA foreign_keys = ON");
-    db.exec(SCHEMA_SQL);
-
-    // Câu lệnh được chuẩn bị một lần rồi chạy lại nhiều lần với giá trị khác
-    // nhau; dấu ? giữ chỗ cho giá trị, nên không phải tự ghép chuỗi SQL.
-    const insertMeta = db.prepare("INSERT INTO meta (key, value) VALUES (?, ?)");
-    const insertNode = db.prepare("INSERT INTO nodes (id, kind) VALUES (?, ?)");
-    const insertEdge = db.prepare(
-      "INSERT INTO edges (src, dst, type, conditional, sources, count) VALUES (?, ?, ?, ?, ?, ?)",
-    );
-    const insertRef = db.prepare(
-      `INSERT INTO refs (src, name, kind, source, conditional, line, status, target)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
-    const insertFileHash = db.prepare("INSERT INTO file_hashes (file, hash) VALUES (?, ?)");
-    const insertSchema = db.prepare(
-      "INSERT INTO schemas (file, presets, accepts_theme_blocks) VALUES (?, ?, ?)",
-    );
-
-    const insertElement = db.prepare("INSERT INTO elements (name, role, file, line) VALUES (?, ?, ?, ?)");
-
-    // Một transaction cho toàn bộ: nhanh hơn nhiều so với để mỗi INSERT tự
-    // commit, và nếu có lỗi giữa chừng thì không dòng nào được ghi.
-    db.exec("BEGIN");
-    try {
-      insertMeta.run("schema_version", String(SCHEMA_VERSION));
-      insertMeta.run("tool_version", VERSION);
-      insertMeta.run("analyzed_at", (options.analyzedAt ?? new Date()).toISOString());
-
-      // Node trước, cạnh sau: khoá ngoại đòi node phải có sẵn khi chèn cạnh.
-      for (const node of graph.nodes) {
-        insertNode.run(node.id, node.kind);
-      }
-
-      for (const edge of graph.edges) {
-        insertEdge.run(
-          edge.from,
-          edge.to,
-          edge.type,
-          edge.conditional ? 1 : 0, // SQLite không có kiểu boolean
-          edge.sources,
-          edge.count,
-        );
-      }
-
-      for (const ref of graph.refs) {
-        insertRef.run(
-          ref.from,
-          ref.to,
-          ref.kind,
-          ref.source,
-          ref.conditional ? 1 : 0,
-          ref.line,
-          ref.status,
-          ref.target,
-        );
-      }
-
-      for (const schema of graph.schemas) {
-        insertSchema.run(schema.file, schema.presets, schema.acceptsThemeBlocks ? 1 : 0);
-      }
-
-      for (const entry of graph.fileHashes) {
-        insertFileHash.run(entry.file, entry.hash);
-      }
-
-      for (const entry of graph.elements) {
-        insertElement.run(entry.name, entry.role, entry.file, entry.line);
-      }
-
-      db.exec("COMMIT");
-    } catch (error) {
-      db.exec("ROLLBACK");
-      throw error;
-    }
-  } catch (error) {
-    db.close();
-    rmSync(tempPath, { force: true });
-    throw error;
+export class SqliteGraphStore implements GraphStore {
+  dbPath(themeRoot: string): string {
+    return graphDbPath(path.resolve(themeRoot));
   }
 
-  // Phải đóng trước khi đổi tên: Windows không cho đổi tên file đang mở.
-  db.close();
+  hasGraph(dir: string): boolean {
+    return existsSync(this.dbPath(dir));
+  }
 
-  // Database cũ ở chế độ WAL để lại hai file phụ cạnh nó. Xoá chúng trước,
-  // nếu không SQLite sẽ áp nhật ký của database cũ lên database mới.
-  rmSync(`${finalPath}-wal`, { force: true });
-  rmSync(`${finalPath}-shm`, { force: true });
+  /**
+   * Mở ở chế độ CHỈ ĐỌC: truy vấn không bao giờ sửa được đồ thị, và nếu file
+   * không tồn tại thì SQLite không lặng lẽ tạo ra một database rỗng.
+   */
+  open(themeRoot: string): GraphRepository {
+    const root = path.resolve(themeRoot);
+    const dbPath = graphDbPath(root);
 
-  renameSync(tempPath, finalPath);
+    if (!existsSync(dbPath)) {
+      throw new GraphNotReadyError(
+        "not_analyzed",
+        `Chưa có đồ thị cho theme ở "${root}". Chạy "themegraph analyze" trong thư mục theme trước.`,
+      );
+    }
+
+    let db: DatabaseSync | undefined;
+    let meta: Map<string, string>;
+
+    try {
+      db = new DatabaseSync(dbPath, { readOnly: true });
+
+      // SQLite chỉ thật sự đọc file ở câu truy vấn đầu tiên, nên một file không
+      // phải database sẽ lộ ra ở đây chứ không phải ở dòng trên.
+      meta = new Map(
+        db
+          .prepare("SELECT key, value FROM meta")
+          .all()
+          .map((row) => [String(row.key), String(row.value)]),
+      );
+    } catch (error) {
+      // Đóng trước khi ném: không được giữ file khi mở thất bại.
+      db?.close();
+      throw new GraphNotReadyError(
+        "unreadable",
+        `Không đọc được "${dbPath}". Chạy lại "themegraph analyze" để ghi lại đồ thị.`,
+        { cause: error },
+      );
+    }
+
+    const schemaVersion = Number(meta.get("schema_version"));
+
+    if (schemaVersion !== SCHEMA_VERSION) {
+      db.close();
+      throw new GraphNotReadyError(
+        "outdated",
+        `"${dbPath}" dùng lược đồ phiên bản ${meta.get("schema_version") ?? "không rõ"}, ` +
+          `công cụ này cần phiên bản ${SCHEMA_VERSION}. Chạy lại "themegraph analyze".`,
+      );
+    }
+
+    return new SqliteGraphRepository(
+      root,
+      {
+        schemaVersion,
+        toolVersion: meta.get("tool_version") ?? "",
+        analyzedAt: meta.get("analyzed_at") ?? "",
+      },
+      db,
+    );
+  }
+
+  /**
+   * Ghi vào một file tạm rồi mới đổi tên thành graph.db. Nhờ vậy graph.db luôn
+   * là một database hoàn chỉnh: hoặc bản cũ, hoặc bản mới, không bao giờ là
+   * bản đang ghi dở nếu tiến trình bị ngắt giữa chừng.
+   */
+  save(themeRoot: string, graph: ThemeGraph, analyzedAt: Date): void {
+    const dataDir = path.join(themeRoot, DATA_DIR);
+    const finalPath = graphDbPath(themeRoot);
+    const tempPath = `${finalPath}.tmp`;
+
+    mkdirSync(dataDir, { recursive: true });
+
+    // File .gitignore chứa "*" khiến git bỏ qua mọi thứ trong thư mục này, kể cả
+    // chính nó. Theme không cần sửa .gitignore của mình để tránh commit graph.db.
+    writeFileSync(path.join(dataDir, ".gitignore"), "*\n");
+
+    // Dọn file tạm còn sót từ một lần chạy bị ngắt trước đó.
+    rmSync(tempPath, { force: true });
+
+    const db = new DatabaseSync(tempPath);
+    try {
+      db.exec("PRAGMA foreign_keys = ON");
+      db.exec(SCHEMA_SQL);
+
+      // Câu lệnh được chuẩn bị một lần rồi chạy lại nhiều lần với giá trị khác
+      // nhau; dấu ? giữ chỗ cho giá trị, nên không phải tự ghép chuỗi SQL.
+      const insertMeta = db.prepare("INSERT INTO meta (key, value) VALUES (?, ?)");
+      const insertNode = db.prepare("INSERT INTO nodes (id, kind) VALUES (?, ?)");
+      const insertEdge = db.prepare(
+        "INSERT INTO edges (src, dst, type, conditional, sources, count) VALUES (?, ?, ?, ?, ?, ?)",
+      );
+      const insertRef = db.prepare(
+        `INSERT INTO refs (src, name, kind, source, conditional, line, status, target)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      );
+      const insertFileHash = db.prepare("INSERT INTO file_hashes (file, hash) VALUES (?, ?)");
+      const insertSchema = db.prepare(
+        "INSERT INTO schemas (file, presets, accepts_theme_blocks) VALUES (?, ?, ?)",
+      );
+      const insertElement = db.prepare("INSERT INTO elements (name, role, file, line) VALUES (?, ?, ?, ?)");
+
+      // Một transaction cho toàn bộ: nhanh hơn nhiều so với để mỗi INSERT tự
+      // commit, và nếu có lỗi giữa chừng thì không dòng nào được ghi.
+      db.exec("BEGIN");
+      try {
+        insertMeta.run("schema_version", String(SCHEMA_VERSION));
+        insertMeta.run("tool_version", VERSION);
+        insertMeta.run("analyzed_at", analyzedAt.toISOString());
+
+        // Node trước, cạnh sau: khoá ngoại đòi node phải có sẵn khi chèn cạnh.
+        for (const node of graph.nodes) {
+          insertNode.run(node.id, node.kind);
+        }
+
+        for (const edge of graph.edges) {
+          insertEdge.run(
+            edge.from,
+            edge.to,
+            edge.type,
+            edge.conditional ? 1 : 0, // SQLite không có kiểu boolean
+            edge.sources,
+            edge.count,
+          );
+        }
+
+        for (const ref of graph.refs) {
+          insertRef.run(
+            ref.from,
+            ref.to,
+            ref.kind,
+            ref.source,
+            ref.conditional ? 1 : 0,
+            ref.line,
+            ref.status,
+            ref.target,
+          );
+        }
+
+        for (const schema of graph.schemas) {
+          insertSchema.run(schema.file, schema.presets, schema.acceptsThemeBlocks ? 1 : 0);
+        }
+
+        for (const entry of graph.fileHashes) {
+          insertFileHash.run(entry.file, entry.hash);
+        }
+
+        for (const entry of graph.elements) {
+          insertElement.run(entry.name, entry.role, entry.file, entry.line);
+        }
+
+        db.exec("COMMIT");
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
+    } catch (error) {
+      db.close();
+      rmSync(tempPath, { force: true });
+      throw error;
+    }
+
+    // Phải đóng trước khi đổi tên: Windows không cho đổi tên file đang mở.
+    db.close();
+
+    // Database cũ ở chế độ WAL để lại hai file phụ cạnh nó. Xoá chúng trước,
+    // nếu không SQLite sẽ áp nhật ký của database cũ lên database mới.
+    rmSync(`${finalPath}-wal`, { force: true });
+    rmSync(`${finalPath}-shm`, { force: true });
+
+    renameSync(tempPath, finalPath);
+  }
+
+  remove(themeRoot: string): RemovedData {
+    const dataDir = path.dirname(this.dbPath(themeRoot));
+
+    const removedFiles: string[] = [];
+    for (const name of OWN_FILES) {
+      const file = path.join(dataDir, name);
+      if (!existsSync(file)) continue;
+
+      rmSync(file);
+      removedFiles.push(file);
+    }
+
+    // rmdir chỉ xoá được thư mục RỖNG. Nếu còn file lạ thì nó ném lỗi, và thư
+    // mục được giữ lại cùng những file đó.
+    let removedDir = false;
+    if (existsSync(dataDir)) {
+      try {
+        rmdirSync(dataDir);
+        removedDir = true;
+      } catch {
+        removedDir = false;
+      }
+    }
+
+    return { removedFiles, removedDir };
+  }
 }

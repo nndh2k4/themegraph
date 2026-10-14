@@ -18,7 +18,7 @@ import {
   themeStatus,
   unregisterTheme,
 } from '@themegraph/core';
-import type { GraphHandle } from '@themegraph/core';
+import type { GraphRepository } from '@themegraph/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { handleApi, themeId } from '../src/api.js';
@@ -51,7 +51,7 @@ async function get(url: string, method = 'GET') {
 }
 
 /** Gọi một hàm của lõi trên theme đang test, để đối chiếu với API. */
-function core<T>(body: (graph: GraphHandle) => T): T {
+function core<T>(body: (graph: GraphRepository) => T): T {
   const graph = openGraph(themeRoot);
   try {
     return body(graph);

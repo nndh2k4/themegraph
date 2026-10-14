@@ -1,6 +1,7 @@
 import { appendFile, cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -9,12 +10,13 @@ import { context } from '../src/graph/context.service.js';
 import { deadCode } from '../src/graph/dead-code.service.js';
 import { extractFile } from '../src/analyze/parsers/theme-file.parser.js';
 import { impact } from '../src/graph/impact.service.js';
-import { openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
-import type { GraphHandle } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
 import { renderFlow } from '../src/graph/render-flow.service.js';
 import { resolveRef } from '../src/analyze/ref-resolver.js';
 import { themeStatus } from '../src/theme/status.js';
 import { file, ref } from './helpers.js';
+import { openGraph } from '../src/legacy.js';
+import type { GraphRepository } from '../src/graph/graph.repository.js';
+import { graphDbPath } from '../src/infrastructure/sqlite/schema.js';
 
 /**
  * Các test ở đây đi từ đầu tới cuối: file thật trên đĩa -> analyze -> truy vấn.
@@ -25,7 +27,7 @@ const FIXTURE = path.join(import.meta.dirname, 'fixtures/mini-theme');
 
 let tmp: string;
 let themeRoot: string;
-let graph: GraphHandle | null = null;
+let graph: GraphRepository | null = null;
 
 beforeEach(async () => {
   tmp = await mkdtemp(path.join(os.tmpdir(), 'themegraph-loads-'));
@@ -49,18 +51,25 @@ const write = (relative: string, content: string) => writeFile(path.join(themeRo
 const loadFromLayout = (asset: string) =>
   appendFile(path.join(themeRoot, 'layout', 'theme.liquid'), `\n{{ '${asset}' | asset_url | script_tag }}`);
 
-async function analyzed(): Promise<GraphHandle> {
+async function analyzed(): Promise<GraphRepository> {
   graph?.close();
   await analyze(themeRoot);
   graph = openGraph(themeRoot);
   return graph;
 }
 
-const edgesTo = (handle: GraphHandle, dst: string) =>
-  handle.db
-    .prepare('SELECT src, type, conditional, sources, count FROM edges WHERE dst = ? ORDER BY src')
-    .all(dst)
-    .map((row) => [row.src, row.type, row.conditional, row.sources, row.count]);
+const edgesTo = (handle: GraphRepository, dst: string) =>
+  handle.edgesTo(dst).map((edge) => [edge.from, edge.type, edge.conditional ? 1 : 0, edge.sources, edge.count]);
+
+/** Chạy một câu SELECT trên graph.db của theme, để xem đúng những gì analyze ghi. */
+function sql(query: string): unknown[] {
+  const db = new DatabaseSync(graphDbPath(themeRoot), { readOnly: true });
+  try {
+    return db.prepare(query).all();
+  } finally {
+    db.close();
+  }
+}
 
 describe('section do JavaScript tải — thành cạnh trong đồ thị', () => {
   it('file .js có ?section_id=ten sinh cạnh LOADS_SECTION có điều kiện tới section đó', async () => {
@@ -80,18 +89,17 @@ describe('section do JavaScript tải — thành cạnh trong đồ thị', () =
   it('tên không ứng với section nào thì bị bỏ, không thành tham chiếu hỏng', async () => {
     await write('assets/cart.js', "fetch(`/cart?section_id=khong-co`);\nconst x = { section: 'cung-khong-co' };");
     const result = await analyze(themeRoot);
-    const handle = await analyzed();
 
     expect(result.stats.edgesByType.LOADS_SECTION).toBeUndefined();
     expect(result.missing.map((entry) => entry.to)).not.toContain('khong-co');
-    expect(handle.db.prepare("SELECT count(*) AS n FROM refs WHERE kind = 'section_load'").get()?.n).toBe(0);
+    expect(sql("SELECT count(*) AS n FROM refs WHERE kind = 'section_load'")).toEqual([{ n: 0 }]);
   });
 
   it('ref tới section có thật được ghi vào bảng refs kèm số dòng', async () => {
     await write('assets/cart.js', '// dòng 1\nfetch(`/cart?section_id=drawer`);');
-    const handle = await analyzed();
+    await analyze(themeRoot);
 
-    expect(handle.db.prepare("SELECT src, name, source, line, status, target FROM refs WHERE kind = 'section_load'").all()).toEqual([
+    expect(sql("SELECT src, name, source, line, status, target FROM refs WHERE kind = 'section_load'")).toEqual([
       { src: 'assets/cart.js', name: 'drawer', source: 'js', line: 2, status: 'resolved', target: 'sections/drawer.liquid' },
     ]);
   });

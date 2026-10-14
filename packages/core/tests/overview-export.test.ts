@@ -3,14 +3,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { deadCode } from '../src/graph/dead-code.service.js';
 import { exportGraph } from '../src/graph/export-graph.service.js';
 import { buildGraph } from '../src/analyze/graph-builder.js';
-import { openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
-import type { GraphHandle } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
 import { overview } from '../src/graph/overview.service.js';
 import type { ThemeGraph } from '../src/models/index.js';
 import { file, queryGraph, ref, removeTempTheme, saveToTempTheme } from './helpers.js';
+import { openGraph } from '../src/legacy.js';
+import type { GraphRepository } from '../src/graph/graph.repository.js';
 
 let themeRoot: string;
-let graph: GraphHandle;
+let graph: GraphRepository;
 let memory: ThemeGraph; // cùng đồ thị, ở dạng đối tượng trong bộ nhớ, để đối chiếu
 
 beforeEach(async () => {

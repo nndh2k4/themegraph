@@ -22,7 +22,7 @@ import {
   verify,
   VERSION,
 } from "@themegraph/core";
-import type { GraphHandle, NodeKind } from "@themegraph/core";
+import type { GraphRepository, NodeKind } from "@themegraph/core";
 import {
   AnalyzeView,
   CleanView,
@@ -225,7 +225,7 @@ function runClean(positionals: string[], flags: Flags, io: Io): number {
  * Theme được chọn theo thứ tự: cờ --theme, rồi tới theme chứa thư mục đang
  * đứng (tìm ngược lên thư mục cha, như git tìm .git).
  */
-function withGraph(flags: Flags, body: (graph: GraphHandle) => number): number {
+function withGraph(flags: Flags, body: (graph: GraphRepository) => number): number {
   const graph = openGraph(themeRootOf(flags));
   try {
     return body(graph);
@@ -246,7 +246,7 @@ function runNamedQuery<T>(
   positionals: string[],
   flags: Flags,
   io: Io,
-  query: (graph: GraphHandle, name: string, options: { baseDir: string }) => T,
+  query: (graph: GraphRepository, name: string, options: { baseDir: string }) => T,
   view: TextView<T>,
 ): number {
   const [name, ...extra] = positionals;
@@ -267,7 +267,7 @@ function runBareQuery<T>(
   positionals: string[],
   flags: Flags,
   io: Io,
-  query: (graph: GraphHandle) => T,
+  query: (graph: GraphRepository) => T,
   view: TextView<T>,
   exitCodeOf: (result: T) => number = () => EXIT_OK,
 ): number {

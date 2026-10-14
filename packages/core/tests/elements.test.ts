@@ -10,11 +10,11 @@ import { deadCode } from '../src/graph/dead-code.service.js';
 import type { DeadCodeResult } from '../src/graph/dead-code.service.js';
 import { extractFile } from '../src/analyze/parsers/theme-file.parser.js';
 import { buildGraph } from '../src/analyze/graph-builder.js';
-import { openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
 import { overview } from '../src/graph/overview.service.js';
-import { graphDbPath } from '../src/infrastructure/sqlite/sqlite-graph.store.js';
 import type { ElementRole, FileElement, RawRef, ThemeFile, ThemeGraph } from '../src/models/index.js';
 import { file, ref, removeTempTheme, saveToTempTheme } from './helpers.js';
+import { openGraph } from '../src/legacy.js';
+import { graphDbPath } from '../src/infrastructure/sqlite/schema.js';
 
 const tempDirs: string[] = [];
 const tempThemes: string[] = [];

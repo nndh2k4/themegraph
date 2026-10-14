@@ -1,5 +1,5 @@
-import type { GraphHandle } from "../infrastructure/sqlite/sqlite-graph.repository.js";
-import type { EdgeType, GraphEdge, GraphNode, NodeKind } from "../models/index.js";
+import type { GraphEdge, GraphNode, NodeKind } from "../models/index.js";
+import type { GraphRepository } from "./graph.repository.js";
 
 /**
  * Nhóm node KHÔNG thuộc luồng render, chỉ được xuất khi người gọi xin.
@@ -35,32 +35,17 @@ export interface ExportedGraph {
  * Mọi cạnh trong kết quả đều có đủ hai đầu trong danh sách node: cạnh tới một
  * khoá dịch hay setting bị bỏ khi nhóm tương ứng không được xin.
  */
-export function exportGraph(graph: GraphHandle, options: ExportGraphOptions = {}): ExportedGraph {
+export function exportGraph(graph: GraphRepository, options: ExportGraphOptions = {}): ExportedGraph {
   const included = new Set((options.include ?? []).map((group) => KIND_OF_GROUP[group]));
 
   // Loại node bị bỏ: những nhóm tuỳ chọn không được xin.
   const excluded = EXPORT_GROUPS.map((group) => KIND_OF_GROUP[group]).filter((kind) => !included.has(kind));
 
-  const nodes: GraphNode[] = graph.db
-    .prepare("SELECT id, kind FROM nodes ORDER BY id")
-    .all()
-    .map((row) => ({ id: String(row.id), kind: String(row.kind) as NodeKind }))
-    .filter((node) => !excluded.includes(node.kind));
+  const nodes: GraphNode[] = graph.allNodes().filter((node) => !excluded.includes(node.kind));
 
   const ids = new Set(nodes.map((node) => node.id));
 
-  const edges: GraphEdge[] = graph.db
-    .prepare("SELECT src, dst, type, conditional, sources, count FROM edges ORDER BY src, dst, type")
-    .all()
-    .map((row) => ({
-      from: String(row.src),
-      to: String(row.dst),
-      type: String(row.type) as EdgeType,
-      conditional: row.conditional === 1,
-      sources: String(row.sources),
-      count: Number(row.count),
-    }))
-    .filter((edge) => ids.has(edge.from) && ids.has(edge.to));
+  const edges: GraphEdge[] = graph.allEdges().filter((edge) => ids.has(edge.from) && ids.has(edge.to));
 
   return { nodes, edges };
 }

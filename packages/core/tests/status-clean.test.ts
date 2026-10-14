@@ -9,10 +9,10 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { analyze } from '../src/analyze/analyze.service.js';
 import { cleanAllThemes, cleanTheme } from '../src/theme/clean.js';
-import { GraphNotReadyError } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
 import { readRegistry } from '../src/infrastructure/registry/json-theme-registry.repository.js';
 import { themeStatus } from '../src/theme/status.js';
-import { graphDbPath } from '../src/infrastructure/sqlite/sqlite-graph.store.js';
+import { GraphNotReadyError } from '../src/common/errors.js';
+import { graphDbPath } from '../src/infrastructure/sqlite/schema.js';
 
 const FIXTURE = path.join(import.meta.dirname, 'fixtures', 'mini-theme');
 

@@ -6,7 +6,8 @@ import { buildGraph } from "./graph-builder.js";
 import { hashContent } from "../common/hash.js";
 import { scanThemeDir } from "../infrastructure/fs/fs-theme-file.repository.js";
 import { registerTheme } from "../infrastructure/registry/json-theme-registry.repository.js";
-import { graphDbPath, saveGraph } from "../infrastructure/sqlite/sqlite-graph.store.js";
+import { graphDbPath } from "../infrastructure/sqlite/schema.js";
+import { saveGraph } from "../legacy.js";
 import type { FileElement, FileHash, FileSchema, RawRef, ResolvedRef } from "../models/index.js";
 
 /** Một file không phân tích được, kèm lý do. */

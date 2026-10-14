@@ -1,27 +1,11 @@
 import path from "node:path";
 
-import type { GraphHandle } from "../infrastructure/sqlite/sqlite-graph.repository.js";
+import { NodeNotFoundError } from "../common/errors.js";
 import type { GraphNode, NodeKind } from "../models/index.js";
+import type { GraphRepository } from "./graph.repository.js";
 
 /** Số gợi ý tối đa kèm theo lỗi không tìm thấy node. */
 const MAX_SUGGESTIONS = 5;
-
-/**
- * Lỗi ném ra khi tên người dùng đưa vào không ứng với node nào. `suggestions`
- * là id của các node có tên gần giống, để người (hoặc agent) gọi thử lại.
- */
-export class NodeNotFoundError extends Error {
-  readonly input: string;
-  readonly suggestions: string[];
-
-  constructor(input: string, suggestions: string[]) {
-    const hint = suggestions.length > 0 ? ` Có phải ý bạn là: ${suggestions.join(", ")}?` : "";
-    super(`Không có node "${input}" trong đồ thị.${hint}`);
-    this.name = "NodeNotFoundError";
-    this.input = input;
-    this.suggestions = suggestions;
-  }
-}
 
 export interface FindNodeOptions {
   /**
@@ -35,6 +19,9 @@ export interface FindNodeOptions {
 function toPosix(p: string): string {
   return p.replaceAll("\\", "/");
 }
+
+/** Các loại node không phải file; cách hiểu 4 không xét tới chúng. */
+const NON_FILE_KINDS: readonly NodeKind[] = ["page_type", "translation_key", "setting"];
 
 /**
  * Tìm node ứng với một cái tên do người dùng gõ.
@@ -55,7 +42,7 @@ function toPosix(p: string): string {
  *
  * Ném NodeNotFoundError (kèm gợi ý) nếu không cách nào ra kết quả.
  */
-export function findNode(graph: GraphHandle, input: string, options: FindNodeOptions = {}): GraphNode {
+export function findNode(graph: GraphRepository, input: string, options: FindNodeOptions = {}): GraphNode {
   // Id luôn dùng gạch chéo xuôi, kể cả trên Windows.
   const normalized = toPosix(input);
 
@@ -66,15 +53,9 @@ export function findNode(graph: GraphHandle, input: string, options: FindNodeOpt
   const absolute = path.resolve(options.baseDir ?? graph.themeRoot, input);
   const relative = toPosix(path.relative(graph.themeRoot, absolute));
 
-  const candidates = [normalized, relative, `page:${normalized}`];
-
-  const select = graph.db.prepare("SELECT id, kind FROM nodes WHERE id = ?");
-
-  for (const candidate of candidates) {
-    const row = select.get(candidate);
-    if (row !== undefined) {
-      return { id: String(row.id), kind: String(row.kind) as NodeKind };
-    }
+  for (const candidate of [normalized, relative, `page:${normalized}`]) {
+    const node = graph.getNode(candidate);
+    if (node !== null) return node;
   }
 
   const sameName = filesNamed(graph, normalized);
@@ -89,9 +70,6 @@ export function findNode(graph: GraphHandle, input: string, options: FindNodeOpt
   throw new NodeNotFoundError(input, suggest(graph, normalized));
 }
 
-/** Các loại node không phải file; cách hiểu 4 không xét tới chúng. */
-const NON_FILE_KINDS: readonly NodeKind[] = ["page_type", "translation_key", "setting"];
-
 /**
  * Các node file có tên đúng bằng `name`, không phân biệt hoa thường. "Tên" của
  * snippets/card.liquid là "card.liquid", hoặc "card" khi bỏ đuôi cuối cùng.
@@ -99,40 +77,31 @@ const NON_FILE_KINDS: readonly NodeKind[] = ["page_type", "translation_key", "se
  * Chỉ áp dụng cho tên không có dấu "/": một cái tên đã kèm thư mục mà không
  * trùng id nào thì là gõ sai, không phải gõ tắt.
  */
-function filesNamed(graph: GraphHandle, name: string): GraphNode[] {
+function filesNamed(graph: GraphRepository, name: string): GraphNode[] {
   if (name === "" || name.includes("/")) return [];
 
   const wanted = name.toLowerCase();
 
-  // Lọc sơ bằng SQL (id có chứa tên), rồi so chính xác bằng JavaScript.
-  return graph.db
-    .prepare("SELECT id, kind FROM nodes WHERE instr(lower(id), ?) > 0 ORDER BY id")
-    .all(wanted)
-    .map((row) => ({ id: String(row.id), kind: String(row.kind) as NodeKind }))
-    .filter((node) => {
-      if (NON_FILE_KINDS.includes(node.kind)) return false;
+  // Lọc sơ ở repository (id có chứa tên), rồi so chính xác ở đây.
+  return graph.findNodes(wanted, { ignoreCase: true }).filter((node) => {
+    if (NON_FILE_KINDS.includes(node.kind)) return false;
 
-      const base = node.id.slice(node.id.lastIndexOf("/") + 1).toLowerCase();
-      const dot = base.lastIndexOf(".");
-      return base === wanted || (dot > 0 && base.slice(0, dot) === wanted);
-    });
+    const base = node.id.slice(node.id.lastIndexOf("/") + 1).toLowerCase();
+    const dot = base.lastIndexOf(".");
+    return base === wanted || (dot > 0 && base.slice(0, dot) === wanted);
+  });
 }
 
 /**
  * Tìm các node có id chứa tên file của input (bỏ thư mục và đuôi), để gợi ý
  * khi người dùng gõ thiếu đuôi hoặc nhầm thư mục.
  */
-function suggest(graph: GraphHandle, normalized: string): string[] {
+function suggest(graph: GraphRepository, normalized: string): string[] {
   const lastSegment = normalized.slice(normalized.lastIndexOf("/") + 1);
   const dot = lastSegment.indexOf(".");
   const stem = dot > 0 ? lastSegment.slice(0, dot) : lastSegment;
 
   if (stem === "") return [];
 
-  // instr() tìm chuỗi con nguyên văn. Không dùng LIKE vì LIKE coi % và _ là
-  // ký tự đại diện, mà _ rất hay có trong tên file của theme.
-  return graph.db
-    .prepare("SELECT id FROM nodes WHERE instr(id, ?) > 0 ORDER BY id LIMIT ?")
-    .all(stem, MAX_SUGGESTIONS)
-    .map((row) => String(row.id));
+  return graph.findNodes(stem, { ignoreCase: false, limit: MAX_SUGGESTIONS }).map((node) => node.id);
 }

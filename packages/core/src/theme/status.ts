@@ -3,8 +3,12 @@ import path from "node:path";
 
 import { READ_EXTENSIONS } from "../analyze/analyze.service.js";
 import { hashContent } from "../common/hash.js";
-import { openGraph } from "../infrastructure/sqlite/sqlite-graph.repository.js";
+import { legacyStore } from "../legacy.js";
 import { scanThemeDir } from "../infrastructure/fs/fs-theme-file.repository.js";
+import type { NodeKind } from "../models/index.js";
+
+/** Ba loại node không ứng với file nào trên đĩa. */
+const NON_FILE_KINDS: readonly NodeKind[] = ["page_type", "translation_key", "setting"];
 
 /** Tình trạng đồ thị của một theme so với các file hiện có trên đĩa. */
 export interface StatusResult {
@@ -37,7 +41,7 @@ export interface StatusResult {
  * Ném GraphNotReadyError nếu theme chưa có đồ thị dùng được.
  */
 export async function themeStatus(themeRoot: string): Promise<StatusResult> {
-  const graph = openGraph(themeRoot);
+  const graph = legacyStore.open(themeRoot);
 
   let inGraph: Set<string>;
   let hashOf: Map<string, string>;
@@ -45,20 +49,15 @@ export async function themeStatus(themeRoot: string): Promise<StatusResult> {
   try {
     // Node file là mọi node trừ ba loại không ứng với file nào trên đĩa.
     inGraph = new Set(
-      graph.db
-        .prepare("SELECT id FROM nodes WHERE kind NOT IN ('page_type', 'translation_key', 'setting')")
-        .all()
-        .map((row) => String(row.id)),
+      graph
+        .allNodes()
+        .filter((node) => !NON_FILE_KINDS.includes(node.kind))
+        .map((node) => node.id),
     );
-    hashOf = new Map(
-      graph.db
-        .prepare("SELECT file, hash FROM file_hashes")
-        .all()
-        .map((row) => [String(row.file), String(row.hash)]),
-    );
+    hashOf = new Map(graph.fileHashes().map((entry) => [entry.file, entry.hash]));
     counts = {
-      nodes: Number(graph.db.prepare("SELECT count(*) AS n FROM nodes").get()?.n),
-      edges: Number(graph.db.prepare("SELECT count(*) AS n FROM edges").get()?.n),
+      nodes: graph.countNodes(),
+      edges: Object.values(graph.counts().edgesByType).reduce((total, n) => total + n, 0),
     };
   } finally {
     // Đóng trước khi làm việc với đĩa: không cần giữ database trong lúc đó.
@@ -85,7 +84,7 @@ export async function themeStatus(themeRoot: string): Promise<StatusResult> {
 
   return {
     themeRoot: graph.themeRoot,
-    dbPath: graph.dbPath,
+    dbPath: legacyStore.dbPath(graph.themeRoot),
     analyzedAt: graph.meta.analyzedAt,
     toolVersion: graph.meta.toolVersion,
     nodes: counts.nodes,

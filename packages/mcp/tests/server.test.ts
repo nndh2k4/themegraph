@@ -17,7 +17,7 @@ import {
   themeStatus,
   unregisterTheme,
 } from '@themegraph/core';
-import type { GraphHandle } from '@themegraph/core';
+import type { GraphRepository } from '@themegraph/core';
 import {
   ContextView,
   DeadCodeView,
@@ -84,7 +84,7 @@ async function call(client: Client, name: string, args: Record<string, unknown> 
 }
 
 /** Câu trả lời mà một tool PHẢI gửi: ghi chú về theme, một dòng trống, rồi các dòng của lõi. */
-async function expected(root: string, query: (graph: GraphHandle) => string[]): Promise<string> {
+async function expected(root: string, query: (graph: GraphRepository) => string[]): Promise<string> {
   const graph = openGraph(root);
   try {
     return [...new ThemeNoteView().render(await themeStatus(root)), '', ...query(graph)].join('\n');

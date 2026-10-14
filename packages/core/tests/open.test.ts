@@ -5,15 +5,17 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { findNode, NodeNotFoundError } from '../src/graph/node-finder.service.js';
-import { findThemeRoot, GraphNotReadyError, openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
-import type { GraphHandle } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
-import { graphDbPath, SCHEMA_VERSION } from '../src/infrastructure/sqlite/sqlite-graph.store.js';
+import { findNode } from '../src/graph/node-finder.service.js';
 import { buildGraph } from '../src/analyze/graph-builder.js';
 import { file, queryGraph, removeTempTheme, saveToTempTheme } from './helpers.js';
+import { GraphNotReadyError, NodeNotFoundError } from '../src/common/errors.js';
+import { findThemeRoot, openGraph } from '../src/legacy.js';
+import type { GraphRepository } from '../src/graph/graph.repository.js';
+import { SCHEMA_VERSION, graphDbPath } from '../src/infrastructure/sqlite/schema.js';
+import { SqliteGraphStore } from '../src/infrastructure/sqlite/sqlite-graph.store.js';
 
 let themeRoot: string;
-let opened: GraphHandle[];
+let opened: GraphRepository[];
 
 beforeEach(async () => {
   themeRoot = await saveToTempTheme(queryGraph());
@@ -27,7 +29,7 @@ afterEach(async () => {
 });
 
 /** Mở đồ thị và ghi nhớ để afterEach đóng lại. */
-function open(root: string = themeRoot): GraphHandle {
+function open(root: string = themeRoot): GraphRepository {
   const graph = openGraph(root);
   opened.push(graph);
   return graph;
@@ -43,12 +45,12 @@ function errorOf(run: () => unknown): unknown {
   return undefined;
 }
 
-describe('openGraph', () => {
+describe('SqliteGraphStore.open', () => {
   it('mở graph.db của theme và đọc được thông tin trong bảng meta', () => {
     const graph = open();
 
     expect(graph.themeRoot).toBe(themeRoot);
-    expect(graph.dbPath).toBe(graphDbPath(themeRoot));
+    expect(new SqliteGraphStore().dbPath(themeRoot)).toBe(graphDbPath(themeRoot));
     expect(graph.meta.schemaVersion).toBe(SCHEMA_VERSION);
     expect(graph.meta.toolVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(Number.isNaN(Date.parse(graph.meta.analyzedAt))).toBe(false);
@@ -61,7 +63,7 @@ describe('openGraph', () => {
       const graph = open('.');
 
       expect(path.isAbsolute(graph.themeRoot)).toBe(true);
-      expect(graph.db.prepare('SELECT count(*) AS n FROM nodes').get()?.n).toBeGreaterThan(0);
+      expect(graph.countNodes()).toBeGreaterThan(0);
     } finally {
       process.chdir(originalCwd);
     }
@@ -70,7 +72,10 @@ describe('openGraph', () => {
   it('mở ở chế độ chỉ đọc: truy vấn không thể làm hỏng đồ thị', () => {
     const graph = open();
 
-    expect(() => graph.db.exec('DELETE FROM nodes')).toThrow(/readonly/i);
+    // GraphRepository không có hàm ghi nào; ở đây kiểm thêm chính kết nối bên
+    // dưới, qua trường riêng của bản SQLite.
+    const { db } = graph as unknown as { db: DatabaseSync };
+    expect(() => db.exec('DELETE FROM nodes')).toThrow(/readonly/i);
   });
 
   it('báo not_analyzed khi theme chưa được phân tích', async () => {

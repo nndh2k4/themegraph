@@ -1,5 +1,5 @@
-import type { GraphHandle } from "../infrastructure/sqlite/sqlite-graph.repository.js";
 import type { NodeKind } from "../models/index.js";
+import type { GraphRepository } from "./graph.repository.js";
 
 /** Số kết quả trả về khi người gọi không nêu giới hạn. */
 export const DEFAULT_SEARCH_LIMIT = 20;
@@ -97,20 +97,16 @@ function matchOf(term: string, id: string, name: string): SearchMatch | null {
  * Thứ tự kết quả: mức khớp sát trước; cùng mức thì file và trang đứng trước
  * khoá dịch và setting; rồi id ngắn trước; rồi theo bảng chữ cái.
  */
-export function search(graph: GraphHandle, query: string, options: SearchOptions = {}): SearchResult {
+export function search(graph: GraphRepository, query: string, options: SearchOptions = {}): SearchResult {
   const terms = query.toLowerCase().split(/\s+/).filter((term) => term !== "");
   const kinds = new Set(options.kinds ?? []);
   const limit = Math.max(0, options.limit ?? DEFAULT_SEARCH_LIMIT);
 
-  // Theme lớn nhất đã đo có chưa tới 4000 node, nên đọc hết rồi lọc bằng
-  // JavaScript vẫn chỉ mất vài mili giây, và giữ được luật khớp ở một chỗ.
-  const rows = graph.db.prepare("SELECT id, kind FROM nodes").all();
-
+  // Theme lớn nhất đã đo có chưa tới 4000 node, nên đọc hết rồi lọc ở đây
+  // vẫn chỉ mất vài mili giây, và giữ được luật khớp ở một chỗ.
   const hits: SearchHit[] = [];
 
-  for (const row of rows) {
-    const id = String(row.id);
-    const kind = String(row.kind) as NodeKind;
+  for (const { id, kind } of graph.allNodes()) {
 
     if (kinds.size > 0 && !kinds.has(kind)) continue;
 

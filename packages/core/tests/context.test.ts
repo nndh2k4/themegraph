@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { context } from '../src/graph/context.service.js';
-import { NodeNotFoundError } from '../src/graph/node-finder.service.js';
-import { openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
-import type { GraphHandle } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
 import { queryGraph, removeTempTheme, saveToTempTheme } from './helpers.js';
+import { NodeNotFoundError } from '../src/common/errors.js';
+import { openGraph } from '../src/legacy.js';
+import type { GraphRepository } from '../src/graph/graph.repository.js';
 
 let themeRoot: string;
-let graph: GraphHandle;
+let graph: GraphRepository;
 
 beforeEach(async () => {
   themeRoot = await saveToTempTheme(queryGraph());

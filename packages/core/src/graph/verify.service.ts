@@ -1,6 +1,4 @@
-import type { GraphHandle } from "../infrastructure/sqlite/sqlite-graph.repository.js";
-import { traverse } from "../infrastructure/sqlite/traverse.sql.js";
-import type { Direction, Reached } from "../infrastructure/sqlite/traverse.sql.js";
+import type { Direction, GraphRepository, Reached } from "./graph.repository.js";
 
 /** Một cạnh ở dạng tối thiểu mà phép duyệt cần. */
 export interface PlainEdge {
@@ -41,7 +39,7 @@ export interface VerifyResult {
 /**
  * Duyệt đồ thị theo chiều rộng bằng JavaScript thuần, không dùng SQL.
  *
- * Đây là cách tính THỨ HAI, độc lập với traverse(): cùng một câu hỏi nhưng
+ * Đây là cách tính THỨ HAI, độc lập với GraphRepository.reach(): cùng một câu hỏi nhưng
  * khác hẳn cách làm (hàng đợi và tập "đã ghé qua" trong bộ nhớ, thay vì bảng
  * tạm đệ quy của SQLite). Hai cách cho cùng kết quả trên mọi node thì mới tin
  * được cả hai.
@@ -127,18 +125,14 @@ export function diffTraversals(
  * Kèm theo là hai phép tự kiểm tra của SQLite: file database có nguyên vẹn
  * không, và có dòng nào trỏ tới một node không tồn tại không.
  */
-export function verify(graph: GraphHandle): VerifyResult {
+export function verify(graph: GraphRepository): VerifyResult {
   const startedAt = performance.now();
 
-  const nodes = graph.db
-    .prepare("SELECT id FROM nodes ORDER BY id")
-    .all()
-    .map((row) => String(row.id));
+  const nodes = graph.allNodes().map((node) => node.id);
 
-  const edges: PlainEdge[] = graph.db
-    .prepare("SELECT src, dst, conditional FROM edges")
-    .all()
-    .map((row) => ({ src: String(row.src), dst: String(row.dst), conditional: row.conditional === 1 }));
+  const edges: PlainEdge[] = graph
+    .allEdges()
+    .map((edge) => ({ src: edge.from, dst: edge.to, conditional: edge.conditional }));
 
   const mismatches: VerifyMismatch[] = [];
   let comparisons = 0;
@@ -147,7 +141,7 @@ export function verify(graph: GraphHandle): VerifyResult {
 
   for (const start of nodes) {
     for (const direction of ["forward", "backward"] as const) {
-      const sqlRows = traverse(graph, start, direction);
+      const sqlRows = graph.reach(start, direction);
       const bfs = bfsTraverse(edges, start, direction);
 
       mismatches.push(...diffTraversals(start, direction, sqlRows, bfs));
@@ -163,18 +157,10 @@ export function verify(graph: GraphHandle): VerifyResult {
     }
   }
 
+  const { problems, brokenLinks } = graph.checkIntegrity();
   const integrity = [
-    // integrity_check trả đúng một dòng "ok" khi file không hỏng.
-    ...graph.db
-      .prepare("PRAGMA integrity_check")
-      .all()
-      .map((row) => String(row.integrity_check))
-      .filter((line) => line !== "ok"),
-    // foreign_key_check trả một dòng cho mỗi dòng vi phạm khoá ngoại.
-    ...graph.db
-      .prepare("PRAGMA foreign_key_check")
-      .all()
-      .map((row) => `Bảng ${String(row.table)} có dòng trỏ tới một dòng không tồn tại của bảng ${String(row.parent)}.`),
+    ...problems,
+    ...brokenLinks.map((link) => `Bảng ${link.table} có dòng trỏ tới một dòng không tồn tại của bảng ${link.parent}.`),
   ];
 
   return {

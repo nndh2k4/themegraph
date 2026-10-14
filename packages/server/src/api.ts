@@ -17,7 +17,7 @@ import {
   search,
   themeStatus,
 } from "@themegraph/core";
-import type { ExportGroup, GraphHandle, ListedTheme, NodeKind } from "@themegraph/core";
+import type { ExportGroup, GraphRepository, ListedTheme, NodeKind } from "@themegraph/core";
 
 /**
  * Một request tới API, đã gỡ khỏi mọi thứ thuộc về HTTP của Node. Tách ra để
@@ -121,7 +121,7 @@ function optionalList<T extends string>(query: URLSearchParams, name: string, al
 }
 
 /** Mở đồ thị của theme có mã `id`, chạy `body`, rồi luôn đóng lại. */
-function withTheme<T>(id: string, body: (graph: GraphHandle) => T): T {
+function withTheme<T>(id: string, body: (graph: GraphRepository) => T): T {
   const theme = listThemes().find((entry) => themeId(entry.path) === id);
   if (theme === undefined) throw new ThemeNotFound(`Không có theme nào mang mã "${id}".`);
 

@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildGraph } from '../src/analyze/graph-builder.js';
 import { readRegistry, registerTheme, unregisterTheme } from '../src/infrastructure/registry/json-theme-registry.repository.js';
 import { selectTheme, ThemeSelectionError } from '../src/theme/select-theme.js';
-import { saveGraph } from '../src/infrastructure/sqlite/sqlite-graph.store.js';
+import { saveGraph } from '../src/legacy.js';
 
 let tmp: string;
 

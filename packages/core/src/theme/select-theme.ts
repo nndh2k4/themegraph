@@ -1,7 +1,6 @@
-import { existsSync } from "node:fs";
 import path from "node:path";
 
-import { findThemeRoot } from "../infrastructure/sqlite/sqlite-graph.repository.js";
+import { findThemeRoot, legacyStore } from "../legacy.js";
 import { findRegisteredTheme, listThemes } from "../infrastructure/registry/json-theme-registry.repository.js";
 import type { ListedTheme } from "../infrastructure/registry/json-theme-registry.repository.js";
 
@@ -84,7 +83,7 @@ export function selectTheme(requested: string | undefined, cwd: string): string 
     }
 
     // 3. Thư mục đã phân tích nhưng không có trong sổ (ví dụ sổ bị xoá).
-    if (existsSync(path.join(asPath, ".themegraph", "graph.db"))) return asPath;
+    if (legacyStore.hasGraph(asPath)) return asPath;
 
     throw new ThemeSelectionError(
       "unknown",

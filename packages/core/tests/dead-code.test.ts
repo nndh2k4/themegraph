@@ -3,9 +3,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { deadCode } from '../src/graph/dead-code.service.js';
 import type { DeadCodeResult } from '../src/graph/dead-code.service.js';
 import { buildGraph } from '../src/analyze/graph-builder.js';
-import { openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
 import type { FileSchema, RawRef, ThemeFile, ThemeGraph } from '../src/models/index.js';
 import { file, QUERY_SCHEMAS, queryGraph, ref, removeTempTheme, saveToTempTheme } from './helpers.js';
+import { openGraph } from '../src/legacy.js';
 
 const tempThemes: string[] = [];
 

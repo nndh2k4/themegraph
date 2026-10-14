@@ -1,9 +1,8 @@
+import type { EdgeType, GraphNode, NodeKind, RefKind } from "../models/index.js";
+import type { GraphRepository, NeighborEdge, Reached } from "./graph.repository.js";
+import { impact } from "./impact.service.js";
 import { findNode } from "./node-finder.service.js";
 import type { FindNodeOptions } from "./node-finder.service.js";
-import { impact } from "./impact.service.js";
-import type { GraphHandle } from "../infrastructure/sqlite/sqlite-graph.repository.js";
-import type { Reached } from "../infrastructure/sqlite/traverse.sql.js";
-import type { EdgeType, GraphNode, NodeKind, RefKind } from "../models/index.js";
 
 /** Hai loại cạnh không nối tới file, tách khỏi danh sách "file này gọi file nào". */
 const TRANSLATION_EDGE: EdgeType = "USES_TRANSLATION";
@@ -54,67 +53,40 @@ export interface ContextResult {
  *
  * `name` được hiểu theo findNode(). Ném NodeNotFoundError nếu không có node.
  */
-export function context(graph: GraphHandle, name: string, options: FindNodeOptions = {}): ContextResult {
+export function context(graph: GraphRepository, name: string, options: FindNodeOptions = {}): ContextResult {
   const node = findNode(graph, name, options);
 
-  // Hai câu dưới chỉ khác nhau ở chỗ lọc theo đầu nào của cạnh và lấy đầu nào
-  // ra làm "node bên kia".
-  const linksSql = (self: "src" | "dst", other: "src" | "dst"): string => `
-    SELECT e.src AS src, e.dst AS dst, n.kind AS kind,
-           e.type AS type, e.conditional AS conditional, e.count AS count, e.sources AS sources
-    FROM edges e JOIN nodes n ON n.id = e.${other}
-    WHERE e.${self} = ?
-    ORDER BY e.${other}, e.type`;
+  /** Đổi một cạnh kề thành một quan hệ, kèm các dòng có lời gọi trong file GỌI. */
+  const toLink = (edge: NeighborEdge, other: string): ContextLink => ({
+    id: other,
+    kind: edge.neighborKind,
+    type: edge.type,
+    conditional: edge.conditional,
+    count: edge.count,
+    sources: edge.sources,
+    lines: graph.refLines(edge.from, edge.to),
+  });
 
-  // Bảng edges đã gộp các lời gọi trùng nên không còn số dòng. Số dòng nằm ở
-  // bảng refs, nơi giữ từng lời gọi riêng lẻ. line = 0 là ref lấy từ JSON.
-  // Không cần lọc status: target ở đây là một node có thật, mà ref hỏng thì
-  // target của nó là đường dẫn của một file không tồn tại.
-  const linesOf = graph.db.prepare(
-    `SELECT DISTINCT line FROM refs
-     WHERE src = ? AND target = ? AND line > 0
-     ORDER BY line`,
-  );
-
-  const links = (self: "src" | "dst", other: "src" | "dst"): ContextLink[] =>
-    graph.db
-      .prepare(linksSql(self, other))
-      .all(node.id)
-      .map((row) => ({
-        id: String(row[other]),
-        kind: String(row.kind) as NodeKind,
-        type: String(row.type) as EdgeType,
-        conditional: row.conditional === 1,
-        count: Number(row.count),
-        sources: String(row.sources),
-        lines: linesOf.all(String(row.src), String(row.dst)).map((line) => Number(line.line)),
-      }));
-
-  const broken = graph.db
-    .prepare(
-      `SELECT name, kind, line, conditional, target FROM refs
-       WHERE src = ? AND status = 'missing'
-       ORDER BY line, name`,
-    )
-    .all(node.id)
-    .map((row) => ({
-      name: String(row.name),
-      kind: String(row.kind) as RefKind,
-      line: Number(row.line),
-      conditional: row.conditional === 1,
-      expected: String(row.target),
-    }));
+  // Không cần lọc trạng thái khi tìm số dòng: đích ở đây là một node có thật,
+  // mà ref hỏng thì đích của nó là đường dẫn của một file không tồn tại.
+  const broken = graph.missingRefsFrom(node.id).map((ref) => ({
+    name: ref.to,
+    kind: ref.kind,
+    line: ref.line,
+    conditional: ref.conditional,
+    expected: String(ref.target),
+  }));
 
   // "File này thuộc trang nào" chính là phần trang của truy vấn impact.
   const { pages, totalPages } = impact(graph, node.id);
 
   // Một section dùng vài chục khoá dịch và setting là chuyện thường. Để lẫn
   // chúng vào danh sách file được gọi thì danh sách đó hết đọc nổi, nên tách riêng.
-  const outgoing = links("src", "dst");
+  const outgoing = graph.edgesFrom(node.id).map((edge) => toLink(edge, edge.to));
 
   return {
     node,
-    usedBy: links("dst", "src"),
+    usedBy: graph.edgesTo(node.id).map((edge) => toLink(edge, edge.from)),
     uses: outgoing.filter((link) => link.type !== TRANSLATION_EDGE && link.type !== SETTING_EDGE),
     translations: outgoing.filter((link) => link.type === TRANSLATION_EDGE),
     settings: outgoing.filter((link) => link.type === SETTING_EDGE),

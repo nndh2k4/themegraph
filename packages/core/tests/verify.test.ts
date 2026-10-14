@@ -2,12 +2,12 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
-import type { GraphHandle } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
-import { graphDbPath } from '../src/infrastructure/sqlite/sqlite-graph.store.js';
 import { bfsTraverse, diffTraversals, verify } from '../src/graph/verify.service.js';
 import type { PlainEdge } from '../src/graph/verify.service.js';
 import { queryGraph, removeTempTheme, saveToTempTheme } from './helpers.js';
+import { openGraph } from '../src/legacy.js';
+import type { GraphRepository } from '../src/graph/graph.repository.js';
+import { graphDbPath } from '../src/infrastructure/sqlite/schema.js';
 
 const edge = (src: string, dst: string, conditional = false): PlainEdge => ({ src, dst, conditional });
 
@@ -119,7 +119,7 @@ describe('diffTraversals', () => {
 
 describe('verify', () => {
   let themeRoot: string;
-  let graph: GraphHandle | undefined;
+  let graph: GraphRepository | undefined;
 
   beforeEach(async () => {
     themeRoot = await saveToTempTheme(queryGraph());
@@ -144,10 +144,8 @@ describe('verify', () => {
     graph = openGraph(themeRoot);
     const result = verify(graph);
 
-    const count = (table: string) => Number(graph?.db.prepare(`SELECT count(*) AS n FROM ${table}`).get()?.n);
-
-    expect(result.nodes).toBe(count('nodes'));
-    expect(result.edges).toBe(count('edges'));
+    expect(result.nodes).toBe(graph.countNodes());
+    expect(result.edges).toBe(graph.allEdges().length);
     expect(result.traversals).toBe(result.nodes * 2);
     // Mỗi phép duyệt so ít nhất chính node xuất phát.
     expect(result.comparisons).toBeGreaterThan(result.traversals);

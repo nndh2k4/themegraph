@@ -1,8 +1,7 @@
-import { existsSync, rmdirSync, rmSync } from "node:fs";
 import path from "node:path";
 
 import { readRegistry, unregisterTheme } from "../infrastructure/registry/json-theme-registry.repository.js";
-import { graphDbPath } from "../infrastructure/sqlite/sqlite-graph.store.js";
+import { legacyStore } from "../legacy.js";
 
 /** Những gì cleanTheme() đã làm với một theme. */
 export interface CleanResult {
@@ -13,13 +12,6 @@ export interface CleanResult {
 }
 
 /**
- * Tên các file ThemeGraph tự tạo trong <theme>/.themegraph. cleanTheme chỉ xoá
- * đúng các file này, không xoá đệ quy cả thư mục: nếu ai đó để thứ khác vào
- * đó thì nó được giữ nguyên.
- */
-const OWN_FILES = ["graph.db", "graph.db-wal", "graph.db-shm", "graph.db.tmp", ".gitignore"];
-
-/**
  * Xoá mọi thứ ThemeGraph đã ghi cho một theme: các file trong
  * <theme>/.themegraph và mục của theme trong sổ đăng ký toàn cục.
  *
@@ -28,28 +20,7 @@ const OWN_FILES = ["graph.db", "graph.db-wal", "graph.db-shm", "graph.db.tmp", "
  */
 export function cleanTheme(themeRoot: string): CleanResult {
   const root = path.resolve(themeRoot);
-  const dataDir = path.dirname(graphDbPath(root));
-
-  const removedFiles: string[] = [];
-  for (const name of OWN_FILES) {
-    const file = path.join(dataDir, name);
-    if (!existsSync(file)) continue;
-
-    rmSync(file);
-    removedFiles.push(file);
-  }
-
-  // rmdir chỉ xoá được thư mục RỖNG. Nếu còn file lạ thì nó ném lỗi, và thư
-  // mục được giữ lại cùng những file đó.
-  let removedDir = false;
-  if (existsSync(dataDir)) {
-    try {
-      rmdirSync(dataDir);
-      removedDir = true;
-    } catch {
-      removedDir = false;
-    }
-  }
+  const { removedFiles, removedDir } = legacyStore.remove(root);
 
   return { themeRoot: root, removedFiles, removedDir, unregistered: unregisterTheme(root) };
 }

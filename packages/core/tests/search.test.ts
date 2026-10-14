@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
-import type { GraphHandle } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
 import { DEFAULT_SEARCH_LIMIT, search } from '../src/graph/search.service.js';
 import type { SearchHit } from '../src/graph/search.service.js';
 import { buildGraph } from '../src/analyze/graph-builder.js';
 import { NODE_KINDS } from '../src/models/index.js';
 import type { NodeKind } from '../src/models/index.js';
 import { file, queryGraph, removeTempTheme, saveToTempTheme } from './helpers.js';
+import { openGraph } from '../src/legacy.js';
+import type { GraphRepository } from '../src/graph/graph.repository.js';
 
 let themeRoot: string;
-let graph: GraphHandle;
+let graph: GraphRepository;
 
 beforeEach(async () => {
   themeRoot = await saveToTempTheme(queryGraph());
@@ -204,10 +204,7 @@ describe('NODE_KINDS', () => {
   });
 
   it('chứa mọi loại node mà đồ thị mẫu sinh ra', () => {
-    const kinds = graph.db
-      .prepare('SELECT DISTINCT kind FROM nodes')
-      .all()
-      .map((row) => String(row.kind));
+    const kinds = Object.keys(graph.counts().nodesByKind);
     const known: readonly string[] = NODE_KINDS;
 
     expect(kinds.filter((kind) => !known.includes(kind))).toEqual([]);

@@ -13,7 +13,7 @@ import {
   themeStatus,
   VERSION,
 } from "@themegraph/core";
-import type { GraphHandle } from "@themegraph/core";
+import type { GraphRepository } from "@themegraph/core";
 import {
   ContextView,
   DeadCodeView,
@@ -116,7 +116,7 @@ export function createServer(options: ServerOptions = {}): McpServer {
    * Câu trả lời mở đầu bằng tên theme đã chọn (agent cần biết mình vừa hỏi
    * theme nào khi máy có nhiều theme) và dòng cảnh báo nếu đồ thị đã cũ.
    */
-  async function onTheme(theme: string | undefined, query: (graph: GraphHandle) => string[]): Promise<string[]> {
+  async function onTheme(theme: string | undefined, query: (graph: GraphRepository) => string[]): Promise<string[]> {
     const themeRoot = selectTheme(theme, cwd);
 
     const graph = openGraph(themeRoot);
