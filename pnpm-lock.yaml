@@ -240,6 +240,9 @@ importers:
       '@themegraph/server':
         specifier: workspace:*
         version: link:../server
+      '@themegraph/views':
+        specifier: workspace:*
+        version: link:../views
 
   packages/core:
     dependencies:
@@ -255,11 +258,20 @@ importers:
       '@themegraph/core':
         specifier: workspace:*
         version: link:../core
+      '@themegraph/views':
+        specifier: workspace:*
+        version: link:../views
       zod:
         specifier: ^4.6.5
         version: 4.6.5
 
   packages/server:
+    dependencies:
+      '@themegraph/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/views:
     dependencies:
       '@themegraph/core':
         specifier: workspace:*

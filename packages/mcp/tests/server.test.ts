@@ -8,13 +8,6 @@ import {
   analyze,
   context,
   deadCode,
-  formatContext,
-  formatDeadCode,
-  formatImpact,
-  formatList,
-  formatRenderFlow,
-  formatSearch,
-  formatThemeNote,
   impact,
   listThemes,
   openGraph,
@@ -25,6 +18,15 @@ import {
   unregisterTheme,
 } from '@themegraph/core';
 import type { GraphHandle } from '@themegraph/core';
+import {
+  ContextView,
+  DeadCodeView,
+  ImpactView,
+  RenderFlowView,
+  SearchView,
+  ThemeListView,
+  ThemeNoteView,
+} from '@themegraph/views';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -85,7 +87,7 @@ async function call(client: Client, name: string, args: Record<string, unknown> 
 async function expected(root: string, query: (graph: GraphHandle) => string[]): Promise<string> {
   const graph = openGraph(root);
   try {
-    return [...formatThemeNote(await themeStatus(root)), '', ...query(graph)].join('\n');
+    return [...new ThemeNoteView().render(await themeStatus(root)), '', ...query(graph)].join('\n');
   } finally {
     graph.close();
   }
@@ -151,7 +153,7 @@ describe('MCP server — mỗi tool trả đúng những dòng của lõi', () =
     const result = await call(client, 'list_themes');
 
     expect(result.isError).toBe(false);
-    expect(result.text).toBe(formatList(listThemes()).join('\n'));
+    expect(result.text).toBe(new ThemeListView().render(listThemes()).join('\n'));
     expect(result.text).toContain(themeRoot);
   });
 
@@ -162,7 +164,7 @@ describe('MCP server — mỗi tool trả đúng những dòng của lõi', () =
     expect(result.isError).toBe(false);
     expect(result.text).toBe(
       await expected(themeRoot, (graph) =>
-        formatImpact(impact(graph, 'snippets/card.liquid'), { limit: DEFAULT_LIST_LIMIT }),
+        new ImpactView().render(impact(graph, 'snippets/card.liquid'), { limit: DEFAULT_LIST_LIMIT }),
       ),
     );
     expect(result.text).toContain('ảnh hưởng 8 file và 4 trên 4 trang');
@@ -174,7 +176,7 @@ describe('MCP server — mỗi tool trả đúng những dòng của lõi', () =
 
     expect(result.text).toBe(
       await expected(themeRoot, (graph) =>
-        formatContext(context(graph, 'sections/hero.liquid'), { limit: DEFAULT_LIST_LIMIT }),
+        new ContextView().render(context(graph, 'sections/hero.liquid'), { limit: DEFAULT_LIST_LIMIT }),
       ),
     );
     expect(result.text).toContain('Được gọi bởi (3):');
@@ -186,7 +188,7 @@ describe('MCP server — mỗi tool trả đúng những dòng của lõi', () =
 
     expect(result.text).toBe(
       await expected(themeRoot, (graph) =>
-        formatRenderFlow(renderFlow(graph, 'index', { maxDepth: DEFAULT_FLOW_DEPTH }), { limit: DEFAULT_FLOW_LINES }),
+        new RenderFlowView().render(renderFlow(graph, 'index', { maxDepth: DEFAULT_FLOW_DEPTH }), { limit: DEFAULT_FLOW_LINES }),
       ),
     );
     expect(result.text).toContain('page:index (page_type) kéo theo 7 file');
@@ -197,7 +199,7 @@ describe('MCP server — mỗi tool trả đúng những dòng của lõi', () =
     const result = await call(client, 'search', { query: 'card' });
 
     expect(result.text).toBe(
-      await expected(themeRoot, (graph) => formatSearch(search(graph, 'card', { limit: DEFAULT_SEARCH_RESULTS }))),
+      await expected(themeRoot, (graph) => new SearchView().render(search(graph, 'card', { limit: DEFAULT_SEARCH_RESULTS }))),
     );
     expect(result.text).toContain('snippets/card.liquid');
   });
@@ -210,7 +212,7 @@ describe('MCP server — mỗi tool trả đúng những dòng của lõi', () =
     const result = await call(client, 'dead_code');
 
     expect(result.text).toBe(
-      await expected(themeRoot, (graph) => formatDeadCode(deadCode(graph), { limit: DEFAULT_LIST_LIMIT })),
+      await expected(themeRoot, (graph) => new DeadCodeView().render(deadCode(graph), { limit: DEFAULT_LIST_LIMIT })),
     );
     expect(result.text).toContain('snippets/old.liquid');
   });
@@ -240,7 +242,7 @@ describe('MCP server — tham số', () => {
 
     expect(result.text).toBe(
       await expected(themeRoot, (graph) =>
-        formatSearch(search(graph, '', { kinds: ['section'], limit: DEFAULT_SEARCH_RESULTS })),
+        new SearchView().render(search(graph, '', { kinds: ['section'], limit: DEFAULT_SEARCH_RESULTS })),
       ),
     );
     expect(result.text).toContain('sections/hero.liquid');

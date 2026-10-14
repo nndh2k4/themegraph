@@ -3,13 +3,6 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import {
   context,
   deadCode,
-  formatContext,
-  formatDeadCode,
-  formatImpact,
-  formatList,
-  formatRenderFlow,
-  formatSearch,
-  formatThemeNote,
   impact,
   listThemes,
   NODE_KINDS,
@@ -21,6 +14,15 @@ import {
   VERSION,
 } from "@themegraph/core";
 import type { GraphHandle } from "@themegraph/core";
+import {
+  ContextView,
+  DeadCodeView,
+  ImpactView,
+  RenderFlowView,
+  SearchView,
+  ThemeListView,
+  ThemeNoteView,
+} from "@themegraph/views";
 import { z } from "zod";
 
 /**
@@ -129,7 +131,7 @@ export function createServer(options: ServerOptions = {}): McpServer {
     // nhất. Phép so này đọc lại hash của mọi file, mất dưới nửa giây.
     const status = await themeStatus(themeRoot);
 
-    return [...formatThemeNote(status), "", ...lines];
+    return [...new ThemeNoteView().render(status), "", ...lines];
   }
 
   // Mọi tool đều chỉ đọc và chỉ nhìn vào dữ liệu trên máy.
@@ -144,7 +146,7 @@ export function createServer(options: ServerOptions = {}): McpServer {
       inputSchema: {},
       annotations,
     },
-    () => answer(() => formatList(listThemes())),
+    () => answer(() => new ThemeListView().render(listThemes())),
   );
 
   server.registerTool(
@@ -172,7 +174,7 @@ export function createServer(options: ServerOptions = {}): McpServer {
     ({ query, kind, limit, theme }) =>
       answer(() =>
         onTheme(theme, (graph) =>
-          formatSearch(
+          new SearchView().render(
             search(graph, query, { kinds: kind === undefined ? [] : [kind], limit: limit ?? DEFAULT_SEARCH_RESULTS }),
           ),
         ),
@@ -199,7 +201,7 @@ export function createServer(options: ServerOptions = {}): McpServer {
     },
     ({ target, limit, theme }) =>
       answer(() =>
-        onTheme(theme, (graph) => formatImpact(impact(graph, target), { limit: limit ?? DEFAULT_LIST_LIMIT })),
+        onTheme(theme, (graph) => new ImpactView().render(impact(graph, target), { limit: limit ?? DEFAULT_LIST_LIMIT })),
       ),
   );
 
@@ -223,7 +225,7 @@ export function createServer(options: ServerOptions = {}): McpServer {
     },
     ({ target, limit, theme }) =>
       answer(() =>
-        onTheme(theme, (graph) => formatContext(context(graph, target), { limit: limit ?? DEFAULT_LIST_LIMIT })),
+        onTheme(theme, (graph) => new ContextView().render(context(graph, target), { limit: limit ?? DEFAULT_LIST_LIMIT })),
       ),
   );
 
@@ -257,7 +259,7 @@ export function createServer(options: ServerOptions = {}): McpServer {
     ({ page, max_depth, limit, theme }) =>
       answer(() =>
         onTheme(theme, (graph) =>
-          formatRenderFlow(renderFlow(graph, page, { maxDepth: max_depth ?? DEFAULT_FLOW_DEPTH }), {
+          new RenderFlowView().render(renderFlow(graph, page, { maxDepth: max_depth ?? DEFAULT_FLOW_DEPTH }), {
             limit: limit ?? DEFAULT_FLOW_LINES,
           }),
         ),
@@ -277,7 +279,7 @@ export function createServer(options: ServerOptions = {}): McpServer {
       annotations,
     },
     ({ limit, theme }) =>
-      answer(() => onTheme(theme, (graph) => formatDeadCode(deadCode(graph), { limit: limit ?? DEFAULT_LIST_LIMIT }))),
+      answer(() => onTheme(theme, (graph) => new DeadCodeView().render(deadCode(graph), { limit: limit ?? DEFAULT_LIST_LIMIT }))),
   );
 
   return server;

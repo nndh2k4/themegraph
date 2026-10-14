@@ -10,17 +10,6 @@ import {
   deadCode,
   findRegisteredTheme,
   findThemeRoot,
-  formatAnalyze,
-  formatClean,
-  formatContext,
-  formatDeadCode,
-  formatImpact,
-  formatList,
-  formatOverview,
-  formatRenderFlow,
-  formatSearch,
-  formatStatus,
-  formatVerify,
   impact,
   listThemes,
   NODE_KINDS,
@@ -33,7 +22,21 @@ import {
   verify,
   VERSION,
 } from "@themegraph/core";
-import type { FormatOptions, GraphHandle, NodeKind } from "@themegraph/core";
+import type { GraphHandle, NodeKind } from "@themegraph/core";
+import {
+  AnalyzeView,
+  CleanView,
+  ContextView,
+  DeadCodeView,
+  ImpactView,
+  OverviewView,
+  RenderFlowView,
+  SearchView,
+  StatusView,
+  ThemeListView,
+  VerifyView,
+} from "@themegraph/views";
+import type { TextView, ViewOptions } from "@themegraph/views";
 
 import { formatSetup, runClaudeCommand, setup } from "./setup.js";
 import type { SetupOptions } from "./setup.js";
@@ -120,16 +123,16 @@ export interface RunOverrides {
 
 /**
  * In kết quả của một lệnh: nguyên dạng JSON nếu có cờ --json, còn không thì
- * qua hàm trình bày của lệnh đó.
+ * qua view của lệnh đó.
  */
-function print<T>(result: T, format: (result: T, options: FormatOptions) => string[], flags: Flags, io: Io): void {
+function print<T>(result: T, view: TextView<T>, flags: Flags, io: Io): void {
   if (flags.json) {
     io.stdout(JSON.stringify(result, null, 2));
     return;
   }
   // Không có --limit thì limit là undefined, tức in hết.
-  const options: FormatOptions = flags.limit === undefined ? {} : { limit: flags.limit };
-  for (const line of format(result, options)) io.stdout(line);
+  const options: ViewOptions = flags.limit === undefined ? {} : { limit: flags.limit };
+  for (const line of view.render(result, options)) io.stdout(line);
 }
 
 /** Báo sai cú pháp và trả mã thoát tương ứng. */
@@ -150,7 +153,7 @@ async function runAnalyze(positionals: string[], flags: Flags, io: Io): Promise<
   const themeRoot = positionals[0] ?? flags.theme ?? ".";
 
   const result = await analyze(themeRoot);
-  print(result, formatAnalyze, flags, io);
+  print(result, new AnalyzeView(), flags, io);
 
   // Đồ thị đã ghi xong nên lệnh vẫn thành công; chỉ báo để người dùng biết vì
   // sao lệnh list không thấy theme này. In ra stderr để không lẫn vào --json.
@@ -181,7 +184,7 @@ function runList(positionals: string[], flags: Flags, io: Io): number {
   const rejected = rejectPositionals("list", positionals, io);
   if (rejected !== null) return rejected;
 
-  print(listThemes(), formatList, flags, io);
+  print(listThemes(), new ThemeListView(), flags, io);
   return EXIT_OK;
 }
 
@@ -190,7 +193,7 @@ async function runStatus(positionals: string[], flags: Flags, io: Io): Promise<n
   const rejected = rejectPositionals("status", positionals, io);
   if (rejected !== null) return rejected;
 
-  print(await themeStatus(themeRootOf(flags)), formatStatus, flags, io);
+  print(await themeStatus(themeRootOf(flags)), new StatusView(), flags, io);
   return EXIT_OK;
 }
 
@@ -212,7 +215,7 @@ function runClean(positionals: string[], flags: Flags, io: Io): number {
 
   const results = flags.all ? cleanAllThemes() : [cleanTheme(themeRoot)];
 
-  print(results, formatClean, flags, io);
+  print(results, new CleanView(), flags, io);
   return EXIT_OK;
 }
 
@@ -244,7 +247,7 @@ function runNamedQuery<T>(
   flags: Flags,
   io: Io,
   query: (graph: GraphHandle, name: string, options: { baseDir: string }) => T,
-  format: (result: T, options: FormatOptions) => string[],
+  view: TextView<T>,
 ): number {
   const [name, ...extra] = positionals;
 
@@ -253,7 +256,7 @@ function runNamedQuery<T>(
   }
 
   return withGraph(flags, (graph) => {
-    print(query(graph, name, { baseDir: process.cwd() }), format, flags, io);
+    print(query(graph, name, { baseDir: process.cwd() }), view, flags, io);
     return EXIT_OK;
   });
 }
@@ -265,7 +268,7 @@ function runBareQuery<T>(
   flags: Flags,
   io: Io,
   query: (graph: GraphHandle) => T,
-  format: (result: T, options: FormatOptions) => string[],
+  view: TextView<T>,
   exitCodeOf: (result: T) => number = () => EXIT_OK,
 ): number {
   if (positionals.length > 0) {
@@ -274,7 +277,7 @@ function runBareQuery<T>(
 
   return withGraph(flags, (graph) => {
     const result = query(graph);
-    print(result, format, flags, io);
+    print(result, view, flags, io);
     return exitCodeOf(result);
   });
 }
@@ -384,7 +387,7 @@ function runSearch(positionals: string[], flags: Flags, io: Io): number {
       // phần trình bày: lõi cần nó để biết cắt sau khi đã xếp hạng.
       ...(flags.limit === undefined ? {} : { limit: flags.limit }),
     });
-    print(result, formatSearch, flags, io);
+    print(result, new SearchView(), flags, io);
     return EXIT_OK;
   });
 }
@@ -425,7 +428,7 @@ async function dispatch(
     case "clean":
       return runClean(rest, flags, io);
     case "impact":
-      return runNamedQuery(command, "đường dẫn của một file", rest, flags, io, impact, formatImpact);
+      return runNamedQuery(command, "đường dẫn của một file", rest, flags, io, impact, new ImpactView());
     case "search":
       return runSearch(rest, flags, io);
     case "render-flow":
@@ -437,18 +440,18 @@ async function dispatch(
         io,
         (graph, name, options) =>
           renderFlow(graph, name, flags.depth === undefined ? options : { ...options, maxDepth: flags.depth }),
-        formatRenderFlow,
+        new RenderFlowView(),
       );
     case "context":
-      return runNamedQuery(command, "đường dẫn của một file", rest, flags, io, context, formatContext);
+      return runNamedQuery(command, "đường dẫn của một file", rest, flags, io, context, new ContextView());
     case "overview":
-      return runBareQuery(command, rest, flags, io, overview, formatOverview);
+      return runBareQuery(command, rest, flags, io, overview, new OverviewView());
     case "dead-code":
-      return runBareQuery(command, rest, flags, io, deadCode, formatDeadCode);
+      return runBareQuery(command, rest, flags, io, deadCode, new DeadCodeView());
     case "verify":
       // verify là một phép kiểm tra: không đạt thì lệnh phải thất bại, để dùng
       // được trong script và CI.
-      return runBareQuery(command, rest, flags, io, verify, formatVerify, (result) =>
+      return runBareQuery(command, rest, flags, io, verify, new VerifyView(), (result) =>
         result.ok ? EXIT_OK : EXIT_FAILED,
       );
     default:

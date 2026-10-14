@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { deadCode } from '../src/graph/dead-code.service.js';
 import { exportGraph } from '../src/graph/export-graph.service.js';
-import { formatOverview } from '../src/format.js';
 import { buildGraph } from '../src/analyze/graph-builder.js';
 import { openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
 import type { GraphHandle } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
@@ -69,10 +68,6 @@ describe('overview', () => {
       expect(overview(handle).brokenRefs).toBe(0);
       expect(overview(handle).mostUsed).toEqual([]);
       expect(overview(handle).pages).toEqual([]);
-      // Phần trình bày: không có mục file được gọi nhiều, và không trang nào.
-      const lines = formatOverview(overview(handle));
-      expect(lines.some((line) => line.includes('File được nhiều nơi gọi nhất'))).toBe(false);
-      expect(lines).toContain('Trang            0  ()');
     } finally {
       handle.close();
       await removeTempTheme(root);
@@ -112,8 +107,6 @@ describe('overview', () => {
       const result = overview(handle);
 
       expect(result.unused).toEqual({ certain: 1, review: 2, notLoaded: 0, translationKeys: 2, settings: 1 });
-      expect(formatOverview(result)).toContain('File không dùng  1 chắc chắn, 2 cần xem lại');
-      expect(formatOverview(result)).toContain('Không thấy dùng  2 khoá dịch, 1 setting');
     } finally {
       handle.close();
       await removeTempTheme(root);

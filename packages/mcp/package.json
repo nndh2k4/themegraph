@@ -22,6 +22,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.31.0",
     "@themegraph/core": "workspace:*",
+    "@themegraph/views": "workspace:*",
     "zod": "^4.6.5"
   }
 }

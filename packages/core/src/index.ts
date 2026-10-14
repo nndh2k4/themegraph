@@ -91,22 +91,5 @@ export type { StatusResult } from './theme/status.js';
 export { cleanAllThemes, cleanTheme } from './theme/clean.js';
 export type { CleanResult } from './theme/clean.js';
 
-// Trình bày kết quả thành các dòng chữ; CLI và MCP server dùng chung.
-export {
-  formatAnalyze,
-  formatClean,
-  formatContext,
-  formatDeadCode,
-  formatImpact,
-  formatList,
-  formatOverview,
-  formatRenderFlow,
-  formatSearch,
-  formatStatus,
-  formatThemeNote,
-  formatVerify,
-} from './format.js';
-export type { FormatOptions } from './format.js';
-
 // Hash nội dung file, dùng chung cho analyze và status.
 export { hashContent } from './common/hash.js';

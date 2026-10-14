@@ -9,7 +9,6 @@ import { analyze } from '../src/analyze/analyze.service.js';
 import { deadCode } from '../src/graph/dead-code.service.js';
 import type { DeadCodeResult } from '../src/graph/dead-code.service.js';
 import { extractFile } from '../src/analyze/parsers/theme-file.parser.js';
-import { formatDeadCode, formatOverview } from '../src/format.js';
 import { buildGraph } from '../src/analyze/graph-builder.js';
 import { openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
 import { overview } from '../src/graph/overview.service.js';
@@ -325,82 +324,9 @@ describe('deadCode — asset có nơi dùng thẻ mà không ai nạp', () => {
       const result = overview(handle);
 
       expect(result.unused).toMatchObject({ certain: 0, review: 1, notLoaded: 1 });
-      expect(formatOverview(result).join('\n')).toContain('Dùng mà không nạp  1 file JavaScript');
     } finally {
       handle.close();
     }
-  });
-});
-
-describe('formatDeadCode — nhóm dùng mà không nạp', () => {
-  const EMPTY: DeadCodeResult = {
-    files: [],
-    certain: 0,
-    review: 0,
-    notLoaded: [],
-    acceptsThemeBlocks: false,
-    unusedTranslationKeys: [],
-    unusedSettings: [],
-  };
-
-  it('không in gì về nhóm này khi nó rỗng', () => {
-    expect(formatDeadCode(EMPTY)).toEqual(['Không tìm thấy file nào không được dùng.']);
-  });
-
-  it('in mỗi thẻ một dòng, kèm lời khuyên không xoá', () => {
-    const lines = formatDeadCode({
-      ...EMPTY,
-      notLoaded: [
-        {
-          id: 'assets/x.js',
-          elements: [
-            { name: 'a-el', usedBy: ['sections/hero.liquid'] },
-            { name: 'z-el', usedBy: ['layout/theme.liquid', 'sections/hero.liquid'] },
-          ],
-          usedBy: [],
-        },
-      ],
-    });
-
-    expect(lines).toEqual([
-      'Không tìm thấy file nào không được dùng.',
-      '',
-      'Có nơi dùng thẻ nhưng không trang nào nạp file (1), KHÔNG xoá:',
-      '  assets/x.js  định nghĩa <a-el>, được viết ở sections/hero.liquid',
-      '  assets/x.js  định nghĩa <z-el>, được viết ở layout/theme.liquid, sections/hero.liquid',
-      '  File định nghĩa một custom element mà theme đang viết ra, nhưng không thẻ <script> nào nạp nó:',
-      '  thẻ hiện trên trang mà JavaScript của nó không chạy. Cách chữa là nạp file, không phải xoá.',
-    ]);
-  });
-
-  it('đứng sau danh sách file không dùng và trước mục khoá dịch', () => {
-    const lines = formatDeadCode({
-      ...EMPTY,
-      files: [{ id: 'snippets/old.liquid', kind: 'snippet', confidence: 'certain', reason: 'unreferenced', usedBy: [] }],
-      certain: 1,
-      notLoaded: [{ id: 'assets/x.js', elements: [{ name: 'a-el', usedBy: ['sections/hero.liquid'] }], usedBy: [] }],
-      unusedTranslationKeys: ['a.b'],
-    });
-    const at = (text: string) => lines.findIndex((line) => line.includes(text));
-
-    expect(at('Chắc chắn không dùng')).toBeGreaterThan(-1);
-    expect(at('Có nơi dùng thẻ')).toBeGreaterThan(at('snippets/old.liquid'));
-    expect(at('Khoá dịch')).toBeGreaterThan(at('Có nơi dùng thẻ'));
-  });
-
-  it('cắt danh sách theo --limit', () => {
-    const lines = formatDeadCode(
-      {
-        ...EMPTY,
-        notLoaded: [
-          { id: 'assets/x.js', elements: [{ name: 'a-el', usedBy: ['s.liquid'] }, { name: 'b-el', usedBy: ['s.liquid'] }], usedBy: [] },
-        ],
-      },
-      { limit: 1 },
-    );
-
-    expect(lines.filter((line) => line.includes('định nghĩa <'))).toHaveLength(1);
-    expect(lines.join('\n')).toContain('... và 1 dòng nữa');
   });
 });
 

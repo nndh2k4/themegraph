@@ -2,12 +2,12 @@
 //
 //   npm install -g themegraph-<phiên bản>.tgz
 //
-// Trong repo, lệnh `themegraph` là gói packages/cli, và nó cần ba gói nội bộ
-// khác (core, mcp, server) cùng bản build của giao diện web. Các gói đó không
-// có trên npm, nên gói cli tự nó không cài được ở máy khác. Script này gộp tất
-// cả vào một gói tự chứa:
+// Trong repo, lệnh `themegraph` là gói packages/cli, và nó cần bốn gói nội bộ
+// khác (core, views, mcp, server) cùng bản build của giao diện web. Các gói đó
+// không có trên npm, nên gói cli tự nó không cài được ở máy khác. Script này gộp
+// tất cả vào một gói tự chứa:
 //
-//   dist/cli.js (+ các file phụ)   mã của cli, core, mcp, server và mọi thư viện
+//   dist/cli.js (+ các file phụ)   mã của cli, core, views, mcp, server và mọi thư viện
 //                                  bên thứ ba, gộp bằng Rolldown
 //   web/                           bản build của giao diện (packages/web/dist)
 //   skills/                        skill cho AI agent
@@ -38,6 +38,7 @@ function fail(message) {
 // ---- 1. Mọi thứ cần gộp phải được build trước ----
 const inputs = [
   "packages/core/dist/index.js",
+  "packages/views/dist/index.js",
   "packages/mcp/dist/index.js",
   "packages/server/dist/index.js",
   "packages/cli/dist/cli.js",

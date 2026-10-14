@@ -1,9 +1,9 @@
 import path from 'node:path';
 
+import type { StatusResult } from '@themegraph/core';
 import { describe, expect, it } from 'vitest';
 
-import { formatThemeNote } from '../src/format.js';
-import type { StatusResult } from '../src/theme/status.js';
+import { ThemeNoteView } from '../src/theme-note.view.js';
 
 const themeRoot = path.join(path.sep, 'themes', 'dawn');
 
@@ -26,13 +26,15 @@ const status = (changes: Partial<Pick<StatusResult, 'modified' | 'added' | 'remo
   };
 };
 
-describe('formatThemeNote', () => {
+describe('ThemeNoteView', () => {
+  const view = new ThemeNoteView();
+
   it('đồ thị còn mới: chỉ một dòng nêu tên và đường dẫn của theme', () => {
-    expect(formatThemeNote(status())).toEqual([`Theme: dawn (${themeRoot})`]);
+    expect(view.render(status())).toEqual([`Theme: dawn (${themeRoot})`]);
   });
 
   it('đồ thị cũ: thêm một dòng nêu file sửa, file thêm và file xoá, theo thứ tự đó', () => {
-    const lines = formatThemeNote(
+    const lines = view.render(
       status({ modified: ['snippets/a.liquid'], added: ['snippets/b.liquid'], removed: ['snippets/c.liquid'] }),
     );
 
@@ -43,7 +45,7 @@ describe('formatThemeNote', () => {
   });
 
   it('chỉ có file bị xoá cũng là đồ thị cũ', () => {
-    const lines = formatThemeNote(status({ removed: ['snippets/c.liquid'] }));
+    const lines = view.render(status({ removed: ['snippets/c.liquid'] }));
 
     expect(lines[1]).toContain('1 file đã đổi');
     expect(lines[1]).toContain('(snippets/c.liquid)');
@@ -51,7 +53,7 @@ describe('formatThemeNote', () => {
 
   it('nêu tên tối đa năm file và đếm phần còn lại', () => {
     const modified = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((name) => `snippets/${name}.liquid`);
-    const [, note] = formatThemeNote(status({ modified }));
+    const [, note] = view.render(status({ modified }));
 
     expect(note).toContain('7 file đã đổi');
     expect(note).toContain('(snippets/a.liquid, snippets/b.liquid, snippets/c.liquid, snippets/d.liquid, snippets/e.liquid, và 2 file khác)');
@@ -60,7 +62,7 @@ describe('formatThemeNote', () => {
 
   it('đúng năm file thì nêu hết, không có "file khác"', () => {
     const modified = ['a', 'b', 'c', 'd', 'e'].map((name) => `snippets/${name}.liquid`);
-    const [, note] = formatThemeNote(status({ modified }));
+    const [, note] = view.render(status({ modified }));
 
     expect(note).toContain('snippets/e.liquid)');
     expect(note).not.toContain('file khác');
