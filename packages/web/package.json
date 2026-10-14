@@ -1,6 +1,6 @@
 {
   "name": "@themegraph/web",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Giao diện web của ThemeGraph, do lệnh themegraph serve phục vụ",
   "type": "module",
