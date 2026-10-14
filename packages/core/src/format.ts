@@ -1,18 +1,18 @@
 import path from "node:path";
 
-import type { AnalyzeResult } from "./analyze.js";
-import type { CleanResult } from "./clean.js";
-import type { ContextLink, ContextResult } from "./context.js";
-import type { DeadCodeResult, DeadFile } from "./dead-code.js";
-import type { ImpactResult } from "./impact.js";
-import type { OverviewResult } from "./overview.js";
-import type { ListedTheme } from "./registry.js";
-import type { FlowNode, RenderFlowResult } from "./render-flow.js";
-import type { SearchResult } from "./search.js";
-import type { StatusResult } from "./status.js";
-import type { Reached } from "./traverse.js";
-import type { VerifyResult } from "./verify.js";
-import { VERSION } from "./version.js";
+import type { AnalyzeResult } from "./analyze/analyze.service.js";
+import type { CleanResult } from "./theme/clean.js";
+import type { ContextLink, ContextResult } from "./graph/context.service.js";
+import type { DeadCodeResult, DeadFile } from "./graph/dead-code.service.js";
+import type { ImpactResult } from "./graph/impact.service.js";
+import type { OverviewResult } from "./graph/overview.service.js";
+import type { ListedTheme } from "./infrastructure/registry/json-theme-registry.repository.js";
+import type { FlowNode, RenderFlowResult } from "./graph/render-flow.service.js";
+import type { SearchResult } from "./graph/search.service.js";
+import type { StatusResult } from "./theme/status.js";
+import type { Reached } from "./infrastructure/sqlite/traverse.sql.js";
+import type { VerifyResult } from "./graph/verify.service.js";
+import { VERSION } from "./common/version.js";
 
 /**
  * Các hàm trong file này đổi kết quả của một truy vấn thành những dòng chữ cho

@@ -1,7 +1,7 @@
-import { deadCode } from "./dead-code.js";
-import type { GraphHandle, GraphMeta } from "./open.js";
-import { FILE_EDGE_TYPES } from "./types.js";
-import type { NodeKind } from "./types.js";
+import { deadCode } from "./dead-code.service.js";
+import type { GraphHandle, GraphMeta } from "../infrastructure/sqlite/sqlite-graph.repository.js";
+import { FILE_EDGE_TYPES } from "../models/index.js";
+import type { NodeKind } from "../models/index.js";
 
 /** Số file được nêu trong mục "được dùng nhiều nhất". */
 const MOST_USED_LIMIT = 10;

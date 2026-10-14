@@ -1,5 +1,5 @@
 import { stripJsonComments } from "./json-comments.js";
-import type { ThemeFile } from "./types.js";
+import type { ThemeFile } from "../../models/index.js";
 
 /** Tiền tố của id node setting, để không trùng với đường dẫn file nào. */
 export const SETTING_PREFIX = "setting:";

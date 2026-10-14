@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { extractJsonRefs } from '../src/extract-json.js';
-import type { ThemeFile } from '../src/types.js';
+import { extractJsonRefs } from '../src/analyze/parsers/json-template.parser.js';
+import type { ThemeFile } from '../src/models/index.js';
 
 const TEMPLATE: ThemeFile = { path: 'templates/product.json', kind: 'template', ext: 'json' };
 const GROUP: ThemeFile = { path: 'sections/header-group.json', kind: 'section_group', ext: 'json' };

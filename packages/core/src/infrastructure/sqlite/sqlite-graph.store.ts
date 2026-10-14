@@ -2,8 +2,8 @@ import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-import type { ThemeGraph } from "./types.js";
-import { VERSION } from "./version.js";
+import type { ThemeGraph } from "../../models/index.js";
+import { VERSION } from "../../common/version.js";
 
 /**
  * Phiên bản của lược đồ bảng bên dưới. Tăng số này mỗi khi đổi cấu trúc bảng,

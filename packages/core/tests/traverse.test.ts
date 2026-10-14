@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { buildGraph } from '../src/graph.js';
-import { openGraph } from '../src/open.js';
-import type { GraphHandle } from '../src/open.js';
-import { traverse } from '../src/traverse.js';
-import { FILE_EDGE_TYPES } from '../src/types.js';
+import { buildGraph } from '../src/analyze/graph-builder.js';
+import { openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
+import type { GraphHandle } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
+import { traverse } from '../src/infrastructure/sqlite/traverse.sql.js';
+import { FILE_EDGE_TYPES } from '../src/models/index.js';
 import { file, queryGraph, ref, removeTempTheme, saveToTempTheme } from './helpers.js';
 
 let themeRoot: string;

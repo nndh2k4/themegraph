@@ -3,7 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { formatThemeNote } from '../src/format.js';
-import type { StatusResult } from '../src/status.js';
+import type { StatusResult } from '../src/theme/status.js';
 
 const themeRoot = path.join(path.sep, 'themes', 'dawn');
 

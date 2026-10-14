@@ -1,5 +1,5 @@
-import type { GraphHandle } from "./open.js";
-import type { NodeKind } from "./types.js";
+import type { GraphHandle } from "../infrastructure/sqlite/sqlite-graph.repository.js";
+import type { NodeKind } from "../models/index.js";
 
 /**
  * Mức tin cậy của một kết luận "file này không được dùng".

@@ -1,9 +1,9 @@
-import { findNode } from "./find-node.js";
-import type { FindNodeOptions } from "./find-node.js";
-import { impact } from "./impact.js";
-import type { GraphHandle } from "./open.js";
-import type { Reached } from "./traverse.js";
-import type { EdgeType, GraphNode, NodeKind, RefKind } from "./types.js";
+import { findNode } from "./node-finder.service.js";
+import type { FindNodeOptions } from "./node-finder.service.js";
+import { impact } from "./impact.service.js";
+import type { GraphHandle } from "../infrastructure/sqlite/sqlite-graph.repository.js";
+import type { Reached } from "../infrastructure/sqlite/traverse.sql.js";
+import type { EdgeType, GraphNode, NodeKind, RefKind } from "../models/index.js";
 
 /** Hai loại cạnh không nối tới file, tách khỏi danh sách "file này gọi file nào". */
 const TRANSLATION_EDGE: EdgeType = "USES_TRANSLATION";

@@ -6,9 +6,9 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { analyze } from '../src/analyze.js';
-import { readRegistry, registryPath } from '../src/registry.js';
-import { graphDbPath } from '../src/store.js';
+import { analyze } from '../src/analyze/analyze.service.js';
+import { readRegistry, registryPath } from '../src/infrastructure/registry/json-theme-registry.repository.js';
+import { graphDbPath } from '../src/infrastructure/sqlite/sqlite-graph.store.js';
 
 const FIXTURE = path.join(import.meta.dirname, 'fixtures', 'mini-theme');
 

@@ -1,4 +1,4 @@
-import { settingIdsOf } from "./extract-settings.js";
+import { settingIdsOf } from "./global-settings.parser.js";
 
 /** Kiểu của một object JSON bất kỳ sau khi parse. */
 type JsonObject = Record<string, unknown>;

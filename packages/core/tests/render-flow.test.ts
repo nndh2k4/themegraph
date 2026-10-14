@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { NodeNotFoundError } from '../src/find-node.js';
-import { openGraph } from '../src/open.js';
-import type { GraphHandle } from '../src/open.js';
-import { renderFlow } from '../src/render-flow.js';
-import type { FlowNode } from '../src/render-flow.js';
+import { NodeNotFoundError } from '../src/graph/node-finder.service.js';
+import { openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
+import type { GraphHandle } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
+import { renderFlow } from '../src/graph/render-flow.service.js';
+import type { FlowNode } from '../src/graph/render-flow.service.js';
 import { queryGraph, removeTempTheme, saveToTempTheme } from './helpers.js';
 
 let themeRoot: string;

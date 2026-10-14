@@ -1,7 +1,7 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 
-import type { FileKind, ScanResult, ThemeFile } from "./types.js";
+import type { FileKind, ScanResult, ThemeFile } from "../../models/index.js";
 
 /**
  * Quyết định một file thuộc loại nào dựa trên vị trí và tên của nó.

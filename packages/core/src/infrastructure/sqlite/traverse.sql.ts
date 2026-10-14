@@ -1,5 +1,5 @@
-import type { GraphHandle } from "./open.js";
-import type { EdgeType, NodeKind } from "./types.js";
+import type { GraphHandle } from "./sqlite-graph.repository.js";
+import type { EdgeType, NodeKind } from "../../models/index.js";
 
 /**
  * Chiều duyệt đồ thị.

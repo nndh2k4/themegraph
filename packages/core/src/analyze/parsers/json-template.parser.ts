@@ -1,5 +1,5 @@
 import { stripJsonComments } from "./json-comments.js";
-import type { RawRef, RefKind, ThemeFile } from "./types.js";
+import type { RawRef, RefKind, ThemeFile } from "../../models/index.js";
 
 /** Kiểu của một object JSON bất kỳ sau khi parse. */
 type JsonObject = Record<string, unknown>;

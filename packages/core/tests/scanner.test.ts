@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { scanThemeDir } from '../src/scanner.js';
+import { scanThemeDir } from '../src/infrastructure/fs/fs-theme-file.repository.js';
 
 // Vị trí fixture tính theo vị trí của chính file test này,
 // KHÔNG theo process.cwd() — scanner phải độc lập với thư mục làm việc.

@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { openGraph } from '../src/open.js';
-import type { GraphHandle } from '../src/open.js';
-import { DEFAULT_SEARCH_LIMIT, search } from '../src/search.js';
-import type { SearchHit } from '../src/search.js';
-import { buildGraph } from '../src/graph.js';
-import { NODE_KINDS } from '../src/types.js';
-import type { NodeKind } from '../src/types.js';
+import { openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
+import type { GraphHandle } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
+import { DEFAULT_SEARCH_LIMIT, search } from '../src/graph/search.service.js';
+import type { SearchHit } from '../src/graph/search.service.js';
+import { buildGraph } from '../src/analyze/graph-builder.js';
+import { NODE_KINDS } from '../src/models/index.js';
+import type { NodeKind } from '../src/models/index.js';
 import { file, queryGraph, removeTempTheme, saveToTempTheme } from './helpers.js';
 
 let themeRoot: string;

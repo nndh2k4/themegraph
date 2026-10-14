@@ -1,6 +1,6 @@
-import type { GraphHandle } from "./open.js";
-import { traverse } from "./traverse.js";
-import type { Direction, Reached } from "./traverse.js";
+import type { GraphHandle } from "../infrastructure/sqlite/sqlite-graph.repository.js";
+import { traverse } from "../infrastructure/sqlite/traverse.sql.js";
+import type { Direction, Reached } from "../infrastructure/sqlite/traverse.sql.js";
 
 /** Một cạnh ở dạng tối thiểu mà phép duyệt cần. */
 export interface PlainEdge {

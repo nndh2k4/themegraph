@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { deadCode } from '../src/dead-code.js';
-import { exportGraph } from '../src/export-graph.js';
+import { deadCode } from '../src/graph/dead-code.service.js';
+import { exportGraph } from '../src/graph/export-graph.service.js';
 import { formatOverview } from '../src/format.js';
-import { buildGraph } from '../src/graph.js';
-import { openGraph } from '../src/open.js';
-import type { GraphHandle } from '../src/open.js';
-import { overview } from '../src/overview.js';
-import type { ThemeGraph } from '../src/types.js';
+import { buildGraph } from '../src/analyze/graph-builder.js';
+import { openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
+import type { GraphHandle } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
+import { overview } from '../src/graph/overview.service.js';
+import type { ThemeGraph } from '../src/models/index.js';
 import { file, queryGraph, ref, removeTempTheme, saveToTempTheme } from './helpers.js';
 
 let themeRoot: string;

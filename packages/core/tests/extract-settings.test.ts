@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { extractFile } from '../src/extract.js';
-import { collectGlobalSettings, isGlobalSettingsSchema, settingIdsOf, settingNodeId } from '../src/extract-settings.js';
-import type { ThemeFile } from '../src/types.js';
+import { extractFile } from '../src/analyze/parsers/theme-file.parser.js';
+import { collectGlobalSettings, isGlobalSettingsSchema, settingIdsOf, settingNodeId } from '../src/analyze/parsers/global-settings.parser.js';
+import type { ThemeFile } from '../src/models/index.js';
 
 const CONFIG: ThemeFile = { path: 'config/settings_schema.json', kind: 'config', ext: 'json' };
 

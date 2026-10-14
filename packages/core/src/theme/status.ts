@@ -1,10 +1,10 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { READ_EXTENSIONS } from "./analyze.js";
-import { hashContent } from "./hash.js";
-import { openGraph } from "./open.js";
-import { scanThemeDir } from "./scanner.js";
+import { READ_EXTENSIONS } from "../analyze/analyze.service.js";
+import { hashContent } from "../common/hash.js";
+import { openGraph } from "../infrastructure/sqlite/sqlite-graph.repository.js";
+import { scanThemeDir } from "../infrastructure/fs/fs-theme-file.repository.js";
 
 /** Tình trạng đồ thị của một theme so với các file hiện có trên đĩa. */
 export interface StatusResult {

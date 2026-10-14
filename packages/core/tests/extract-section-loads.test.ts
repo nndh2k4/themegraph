@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { extractSectionLoads } from '../src/extract-section-loads.js';
+import { extractSectionLoads } from '../src/analyze/parsers/section-loads.parser.js';
 
 /** Viết gọn kết quả thành [tên, dòng]. */
 const loads = (content: string, source: 'js' | 'liquid' = 'js') =>

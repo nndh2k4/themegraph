@@ -1,5 +1,5 @@
-import type { GraphHandle } from "./open.js";
-import type { NodeKind } from "./types.js";
+import type { GraphHandle } from "../infrastructure/sqlite/sqlite-graph.repository.js";
+import type { NodeKind } from "../models/index.js";
 
 /** Số kết quả trả về khi người gọi không nêu giới hạn. */
 export const DEFAULT_SEARCH_LIMIT = 20;

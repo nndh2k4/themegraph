@@ -1,7 +1,7 @@
 import path from "node:path";
 
-import type { GraphHandle } from "./open.js";
-import type { GraphNode, NodeKind } from "./types.js";
+import type { GraphHandle } from "../infrastructure/sqlite/sqlite-graph.repository.js";
+import type { GraphNode, NodeKind } from "../models/index.js";
 
 /** Số gợi ý tối đa kèm theo lỗi không tìm thấy node. */
 const MAX_SUGGESTIONS = 5;

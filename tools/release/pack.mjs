@@ -51,9 +51,9 @@ if (missing.length > 0) fail(`chưa có ${missing.join(", ")}. Chạy "pnpm buil
 // của gói là trong package.json. Hai nơi lệch nhau thì người dùng cài bản 1.2
 // mà lệnh lại báo 1.1.
 const cliPackage = readJson(at("packages/cli/package.json"));
-const { VERSION } = await import(pathToFileURL(at("packages/core/dist/version.js")).href);
+const { VERSION } = await import(pathToFileURL(at("packages/core/dist/common/version.js")).href);
 const version = cliPackage.version;
-const versions = { "packages/cli/package.json": version, "package.json": readJson(at("package.json")).version, "packages/core/src/version.ts": VERSION };
+const versions = { "packages/cli/package.json": version, "package.json": readJson(at("package.json")).version, "packages/core/src/common/version.ts": VERSION };
 if (new Set(Object.values(versions)).size !== 1) {
   fail(`phiên bản không thống nhất: ${Object.entries(versions).map(([file, value]) => `${file} = ${value}`).join("; ")}`);
 }

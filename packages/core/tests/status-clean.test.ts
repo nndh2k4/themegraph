@@ -7,12 +7,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { DatabaseSync } from 'node:sqlite';
 
-import { analyze } from '../src/analyze.js';
-import { cleanAllThemes, cleanTheme } from '../src/clean.js';
-import { GraphNotReadyError } from '../src/open.js';
-import { readRegistry } from '../src/registry.js';
-import { themeStatus } from '../src/status.js';
-import { graphDbPath } from '../src/store.js';
+import { analyze } from '../src/analyze/analyze.service.js';
+import { cleanAllThemes, cleanTheme } from '../src/theme/clean.js';
+import { GraphNotReadyError } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
+import { readRegistry } from '../src/infrastructure/registry/json-theme-registry.repository.js';
+import { themeStatus } from '../src/theme/status.js';
+import { graphDbPath } from '../src/infrastructure/sqlite/sqlite-graph.store.js';
 
 const FIXTURE = path.join(import.meta.dirname, 'fixtures', 'mini-theme');
 

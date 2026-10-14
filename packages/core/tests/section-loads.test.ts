@@ -4,16 +4,16 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { analyze } from '../src/analyze.js';
-import { context } from '../src/context.js';
-import { deadCode } from '../src/dead-code.js';
-import { extractFile } from '../src/extract.js';
-import { impact } from '../src/impact.js';
-import { openGraph } from '../src/open.js';
-import type { GraphHandle } from '../src/open.js';
-import { renderFlow } from '../src/render-flow.js';
-import { resolveRef } from '../src/resolver.js';
-import { themeStatus } from '../src/status.js';
+import { analyze } from '../src/analyze/analyze.service.js';
+import { context } from '../src/graph/context.service.js';
+import { deadCode } from '../src/graph/dead-code.service.js';
+import { extractFile } from '../src/analyze/parsers/theme-file.parser.js';
+import { impact } from '../src/graph/impact.service.js';
+import { openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
+import type { GraphHandle } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
+import { renderFlow } from '../src/graph/render-flow.service.js';
+import { resolveRef } from '../src/analyze/ref-resolver.js';
+import { themeStatus } from '../src/theme/status.js';
 import { file, ref } from './helpers.js';
 
 /**

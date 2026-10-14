@@ -1,10 +1,10 @@
-import { findNode } from "./find-node.js";
-import type { FindNodeOptions } from "./find-node.js";
-import type { GraphHandle } from "./open.js";
-import { traverse } from "./traverse.js";
-import type { Reached } from "./traverse.js";
-import { FILE_EDGE_TYPES } from "./types.js";
-import type { EdgeType, GraphNode } from "./types.js";
+import { findNode } from "./node-finder.service.js";
+import type { FindNodeOptions } from "./node-finder.service.js";
+import type { GraphHandle } from "../infrastructure/sqlite/sqlite-graph.repository.js";
+import { traverse } from "../infrastructure/sqlite/traverse.sql.js";
+import type { Reached } from "../infrastructure/sqlite/traverse.sql.js";
+import { FILE_EDGE_TYPES } from "../models/index.js";
+import type { EdgeType, GraphNode } from "../models/index.js";
 
 /**
  * Các loại cạnh của luồng render "tĩnh": mọi cạnh nối file với file, trừ cạnh

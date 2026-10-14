@@ -1,9 +1,9 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 
-import { findThemeRoot } from "./open.js";
-import { findRegisteredTheme, listThemes } from "./registry.js";
-import type { ListedTheme } from "./registry.js";
+import { findThemeRoot } from "../infrastructure/sqlite/sqlite-graph.repository.js";
+import { findRegisteredTheme, listThemes } from "../infrastructure/registry/json-theme-registry.repository.js";
+import type { ListedTheme } from "../infrastructure/registry/json-theme-registry.repository.js";
 
 /** Vì sao không chọn được theme. */
 export type ThemeSelectionReason =

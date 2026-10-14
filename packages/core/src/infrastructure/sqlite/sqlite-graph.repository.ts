@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-import { graphDbPath, SCHEMA_VERSION } from "./store.js";
+import { graphDbPath, SCHEMA_VERSION } from "./sqlite-graph.store.js";
 
 /**
  * Vì sao không mở được đồ thị của một theme.

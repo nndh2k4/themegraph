@@ -1,4 +1,4 @@
-import type { RawRef, RefSource } from "./types.js";
+import type { RawRef, RefSource } from "../../models/index.js";
 
 /**
  * Tìm những chỗ một file yêu cầu Shopify render RIÊNG một section rồi trả về

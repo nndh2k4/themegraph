@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { extractFile } from '../src/extract.js';
-import { collectTranslationKeys, isDefaultLocale } from '../src/extract-locale.js';
-import type { ThemeFile } from '../src/types.js';
+import { extractFile } from '../src/analyze/parsers/theme-file.parser.js';
+import { collectTranslationKeys, isDefaultLocale } from '../src/analyze/parsers/default-locale.parser.js';
+import type { ThemeFile } from '../src/models/index.js';
 
 const DEFAULT: ThemeFile = { path: 'locales/en.default.json', kind: 'locale', ext: 'json' };
 

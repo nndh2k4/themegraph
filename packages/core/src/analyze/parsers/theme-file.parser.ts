@@ -1,10 +1,10 @@
-import { extractElements } from "./extract-elements.js";
-import { extractJsonRefs } from "./extract-json.js";
-import { extractLiquid } from "./extract-liquid.js";
-import { collectTranslationKeys, isDefaultLocale } from "./extract-locale.js";
-import { extractSectionLoads } from "./extract-section-loads.js";
-import { collectGlobalSettings, isGlobalSettingsSchema } from "./extract-settings.js";
-import type { Extraction, RawRef, ThemeFile } from "./types.js";
+import { extractElements } from "./custom-elements.parser.js";
+import { extractJsonRefs } from "./json-template.parser.js";
+import { extractLiquid } from "./liquid.parser.js";
+import { collectTranslationKeys, isDefaultLocale } from "./default-locale.parser.js";
+import { extractSectionLoads } from "./section-loads.parser.js";
+import { collectGlobalSettings, isGlobalSettingsSchema } from "./global-settings.parser.js";
+import type { Extraction, RawRef, ThemeFile } from "../../models/index.js";
 
 /**
  * Phân tích một file của theme: quan hệ thô và dữ kiện schema.

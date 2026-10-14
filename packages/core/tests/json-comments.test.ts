@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { stripJsonComments } from '../src/json-comments.js';
+import { stripJsonComments } from '../src/analyze/parsers/json-comments.js';
 
 /** Gỡ chú thích rồi đọc bằng JSON.parse, như các bộ trích của lõi làm. */
 const parse = (content: string): unknown => JSON.parse(stripJsonComments(content));

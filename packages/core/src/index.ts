@@ -1,62 +1,62 @@
-export { VERSION } from './version.js';
+export { VERSION } from './common/version.js';
 
-export * from './types.js';
+export * from './models/index.js';
 
 // Tầng quét: thư mục theme -> danh sách file đã phân loại.
-export { scanThemeDir } from './scanner.js';
+export { scanThemeDir } from './infrastructure/fs/fs-theme-file.repository.js';
 
 // Tầng parse: một file + nội dung -> danh sách quan hệ thô.
-export { extractFile, extractRefs } from './extract.js';
-export { extractJsonRefs } from './extract-json.js';
-export { extractLiquid, extractLiquidRefs } from './extract-liquid.js';
-export { collectTranslationKeys, isDefaultLocale } from './extract-locale.js';
-export { collectGlobalSettings, isGlobalSettingsSchema, SETTING_PREFIX, settingNodeId } from './extract-settings.js';
-export type { SettingObject } from './extract-settings.js';
+export { extractFile, extractRefs } from './analyze/parsers/theme-file.parser.js';
+export { extractJsonRefs } from './analyze/parsers/json-template.parser.js';
+export { extractLiquid, extractLiquidRefs } from './analyze/parsers/liquid.parser.js';
+export { collectTranslationKeys, isDefaultLocale } from './analyze/parsers/default-locale.parser.js';
+export { collectGlobalSettings, isGlobalSettingsSchema, SETTING_PREFIX, settingNodeId } from './analyze/parsers/global-settings.parser.js';
+export type { SettingObject } from './analyze/parsers/global-settings.parser.js';
 
 // Resolver: quan hệ thô -> file thật trong theme.
-export { resolveRef, TRANSLATION_PREFIX } from './resolver.js';
-export { resolveSettingRef } from './resolve-setting.js';
-export type { Ancestor, SettingResolution } from './resolve-setting.js';
+export { resolveRef, TRANSLATION_PREFIX } from './analyze/ref-resolver.js';
+export { resolveSettingRef } from './analyze/setting-resolver.js';
+export type { Ancestor, SettingResolution } from './analyze/setting-resolver.js';
 
 // Đồ thị: danh sách file + quan hệ thô -> node và cạnh.
-export { buildGraph } from './graph.js';
+export { buildGraph } from './analyze/graph-builder.js';
 
 // Lưu trữ: đồ thị -> <theme>/.themegraph/graph.db.
-export { graphDbPath, saveGraph, SCHEMA_VERSION } from './store.js';
-export type { SaveGraphOptions } from './store.js';
+export { graphDbPath, saveGraph, SCHEMA_VERSION } from './infrastructure/sqlite/sqlite-graph.store.js';
+export type { SaveGraphOptions } from './infrastructure/sqlite/sqlite-graph.store.js';
 
 // Điểm nối của lõi: thư mục theme -> graph.db + thống kê.
-export { analyze } from './analyze.js';
-export type { AnalyzeError, AnalyzeResult, AnalyzeStats } from './analyze.js';
+export { analyze } from './analyze/analyze.service.js';
+export type { AnalyzeError, AnalyzeResult, AnalyzeStats } from './analyze/analyze.service.js';
 
 // Đọc đồ thị: mở graph.db của một theme và tìm node theo tên người dùng gõ.
-export { findThemeRoot, GraphNotReadyError, openGraph } from './open.js';
-export type { GraphHandle, GraphMeta, GraphNotReadyReason } from './open.js';
-export { findNode, NodeNotFoundError } from './find-node.js';
-export type { FindNodeOptions } from './find-node.js';
+export { findThemeRoot, GraphNotReadyError, openGraph } from './infrastructure/sqlite/sqlite-graph.repository.js';
+export type { GraphHandle, GraphMeta, GraphNotReadyReason } from './infrastructure/sqlite/sqlite-graph.repository.js';
+export { findNode, NodeNotFoundError } from './graph/node-finder.service.js';
+export type { FindNodeOptions } from './graph/node-finder.service.js';
 
 // Duyệt đồ thị bằng truy vấn đệ quy; nền của impact và renderFlow.
-export { traverse } from './traverse.js';
-export type { Direction, Reached, TraverseOptions } from './traverse.js';
+export { traverse } from './infrastructure/sqlite/traverse.sql.js';
+export type { Direction, Reached, TraverseOptions } from './infrastructure/sqlite/traverse.sql.js';
 
 // Truy vấn: sửa file này thì những gì bị ảnh hưởng.
-export { impact } from './impact.js';
-export type { ImpactPage, ImpactResult } from './impact.js';
+export { impact } from './graph/impact.service.js';
+export type { ImpactPage, ImpactResult } from './graph/impact.service.js';
 
 // Truy vấn: trang này render những file nào.
-export { renderFlow } from './render-flow.js';
-export type { FlowNode, RenderFlowOptions, RenderFlowResult } from './render-flow.js';
+export { renderFlow } from './graph/render-flow.service.js';
+export type { FlowNode, RenderFlowOptions, RenderFlowResult } from './graph/render-flow.service.js';
 
 // Truy vấn: trong theme có node nào tên như thế này.
-export { DEFAULT_SEARCH_LIMIT, search } from './search.js';
-export type { SearchHit, SearchMatch, SearchOptions, SearchResult } from './search.js';
+export { DEFAULT_SEARCH_LIMIT, search } from './graph/search.service.js';
+export type { SearchHit, SearchMatch, SearchOptions, SearchResult } from './graph/search.service.js';
 
 // Truy vấn: file này là gì, ai gọi nó, nó gọi ai.
-export { context } from './context.js';
-export type { BrokenRef, ContextLink, ContextResult } from './context.js';
+export { context } from './graph/context.service.js';
+export type { BrokenRef, ContextLink, ContextResult } from './graph/context.service.js';
 
 // Truy vấn: file nào không còn được dùng.
-export { deadCode } from './dead-code.js';
+export { deadCode } from './graph/dead-code.service.js';
 export type {
   DeadCodeResult,
   DeadConfidence,
@@ -64,32 +64,32 @@ export type {
   DeadReason,
   NeededElement,
   NotLoadedAsset,
-} from './dead-code.js';
-export { extractElements } from './extract-elements.js';
+} from './graph/dead-code.service.js';
+export { extractElements } from './analyze/parsers/custom-elements.parser.js';
 
 // Tổng quan của cả theme, và xuất đồ thị cho giao diện vẽ.
-export { overview } from './overview.js';
-export type { OverviewResult, UsageCount } from './overview.js';
-export { EXPORT_GROUPS, exportGraph } from './export-graph.js';
-export type { ExportedGraph, ExportGraphOptions, ExportGroup } from './export-graph.js';
+export { overview } from './graph/overview.service.js';
+export type { OverviewResult, UsageCount } from './graph/overview.service.js';
+export { EXPORT_GROUPS, exportGraph } from './graph/export-graph.service.js';
+export type { ExportedGraph, ExportGraphOptions, ExportGroup } from './graph/export-graph.service.js';
 
 // Kiểm chứng: đối chiếu truy vấn SQL với phép duyệt bằng JavaScript.
-export { bfsTraverse, diffTraversals, verify } from './verify.js';
-export type { PlainEdge, Reach, VerifyMismatch, VerifyResult } from './verify.js';
+export { bfsTraverse, diffTraversals, verify } from './graph/verify.service.js';
+export type { PlainEdge, Reach, VerifyMismatch, VerifyResult } from './graph/verify.service.js';
 
 // Sổ đăng ký toàn cục: những theme nào đã được phân tích, nằm ở đâu.
-export { findRegisteredTheme, listThemes, readRegistry, registerTheme, registryDir, registryPath, unregisterTheme } from './registry.js';
-export type { ListedTheme, RegistryEntry } from './registry.js';
+export { findRegisteredTheme, listThemes, readRegistry, registerTheme, registryDir, registryPath, unregisterTheme } from './infrastructure/registry/json-theme-registry.repository.js';
+export type { ListedTheme, RegistryEntry } from './infrastructure/registry/json-theme-registry.repository.js';
 
 // Chọn theme để truy vấn khi người gọi không đứng trong một terminal (MCP).
-export { selectTheme, ThemeSelectionError } from './select-theme.js';
-export type { ThemeSelectionReason } from './select-theme.js';
+export { selectTheme, ThemeSelectionError } from './theme/select-theme.js';
+export type { ThemeSelectionReason } from './theme/select-theme.js';
 
 // Tình trạng của đồ thị so với đĩa, và việc xoá dữ liệu đã ghi.
-export { themeStatus } from './status.js';
-export type { StatusResult } from './status.js';
-export { cleanAllThemes, cleanTheme } from './clean.js';
-export type { CleanResult } from './clean.js';
+export { themeStatus } from './theme/status.js';
+export type { StatusResult } from './theme/status.js';
+export { cleanAllThemes, cleanTheme } from './theme/clean.js';
+export type { CleanResult } from './theme/clean.js';
 
 // Trình bày kết quả thành các dòng chữ; CLI và MCP server dùng chung.
 export {
@@ -109,4 +109,4 @@ export {
 export type { FormatOptions } from './format.js';
 
 // Hash nội dung file, dùng chung cho analyze và status.
-export { hashContent } from './hash.js';
+export { hashContent } from './common/hash.js';

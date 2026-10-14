@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveSettingRef } from '../src/resolve-setting.js';
-import type { Ancestor } from '../src/resolve-setting.js';
-import type { FileKind, RawRef } from '../src/types.js';
+import { resolveSettingRef } from '../src/analyze/setting-resolver.js';
+import type { Ancestor } from '../src/analyze/setting-resolver.js';
+import type { FileKind, RawRef } from '../src/models/index.js';
 
 const read = (from: string, to: string): RawRef => ({
   from,

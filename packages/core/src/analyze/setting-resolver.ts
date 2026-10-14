@@ -1,5 +1,5 @@
-import { settingNodeId } from "./extract-settings.js";
-import type { FileKind, RawRef } from "./types.js";
+import { settingNodeId } from "./parsers/global-settings.parser.js";
+import type { FileKind, RawRef } from "../models/index.js";
 
 /** Một file gọi (trực tiếp hoặc qua trung gian) tới file đang đọc setting. */
 export interface Ancestor {

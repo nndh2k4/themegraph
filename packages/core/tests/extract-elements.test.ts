@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { extractElements } from '../src/extract-elements.js';
+import { extractElements } from '../src/analyze/parsers/custom-elements.parser.js';
 
 /** Viết gọn kết quả thành "vai trò tên@dòng". */
 const found = (content: string) => extractElements(content).map((e) => `${e.role} ${e.name}@${e.line}`);

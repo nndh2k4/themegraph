@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { NodeNotFoundError } from '../src/find-node.js';
-import { impact } from '../src/impact.js';
-import { openGraph } from '../src/open.js';
-import type { GraphHandle } from '../src/open.js';
-import type { Reached } from '../src/traverse.js';
-import { buildGraph } from '../src/graph.js';
+import { NodeNotFoundError } from '../src/graph/node-finder.service.js';
+import { impact } from '../src/graph/impact.service.js';
+import { openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
+import type { GraphHandle } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
+import type { Reached } from '../src/infrastructure/sqlite/traverse.sql.js';
+import { buildGraph } from '../src/analyze/graph-builder.js';
 import { file, queryGraph, ref, removeTempTheme, saveToTempTheme } from './helpers.js';
 
 let themeRoot: string;

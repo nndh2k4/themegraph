@@ -2,9 +2,9 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { buildGraph } from '../src/graph.js';
-import { saveGraph } from '../src/store.js';
-import type { FileKind, FileSchema, RawRef, RefKind, RefSource, ThemeFile, ThemeGraph } from '../src/types.js';
+import { buildGraph } from '../src/analyze/graph-builder.js';
+import { saveGraph } from '../src/infrastructure/sqlite/sqlite-graph.store.js';
+import type { FileKind, FileSchema, RawRef, RefKind, RefSource, ThemeFile, ThemeGraph } from '../src/models/index.js';
 
 /** Tạo một ThemeFile từ đường dẫn và loại. */
 export const file = (p: string, kind: FileKind): ThemeFile => ({

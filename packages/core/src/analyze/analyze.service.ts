@@ -1,13 +1,13 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { extractFile } from "./extract.js";
-import { buildGraph } from "./graph.js";
-import { hashContent } from "./hash.js";
-import { scanThemeDir } from "./scanner.js";
-import { registerTheme } from "./registry.js";
-import { graphDbPath, saveGraph } from "./store.js";
-import type { FileElement, FileHash, FileSchema, RawRef, ResolvedRef } from "./types.js";
+import { extractFile } from "./parsers/theme-file.parser.js";
+import { buildGraph } from "./graph-builder.js";
+import { hashContent } from "../common/hash.js";
+import { scanThemeDir } from "../infrastructure/fs/fs-theme-file.repository.js";
+import { registerTheme } from "../infrastructure/registry/json-theme-registry.repository.js";
+import { graphDbPath, saveGraph } from "../infrastructure/sqlite/sqlite-graph.store.js";
+import type { FileElement, FileHash, FileSchema, RawRef, ResolvedRef } from "../models/index.js";
 
 /** Một file không phân tích được, kèm lý do. */
 export interface AnalyzeError {

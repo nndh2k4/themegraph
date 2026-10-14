@@ -1,5 +1,5 @@
 import { stripJsonComments } from "./json-comments.js";
-import type { ThemeFile } from "./types.js";
+import type { ThemeFile } from "../../models/index.js";
 
 /**
  * Các dạng số nhiều mà Shopify hiểu. Một khoá dịch có số nhiều được viết

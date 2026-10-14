@@ -1,6 +1,6 @@
-import { resolveSettingRef } from "./resolve-setting.js";
-import type { Ancestor } from "./resolve-setting.js";
-import { resolveRef, TRANSLATION_PREFIX } from "./resolver.js";
+import { resolveSettingRef } from "./setting-resolver.js";
+import type { Ancestor } from "./setting-resolver.js";
+import { resolveRef, TRANSLATION_PREFIX } from "./ref-resolver.js";
 import type {
   EdgeType,
   GraphEdge,
@@ -11,7 +11,7 @@ import type {
   ResolvedRef,
   ThemeFile,
   ThemeGraph,
-} from "./types.js";
+} from "../models/index.js";
 
 /** Layout mà Shopify dùng khi template không chỉ định layout nào. */
 const DEFAULT_LAYOUT = "layout/theme.liquid";

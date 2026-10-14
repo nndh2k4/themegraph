@@ -1,8 +1,8 @@
 import { existsSync, rmdirSync, rmSync } from "node:fs";
 import path from "node:path";
 
-import { readRegistry, unregisterTheme } from "./registry.js";
-import { graphDbPath } from "./store.js";
+import { readRegistry, unregisterTheme } from "../infrastructure/registry/json-theme-registry.repository.js";
+import { graphDbPath } from "../infrastructure/sqlite/sqlite-graph.store.js";
 
 /** Những gì cleanTheme() đã làm với một theme. */
 export interface CleanResult {

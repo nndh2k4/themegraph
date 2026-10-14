@@ -1,10 +1,10 @@
 import { NodeTypes, toLiquidAST, walk } from "@shopify/liquid-html-parser";
 import type { LiquidHtmlNode } from "@shopify/liquid-html-parser";
 
-import { parseSchema } from "./extract-schema.js";
-import type { ParsedSchema } from "./extract-schema.js";
-import { settingNodeId } from "./extract-settings.js";
-import type { Extraction, RawRef, RefKind, RefSource, SchemaInfo, ThemeFile } from "./types.js";
+import { parseSchema } from "./schema.parser.js";
+import type { ParsedSchema } from "./schema.parser.js";
+import { settingNodeId } from "./global-settings.parser.js";
+import type { Extraction, RawRef, RefKind, RefSource, SchemaInfo, ThemeFile } from "../../models/index.js";
 
 /**
  * Các filter biến tên file thành đường dẫn hoặc nội dung của một file trong

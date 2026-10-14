@@ -1,5 +1,5 @@
-import { PLURAL_FORMS } from "./extract-locale.js";
-import type { RawRef, Resolution } from "./types.js";
+import { PLURAL_FORMS } from "./parsers/default-locale.parser.js";
+import type { RawRef, Resolution } from "../models/index.js";
 
 /** Tiền tố của id node khoá dịch, để không trùng với đường dẫn file nào. */
 export const TRANSLATION_PREFIX = "t:";

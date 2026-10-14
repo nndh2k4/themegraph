@@ -5,11 +5,11 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { findNode, NodeNotFoundError } from '../src/find-node.js';
-import { findThemeRoot, GraphNotReadyError, openGraph } from '../src/open.js';
-import type { GraphHandle } from '../src/open.js';
-import { graphDbPath, SCHEMA_VERSION } from '../src/store.js';
-import { buildGraph } from '../src/graph.js';
+import { findNode, NodeNotFoundError } from '../src/graph/node-finder.service.js';
+import { findThemeRoot, GraphNotReadyError, openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
+import type { GraphHandle } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
+import { graphDbPath, SCHEMA_VERSION } from '../src/infrastructure/sqlite/sqlite-graph.store.js';
+import { buildGraph } from '../src/analyze/graph-builder.js';
 import { file, queryGraph, removeTempTheme, saveToTempTheme } from './helpers.js';
 
 let themeRoot: string;

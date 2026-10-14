@@ -12,7 +12,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 
-import { graphDbPath } from "./store.js";
+import { graphDbPath } from "../sqlite/sqlite-graph.store.js";
 
 /**
  * Phiên bản của định dạng registry.json. Tăng khi đổi cấu trúc file; file có

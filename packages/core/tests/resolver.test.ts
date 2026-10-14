@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveRef } from '../src/resolver.js';
-import type { RawRef, RefKind, RefSource } from '../src/types.js';
+import { resolveRef } from '../src/analyze/ref-resolver.js';
+import type { RawRef, RefKind, RefSource } from '../src/models/index.js';
 
 /** Các file "có trong theme" dùng cho mọi test bên dưới. */
 const PATHS = new Set([

@@ -5,16 +5,16 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { analyze } from '../src/analyze.js';
-import { deadCode } from '../src/dead-code.js';
-import type { DeadCodeResult } from '../src/dead-code.js';
-import { extractFile } from '../src/extract.js';
+import { analyze } from '../src/analyze/analyze.service.js';
+import { deadCode } from '../src/graph/dead-code.service.js';
+import type { DeadCodeResult } from '../src/graph/dead-code.service.js';
+import { extractFile } from '../src/analyze/parsers/theme-file.parser.js';
 import { formatDeadCode, formatOverview } from '../src/format.js';
-import { buildGraph } from '../src/graph.js';
-import { openGraph } from '../src/open.js';
-import { overview } from '../src/overview.js';
-import { graphDbPath } from '../src/store.js';
-import type { ElementRole, FileElement, RawRef, ThemeFile, ThemeGraph } from '../src/types.js';
+import { buildGraph } from '../src/analyze/graph-builder.js';
+import { openGraph } from '../src/infrastructure/sqlite/sqlite-graph.repository.js';
+import { overview } from '../src/graph/overview.service.js';
+import { graphDbPath } from '../src/infrastructure/sqlite/sqlite-graph.store.js';
+import type { ElementRole, FileElement, RawRef, ThemeFile, ThemeGraph } from '../src/models/index.js';
 import { file, ref, removeTempTheme, saveToTempTheme } from './helpers.js';
 
 const tempDirs: string[] = [];

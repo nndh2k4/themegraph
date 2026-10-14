@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { extractLiquid, extractLiquidRefs } from '../src/extract-liquid.js';
-import type { ThemeFile } from '../src/types.js';
+import { extractLiquid, extractLiquidRefs } from '../src/analyze/parsers/liquid.parser.js';
+import type { ThemeFile } from '../src/models/index.js';
 
 const SECTION: ThemeFile = { path: 'sections/hero.liquid', kind: 'section', ext: 'liquid' };
 

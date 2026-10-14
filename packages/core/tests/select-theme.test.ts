@@ -4,10 +4,10 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { buildGraph } from '../src/graph.js';
-import { readRegistry, registerTheme, unregisterTheme } from '../src/registry.js';
-import { selectTheme, ThemeSelectionError } from '../src/select-theme.js';
-import { saveGraph } from '../src/store.js';
+import { buildGraph } from '../src/analyze/graph-builder.js';
+import { readRegistry, registerTheme, unregisterTheme } from '../src/infrastructure/registry/json-theme-registry.repository.js';
+import { selectTheme, ThemeSelectionError } from '../src/theme/select-theme.js';
+import { saveGraph } from '../src/infrastructure/sqlite/sqlite-graph.store.js';
 
 let tmp: string;
 

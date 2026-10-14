@@ -1,4 +1,4 @@
-import type { ElementMention, ElementRole } from "./types.js";
+import type { ElementMention, ElementRole } from "../../models/index.js";
 
 /**
  * Tìm những chỗ một file ĐỊNH NGHĨA hoặc DÙNG một custom element.
