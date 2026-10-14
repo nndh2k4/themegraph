@@ -5,12 +5,8 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { analyze } from '../src/analyze/analyze.service.js';
-import { extractFile } from '../src/analyze/parsers/theme-file.parser.js';
-import { buildGraph } from '../src/analyze/graph-builder.js';
 import type { ElementRole, FileElement, RawRef, ThemeFile, ThemeGraph } from '../src/models/index.js';
-import { file, ref, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
-import { openGraph } from '../src/legacy.js';
+import { buildGraph, core, file, openGraph, parseFile, ref, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
 import { graphDbPath } from '../src/infrastructure/sqlite/schema.js';
 import type { DeadCodeResult } from '../src/graph/dto/index.js';
 
@@ -52,10 +48,10 @@ const ids = (result: DeadCodeResult) => result.files.map((entry) => entry.id);
 
 describe('extractFile — custom element', () => {
   it('trích từ file .js và file .liquid, không trích từ loại file khác', () => {
-    const js = extractFile(file('assets/x.js', 'asset'), `customElements.define("x-el", X);`);
-    const liquid = extractFile(file('sections/hero.liquid', 'section'), `<x-el></x-el>`);
-    const css = extractFile(file('assets/base.css', 'asset'), `x-el { color: red } /* <x-el> */`);
-    const json = extractFile(file('templates/index.json', 'template'), `{"sections":{},"order":[],"note":"<x-el>"}`);
+    const js = parseFile(file('assets/x.js', 'asset'), `customElements.define("x-el", X);`);
+    const liquid = parseFile(file('sections/hero.liquid', 'section'), `<x-el></x-el>`);
+    const css = parseFile(file('assets/base.css', 'asset'), `x-el { color: red } /* <x-el> */`);
+    const json = parseFile(file('templates/index.json', 'template'), `{"sections":{},"order":[],"note":"<x-el>"}`);
 
     expect(js.elements).toEqual([{ name: 'x-el', role: 'define', line: 1 }]);
     expect(liquid.elements).toEqual([{ name: 'x-el', role: 'use', line: 1 }]);
@@ -64,8 +60,8 @@ describe('extractFile — custom element', () => {
   });
 
   it('vẫn trích các quan hệ khác của file như trước', () => {
-    const liquid = extractFile(file('sections/hero.liquid', 'section'), `{% render 'card' %}\n<x-el></x-el>`);
-    const js = extractFile(file('assets/x.js', 'asset'), `fetch("/?section_id=cart-drawer"); customElements.define("x-el", X);`);
+    const liquid = parseFile(file('sections/hero.liquid', 'section'), `{% render 'card' %}\n<x-el></x-el>`);
+    const js = parseFile(file('assets/x.js', 'asset'), `fetch("/?section_id=cart-drawer"); customElements.define("x-el", X);`);
 
     expect(liquid.refs.map((r) => `${r.kind} ${r.to}`)).toEqual(['render card']);
     expect(js.refs.map((r) => `${r.kind} ${r.to}`)).toEqual(['section_load cart-drawer']);
@@ -353,7 +349,7 @@ describe('analyze — custom element, từ file thật tới dead-code', () => {
     const script = options.loadScript ? `<script src="{{ 'disclosures.js' | asset_url }}" defer></script>\n` : '';
     await writeFile(hero, `${script}<disclosures-close class="x"></disclosures-close>\n${await readFile(hero, 'utf8')}`);
 
-    await analyze(themeRoot);
+    await core().analyzer.analyze(themeRoot);
 
     const handle = openGraph(themeRoot);
     try {

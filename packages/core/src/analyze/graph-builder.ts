@@ -80,267 +80,269 @@ function pageTypeOf(templatePath: string): { page: string; alternate: boolean } 
  *     hay cạnh nào. Lần dùng một thẻ mà không file nào định nghĩa bị bỏ: đó
  *     là thẻ của một app, của Shopify, hoặc một kết quả tìm thừa
  *
- * Hàm thuần: không đọc đĩa, không phụ thuộc thứ tự đầu vào. Cùng một tập file
+ * Thuần: không đọc đĩa, không phụ thuộc thứ tự đầu vào. Cùng một tập file
  * và ref luôn cho ra đúng một kết quả, đã sắp xếp.
  */
-export function buildGraph(
-  files: readonly ThemeFile[],
-  rawRefs: readonly RawRef[],
-  facts: GraphFacts = {},
-): ThemeGraph {
-  const { schemas = [], translationKeys = [], settings = [], fileHashes = [], elements = [] } = facts;
+export class GraphBuilder {
+  build(
+    files: readonly ThemeFile[],
+    rawRefs: readonly RawRef[],
+    facts: GraphFacts = {},
+  ): ThemeGraph {
+    const { schemas = [], translationKeys = [], settings = [], fileHashes = [], elements = [] } = facts;
 
-  const filePaths = new Set(files.map((file) => file.path));
+    const filePaths = new Set(files.map((file) => file.path));
 
-  // ---- Node -------------------------------------------------------------
+    // ---- Node -------------------------------------------------------------
 
-  // Dùng Map theo id để một loại trang có nhiều template vẫn chỉ là một node.
-  const nodes = new Map<string, GraphNode>();
+    // Dùng Map theo id để một loại trang có nhiều template vẫn chỉ là một node.
+    const nodes = new Map<string, GraphNode>();
 
-  for (const file of files) {
-    nodes.set(file.path, { id: file.path, kind: file.kind });
-  }
-
-  for (const key of translationKeys) {
-    const id = TRANSLATION_PREFIX + key;
-    nodes.set(id, { id, kind: "translation_key" });
-  }
-
-  for (const id of settings) {
-    nodes.set(id, { id, kind: "setting" });
-  }
-
-  // Mọi thứ một ref có thể trỏ tới: file, khoá dịch và setting. Loại trang
-  // không có ở đây vì không ref nào trỏ tới loại trang.
-  const knownPaths = new Set(nodes.keys());
-
-  // ---- Cạnh -------------------------------------------------------------
-
-  // Khoá của Map là bộ (from, to, type). Ký tự phân cách là dấu xuống dòng vì
-  // nó không thể xuất hiện trong đường dẫn file hay tên loại cạnh.
-  const edges = new Map<string, GraphEdge>();
-
-  // Mỗi cạnh nhớ riêng tập nguồn của nó; chuỗi `sources` được ghép lại ở cuối.
-  const sourcesOf = new Map<string, Set<string>>();
-
-  /** Thêm một lời gọi vào cạnh tương ứng, tạo cạnh nếu chưa có. */
-  const addEdge = (
-    from: string,
-    to: string,
-    type: EdgeType,
-    source: string,
-    conditional: boolean,
-  ): void => {
-    const key = [from, to, type].join("\n");
-    const existing = edges.get(key);
-
-    if (existing === undefined) {
-      edges.set(key, { from, to, type, conditional, sources: "", count: 1 });
-      sourcesOf.set(key, new Set([source]));
-      return;
+    for (const file of files) {
+      nodes.set(file.path, { id: file.path, kind: file.kind });
     }
 
-    // Gộp: cạnh chỉ còn "có điều kiện" khi mọi lời gọi đều có điều kiện.
-    existing.conditional = existing.conditional && conditional;
-    existing.count += 1;
-    sourcesOf.get(key)?.add(source);
-  };
-
-  // ---- Loại trang và template ---------------------------------------------
-
-  for (const file of files) {
-    if (file.kind !== "template") continue;
-
-    const { page, alternate } = pageTypeOf(file.path);
-    const pageId = `page:${page}`;
-
-    nodes.set(pageId, { id: pageId, kind: "page_type" });
-
-    // Template mặc định luôn phục vụ trang đó. Template thay thế chỉ được dùng
-    // khi merchant gán nó cho một sản phẩm hay trang cụ thể: có điều kiện.
-    addEdge(pageId, file.path, "USES_TEMPLATE", "convention", alternate);
-  }
-
-  // ---- Cạnh từ tham chiếu ---------------------------------------------------
-
-  const refs: ResolvedRef[] = [];
-
-  // Template đã tự nói về layout của mình (chọn một layout, hoặc khai không
-  // dùng layout) thì không nhận layout mặc định nữa.
-  const templatesWithLayoutChoice = new Set<string>();
-
-  // Ref đọc setting phải đợi: muốn biết section.settings.x trong một snippet
-  // là setting của section nào thì phải có đủ cạnh RENDERS trước đã.
-  const settingRefs: RawRef[] = [];
-
-  // Các snippet nhận một tham số tên "settings" từ ít nhất một nơi gọi. Trong
-  // chúng, settings.x là đọc tham số đó, không phải setting toàn cục.
-  const settingsShadowedIn = new Set<string>();
-
-  for (const ref of rawRefs) {
-    if (ref.kind === "setting") {
-      settingRefs.push(ref);
-      continue;
+    for (const key of translationKeys) {
+      const id = TRANSLATION_PREFIX + key;
+      nodes.set(id, { id, kind: "translation_key" });
     }
 
-    const resolution = resolveRef(ref, knownPaths);
-
-    // Section được tải lúc chạy: chỉ giữ những tên ứng với một section có
-    // thật, và bỏ trường hợp một section tự xin lại chính nó (cách thường gặp
-    // để làm mới nội dung của nó; không nói thêm gì về việc ai dùng nó).
-    if (ref.kind === "section_load" && (resolution.status !== "resolved" || resolution.path === ref.from)) {
-      continue;
+    for (const id of settings) {
+      nodes.set(id, { id, kind: "setting" });
     }
 
-    if (ref.kind === "layout" || ref.kind === "no_layout") {
-      templatesWithLayoutChoice.add(ref.from);
-    }
+    // Mọi thứ một ref có thể trỏ tới: file, khoá dịch và setting. Loại trang
+    // không có ở đây vì không ref nào trỏ tới loại trang.
+    const knownPaths = new Set(nodes.keys());
 
-    refs.push({
-      ...ref,
-      status: resolution.status,
-      target:
-        resolution.status === "resolved"
-          ? resolution.path
-          : resolution.status === "missing"
-            ? resolution.expected
-            : null,
-    });
+    // ---- Cạnh -------------------------------------------------------------
 
-    // Chỉ ref có file đích mới thành cạnh. Block cục bộ và tham chiếu hỏng
-    // vẫn nằm trong `refs` để tra cứu, nhưng không có node nào để trỏ tới.
-    if (resolution.status !== "resolved") continue;
+    // Khoá của Map là bộ (from, to, type). Ký tự phân cách là dấu xuống dòng vì
+    // nó không thể xuất hiện trong đường dẫn file hay tên loại cạnh.
+    const edges = new Map<string, GraphEdge>();
 
-    if (ref.passesSettings === true) settingsShadowedIn.add(resolution.path);
+    // Mỗi cạnh nhớ riêng tập nguồn của nó; chuỗi `sources` được ghép lại ở cuối.
+    const sourcesOf = new Map<string, Set<string>>();
 
-    const type = EDGE_TYPE_OF[ref.kind];
-    if (type === undefined) continue;
+    /** Thêm một lời gọi vào cạnh tương ứng, tạo cạnh nếu chưa có. */
+    const addEdge = (
+      from: string,
+      to: string,
+      type: EdgeType,
+      source: string,
+      conditional: boolean,
+    ): void => {
+      const key = [from, to, type].join("\n");
+      const existing = edges.get(key);
 
-    addEdge(ref.from, resolution.path, type, ref.source, ref.conditional);
-  }
+      if (existing === undefined) {
+        edges.set(key, { from, to, type, conditional, sources: "", count: 1 });
+        sourcesOf.set(key, new Set([source]));
+        return;
+      }
 
-  // ---- Layout mặc định ------------------------------------------------------
+      // Gộp: cạnh chỉ còn "có điều kiện" khi mọi lời gọi đều có điều kiện.
+      existing.conditional = existing.conditional && conditional;
+      existing.count += 1;
+      sourcesOf.get(key)?.add(source);
+    };
 
-  if (filePaths.has(DEFAULT_LAYOUT)) {
+    // ---- Loại trang và template ---------------------------------------------
+
     for (const file of files) {
       if (file.kind !== "template") continue;
-      if (templatesWithLayoutChoice.has(file.path)) continue;
 
-      addEdge(file.path, DEFAULT_LAYOUT, "USES_LAYOUT", "convention", false);
+      const { page, alternate } = pageTypeOf(file.path);
+      const pageId = `page:${page}`;
+
+      nodes.set(pageId, { id: pageId, kind: "page_type" });
+
+      // Template mặc định luôn phục vụ trang đó. Template thay thế chỉ được dùng
+      // khi merchant gán nó cho một sản phẩm hay trang cụ thể: có điều kiện.
+      addEdge(pageId, file.path, "USES_TEMPLATE", "convention", alternate);
     }
-  }
 
-  // ---- Đọc setting ----------------------------------------------------------
+    // ---- Cạnh từ tham chiếu ---------------------------------------------------
 
-  const kindOf = new Map(files.map((file) => [file.path, file.kind]));
+    const refs: ResolvedRef[] = [];
 
-  // "Ai render file này": chiều ngược của các cạnh RENDERS vừa dựng xong.
-  const renderersOf = new Map<string, string[]>();
-  for (const edge of edges.values()) {
-    if (edge.type !== "RENDERS") continue;
-    const list = renderersOf.get(edge.to) ?? [];
-    list.push(edge.from);
-    renderersOf.set(edge.to, list);
-  }
+    // Template đã tự nói về layout của mình (chọn một layout, hoặc khai không
+    // dùng layout) thì không nhận layout mặc định nữa.
+    const templatesWithLayoutChoice = new Set<string>();
 
-  // Nhiều lần đọc trong cùng một file dùng chung một danh sách tổ tiên.
-  const ancestorsCache = new Map<string, Ancestor[]>();
+    // Ref đọc setting phải đợi: muốn biết section.settings.x trong một snippet
+    // là setting của section nào thì phải có đủ cạnh RENDERS trước đã.
+    const settingRefs: RawRef[] = [];
 
-  /** Mọi file dẫn tới `path` qua một hay nhiều cạnh RENDERS, không kể chính nó. */
-  const ancestorsOf = (path: string): Ancestor[] => {
-    const cached = ancestorsCache.get(path);
-    if (cached !== undefined) return cached;
+    // Các snippet nhận một tham số tên "settings" từ ít nhất một nơi gọi. Trong
+    // chúng, settings.x là đọc tham số đó, không phải setting toàn cục.
+    const settingsShadowedIn = new Set<string>();
 
-    // Duyệt ngược theo chiều rộng; `seen` chặn vòng (snippet gọi lẫn nhau).
-    const seen = new Set([path]);
-    const queue = [path];
-    const found: Ancestor[] = [];
-
-    for (let current = queue.shift(); current !== undefined; current = queue.shift()) {
-      for (const renderer of renderersOf.get(current) ?? []) {
-        if (seen.has(renderer)) continue;
-        seen.add(renderer);
-        queue.push(renderer);
-
-        const kind = kindOf.get(renderer);
-        if (kind !== undefined) found.push({ path: renderer, kind });
+    for (const ref of rawRefs) {
+      if (ref.kind === "setting") {
+        settingRefs.push(ref);
+        continue;
       }
-    }
 
-    // Không cần xếp: thứ tự ở đây chỉ quyết định thứ tự các dòng ref, mà
-    // danh sách ref được xếp lại theo đích ở cuối hàm.
-    ancestorsCache.set(path, found);
-    return found;
-  };
+      const resolution = resolveRef(ref, knownPaths);
 
-  for (const ref of settingRefs) {
-    const shadowed = ref.to.startsWith("settings.") && settingsShadowedIn.has(ref.from);
+      // Section được tải lúc chạy: chỉ giữ những tên ứng với một section có
+      // thật, và bỏ trường hợp một section tự xin lại chính nó (cách thường gặp
+      // để làm mới nội dung của nó; không nói thêm gì về việc ai dùng nó).
+      if (ref.kind === "section_load" && (resolution.status !== "resolved" || resolution.path === ref.from)) {
+        continue;
+      }
 
-    const resolution = shadowed
-      ? ({ status: "unresolved" } as const)
-      : resolveSettingRef(ref, kindOf.get(ref.from), ancestorsOf(ref.from), knownPaths);
+      if (ref.kind === "layout" || ref.kind === "no_layout") {
+        templatesWithLayoutChoice.add(ref.from);
+      }
 
-    if (resolution.status !== "resolved") {
       refs.push({
         ...ref,
         status: resolution.status,
-        target: resolution.status === "missing" ? resolution.expected : null,
+        target:
+          resolution.status === "resolved"
+            ? resolution.path
+            : resolution.status === "missing"
+              ? resolution.expected
+              : null,
       });
-      continue;
+
+      // Chỉ ref có file đích mới thành cạnh. Block cục bộ và tham chiếu hỏng
+      // vẫn nằm trong `refs` để tra cứu, nhưng không có node nào để trỏ tới.
+      if (resolution.status !== "resolved") continue;
+
+      if (ref.passesSettings === true) settingsShadowedIn.add(resolution.path);
+
+      const type = EDGE_TYPE_OF[ref.kind];
+      if (type === undefined) continue;
+
+      addEdge(ref.from, resolution.path, type, ref.source, ref.conditional);
     }
 
-    // Một lần đọc trong snippet có thể ứng với setting của nhiều section:
-    // ghi một dòng ref và một cạnh cho mỗi đích.
-    for (const target of resolution.targets) {
-      refs.push({ ...ref, status: "resolved", target });
-      addEdge(ref.from, target, "READS_SETTING", ref.source, ref.conditional);
+    // ---- Layout mặc định ------------------------------------------------------
+
+    if (filePaths.has(DEFAULT_LAYOUT)) {
+      for (const file of files) {
+        if (file.kind !== "template") continue;
+        if (templatesWithLayoutChoice.has(file.path)) continue;
+
+        addEdge(file.path, DEFAULT_LAYOUT, "USES_LAYOUT", "convention", false);
+      }
     }
-  }
 
-  // ---- Hoàn thiện và sắp xếp ------------------------------------------------
+    // ---- Đọc setting ----------------------------------------------------------
 
-  for (const [key, edge] of edges) {
-    edge.sources = [...(sourcesOf.get(key) ?? [])].sort().join(",");
-  }
+    const kindOf = new Map(files.map((file) => [file.path, file.kind]));
 
-  // Tên các thẻ mà một file CỦA THEME định nghĩa.
-  const definedElements = new Set(
-    elements.filter((entry) => entry.role === "define" && filePaths.has(entry.file)).map((entry) => entry.name),
-  );
+    // "Ai render file này": chiều ngược của các cạnh RENDERS vừa dựng xong.
+    const renderersOf = new Map<string, string[]>();
+    for (const edge of edges.values()) {
+      if (edge.type !== "RENDERS") continue;
+      const list = renderersOf.get(edge.to) ?? [];
+      list.push(edge.from);
+      renderersOf.set(edge.to, list);
+    }
 
-  return {
-    nodes: [...nodes.values()].sort((a, b) => compareText(a.id, b.id)),
-    edges: [...edges.values()].sort(
-      (a, b) =>
-        compareText(a.from, b.from) || compareText(a.to, b.to) || compareText(a.type, b.type),
-    ),
-    refs: refs.sort(
-      (a, b) =>
-        compareText(a.from, b.from) ||
-        a.line - b.line ||
-        compareText(a.kind, b.kind) ||
-        compareText(a.to, b.to) ||
-        compareText(a.source, b.source) ||
-        // Một lần đọc setting có thể thành nhiều dòng, khác nhau ở đích.
-        compareText(a.target ?? "", b.target ?? "") ||
-        // Khoá cuối cùng: hai lời gọi có thể giống nhau ở mọi trường trên mà
-        // chỉ khác conditional (cùng một block dùng hai lần trong một template
-        // JSON, một lần bị tắt). Không so trường này thì thứ tự của chúng sẽ
-        // phụ thuộc thứ tự đầu vào. false đứng trước true.
-        Number(a.conditional) - Number(b.conditional),
-    ),
-    // Chỉ giữ schema của file có trong theme: bảng schemas tham chiếu tới
-    // bảng nodes, nên một dòng mồ côi sẽ bị database từ chối.
-    schemas: schemas
-      .filter((schema) => filePaths.has(schema.file))
-      .sort((a, b) => compareText(a.file, b.file)),
-    fileHashes: fileHashes
-      .filter((entry) => filePaths.has(entry.file))
-      .sort((a, b) => compareText(a.file, b.file)),
-    elements: elements
-      .filter((entry) => filePaths.has(entry.file) && (entry.role === "define" || definedElements.has(entry.name)))
-      .sort(
-        (a, b) => compareText(a.name, b.name) || compareText(a.role, b.role) || compareText(a.file, b.file),
+    // Nhiều lần đọc trong cùng một file dùng chung một danh sách tổ tiên.
+    const ancestorsCache = new Map<string, Ancestor[]>();
+
+    /** Mọi file dẫn tới `path` qua một hay nhiều cạnh RENDERS, không kể chính nó. */
+    const ancestorsOf = (path: string): Ancestor[] => {
+      const cached = ancestorsCache.get(path);
+      if (cached !== undefined) return cached;
+
+      // Duyệt ngược theo chiều rộng; `seen` chặn vòng (snippet gọi lẫn nhau).
+      const seen = new Set([path]);
+      const queue = [path];
+      const found: Ancestor[] = [];
+
+      for (let current = queue.shift(); current !== undefined; current = queue.shift()) {
+        for (const renderer of renderersOf.get(current) ?? []) {
+          if (seen.has(renderer)) continue;
+          seen.add(renderer);
+          queue.push(renderer);
+
+          const kind = kindOf.get(renderer);
+          if (kind !== undefined) found.push({ path: renderer, kind });
+        }
+      }
+
+      // Không cần xếp: thứ tự ở đây chỉ quyết định thứ tự các dòng ref, mà
+      // danh sách ref được xếp lại theo đích ở cuối hàm.
+      ancestorsCache.set(path, found);
+      return found;
+    };
+
+    for (const ref of settingRefs) {
+      const shadowed = ref.to.startsWith("settings.") && settingsShadowedIn.has(ref.from);
+
+      const resolution = shadowed
+        ? ({ status: "unresolved" } as const)
+        : resolveSettingRef(ref, kindOf.get(ref.from), ancestorsOf(ref.from), knownPaths);
+
+      if (resolution.status !== "resolved") {
+        refs.push({
+          ...ref,
+          status: resolution.status,
+          target: resolution.status === "missing" ? resolution.expected : null,
+        });
+        continue;
+      }
+
+      // Một lần đọc trong snippet có thể ứng với setting của nhiều section:
+      // ghi một dòng ref và một cạnh cho mỗi đích.
+      for (const target of resolution.targets) {
+        refs.push({ ...ref, status: "resolved", target });
+        addEdge(ref.from, target, "READS_SETTING", ref.source, ref.conditional);
+      }
+    }
+
+    // ---- Hoàn thiện và sắp xếp ------------------------------------------------
+
+    for (const [key, edge] of edges) {
+      edge.sources = [...(sourcesOf.get(key) ?? [])].sort().join(",");
+    }
+
+    // Tên các thẻ mà một file CỦA THEME định nghĩa.
+    const definedElements = new Set(
+      elements.filter((entry) => entry.role === "define" && filePaths.has(entry.file)).map((entry) => entry.name),
+    );
+
+    return {
+      nodes: [...nodes.values()].sort((a, b) => compareText(a.id, b.id)),
+      edges: [...edges.values()].sort(
+        (a, b) =>
+          compareText(a.from, b.from) || compareText(a.to, b.to) || compareText(a.type, b.type),
       ),
-  };
+      refs: refs.sort(
+        (a, b) =>
+          compareText(a.from, b.from) ||
+          a.line - b.line ||
+          compareText(a.kind, b.kind) ||
+          compareText(a.to, b.to) ||
+          compareText(a.source, b.source) ||
+          // Một lần đọc setting có thể thành nhiều dòng, khác nhau ở đích.
+          compareText(a.target ?? "", b.target ?? "") ||
+          // Khoá cuối cùng: hai lời gọi có thể giống nhau ở mọi trường trên mà
+          // chỉ khác conditional (cùng một block dùng hai lần trong một template
+          // JSON, một lần bị tắt). Không so trường này thì thứ tự của chúng sẽ
+          // phụ thuộc thứ tự đầu vào. false đứng trước true.
+          Number(a.conditional) - Number(b.conditional),
+      ),
+      // Chỉ giữ schema của file có trong theme: bảng schemas tham chiếu tới
+      // bảng nodes, nên một dòng mồ côi sẽ bị database từ chối.
+      schemas: schemas
+        .filter((schema) => filePaths.has(schema.file))
+        .sort((a, b) => compareText(a.file, b.file)),
+      fileHashes: fileHashes
+        .filter((entry) => filePaths.has(entry.file))
+        .sort((a, b) => compareText(a.file, b.file)),
+      elements: elements
+        .filter((entry) => filePaths.has(entry.file) && (entry.role === "define" || definedElements.has(entry.name)))
+        .sort(
+          (a, b) => compareText(a.name, b.name) || compareText(a.role, b.role) || compareText(a.file, b.file),
+        ),
+    };
+  }
 }

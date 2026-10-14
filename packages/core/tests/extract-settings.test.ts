@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { extractFile } from '../src/analyze/parsers/theme-file.parser.js';
 import { collectGlobalSettings, isGlobalSettingsSchema, settingIdsOf, settingNodeId } from '../src/analyze/parsers/global-settings.parser.js';
 import type { ThemeFile } from '../src/models/index.js';
+import { parseFile } from './helpers.js';
 
 const CONFIG: ThemeFile = { path: 'config/settings_schema.json', kind: 'config', ext: 'json' };
 
@@ -75,7 +75,7 @@ describe('extractFile với file config', () => {
   });
 
   it('trả setting toàn cục của settings_schema.json, không có ref nào', () => {
-    const result = extractFile(CONFIG, JSON.stringify([{ settings: [{ type: 'color', id: 'accent' }] }]));
+    const result = parseFile(CONFIG, JSON.stringify([{ settings: [{ type: 'color', id: 'accent' }] }]));
 
     expect(result).toEqual({ refs: [], schema: null, translationKeys: [], settings: ['setting:settings.accent'], elements: [] });
   });
@@ -83,6 +83,6 @@ describe('extractFile với file config', () => {
   it('không đọc setting từ settings_data.json', () => {
     const data: ThemeFile = { path: 'config/settings_data.json', kind: 'config', ext: 'json' };
 
-    expect(extractFile(data, JSON.stringify([{ settings: [{ id: 'x' }] }])).settings).toEqual([]);
+    expect(parseFile(data, JSON.stringify([{ settings: [{ id: 'x' }] }])).settings).toEqual([]);
   });
 });

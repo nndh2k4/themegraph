@@ -1,11 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { DEFAULT_SEARCH_LIMIT } from '../src/graph/search.service.js';
-import { buildGraph } from '../src/analyze/graph-builder.js';
 import { NODE_KINDS } from '../src/models/index.js';
 import type { NodeKind } from '../src/models/index.js';
-import { file, queryGraph, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
-import { openGraph } from '../src/legacy.js';
+import { buildGraph, file, openGraph, queryGraph, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
 import type { GraphRepository } from '../src/graph/graph.repository.js';
 import type { SearchHit } from '../src/graph/dto/index.js';
 

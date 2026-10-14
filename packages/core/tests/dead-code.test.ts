@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { buildGraph } from '../src/analyze/graph-builder.js';
 import type { FileSchema, RawRef, ThemeFile, ThemeGraph } from '../src/models/index.js';
-import { QUERY_SCHEMAS, file, queryGraph, ref, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
-import { openGraph } from '../src/legacy.js';
+import { QUERY_SCHEMAS, buildGraph, file, openGraph, queryGraph, ref, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
 import type { DeadCodeResult } from '../src/graph/dto/index.js';
 
 const tempThemes: string[] = [];

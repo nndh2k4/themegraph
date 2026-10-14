@@ -1,3 +1,5 @@
+import type { ListedTheme } from "../models/index.js";
+
 /**
  * Các lỗi mà lõi ném ra cho lớp vỏ (CLI, MCP, HTTP).
  *
@@ -45,5 +47,27 @@ export class NodeNotFoundError extends ThemeGraphError {
     this.name = "NodeNotFoundError";
     this.input = input;
     this.suggestions = suggestions;
+  }
+}
+
+/** Vì sao không chọn được theme. */
+export type ThemeSelectionReason =
+  | "none_registered" // sổ đăng ký trống
+  | "ambiguous" // có nhiều theme mà không biết lấy cái nào
+  | "unknown"; // tên hoặc đường dẫn được nêu không ứng với theme nào
+
+/**
+ * Lỗi ném ra khi không xác định được theme để truy vấn. `themes` là các theme
+ * đang có trong sổ đăng ký, để người (hoặc agent) gọi chọn lại.
+ */
+export class ThemeSelectionError extends ThemeGraphError {
+  readonly reason: ThemeSelectionReason;
+  readonly themes: ListedTheme[];
+
+  constructor(reason: ThemeSelectionReason, message: string, themes: ListedTheme[]) {
+    super(message);
+    this.name = "ThemeSelectionError";
+    this.reason = reason;
+    this.themes = themes;
   }
 }

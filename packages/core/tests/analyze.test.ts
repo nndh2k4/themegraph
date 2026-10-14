@@ -6,9 +6,8 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { analyze } from '../src/analyze/analyze.service.js';
-import { readRegistry, registryPath } from '../src/infrastructure/registry/json-theme-registry.repository.js';
 import { graphDbPath } from '../src/infrastructure/sqlite/schema.js';
+import { core, registry } from './helpers.js';
 
 const FIXTURE = path.join(import.meta.dirname, 'fixtures', 'mini-theme');
 
@@ -16,7 +15,7 @@ let themeRoot: string;
 
 beforeEach(async () => {
   // Chép fixture ra thư mục tạm của hệ điều hành rồi phân tích bản chép.
-  // analyze() ghi graph.db vào thư mục theme; không được để nó ghi vào repo,
+  // core().analyzer.analyze() ghi graph.db vào thư mục theme; không được để nó ghi vào repo,
   // và theme "nằm ngoài repo" cũng chính là cách công cụ được dùng thật.
   const tmp = await mkdtemp(path.join(os.tmpdir(), 'themegraph-analyze-'));
   themeRoot = path.join(tmp, 'mini-theme');
@@ -44,11 +43,11 @@ function query(sql: string, ...params: string[]): Record<string, unknown>[] {
  * Các mục của sổ đăng ký ứng với theme của test đang chạy. Mọi test trong file
  * này dùng chung một sổ đăng ký tạm, nên sổ còn chứa theme của các test khác.
  */
-const registered = () => readRegistry().filter((entry) => entry.path === themeRoot);
+const registered = () => registry().list().filter((entry) => entry.path === themeRoot);
 
 describe('analyze', () => {
   it('trả về thống kê của đồ thị', async () => {
-    const result = await analyze(themeRoot);
+    const result = await core().analyzer.analyze(themeRoot);
 
     expect(result.stats).toEqual({
       files: 13,
@@ -83,7 +82,7 @@ describe('analyze', () => {
   });
 
   it('ghi graph.db vào thư mục theme và trả về đường dẫn tuyệt đối của nó', async () => {
-    const result = await analyze(themeRoot);
+    const result = await core().analyzer.analyze(themeRoot);
 
     expect(result.dbPath).toBe(graphDbPath(themeRoot));
     expect(path.isAbsolute(result.dbPath)).toBe(true);
@@ -92,13 +91,13 @@ describe('analyze', () => {
 
   it('thay database cũ trong fixture bằng database thật', async () => {
     // Fixture có sẵn .themegraph/graph.db chứa chữ, không phải SQLite.
-    await analyze(themeRoot);
+    await core().analyzer.analyze(themeRoot);
 
     expect(query('SELECT count(*) AS n FROM nodes')).toEqual([{ n: 22 }]);
   });
 
   it('ghi dữ kiện schema của section và block vào database', async () => {
-    await analyze(themeRoot);
+    await core().analyzer.analyze(themeRoot);
 
     // hero có một preset; "blocks" của nó liệt kê text và @app, không có @theme.
     expect(query('SELECT file, presets, accepts_theme_blocks FROM schemas ORDER BY file')).toEqual([
@@ -108,7 +107,7 @@ describe('analyze', () => {
   });
 
   it('liệt kê các tham chiếu hỏng kèm file và dòng', async () => {
-    const result = await analyze(themeRoot);
+    const result = await core().analyzer.analyze(themeRoot);
 
     expect(result.missing.map((r) => [r.from, r.line, r.kind, r.target])).toEqual([
       ['snippets/card.liquid', 4, 'asset', 'assets/icon-star'],
@@ -119,7 +118,7 @@ describe('analyze', () => {
   it('báo khoá dịch không có trong locale mặc định là tham chiếu hỏng', async () => {
     await writeFile(path.join(themeRoot, 'snippets', 'badge.liquid'), "<b>{{ 'general.tilte' | t }}</b>");
 
-    const result = await analyze(themeRoot);
+    const result = await core().analyzer.analyze(themeRoot);
 
     expect(result.missing.map((r) => [r.from, r.line, r.kind, r.target])).toContainEqual([
       'snippets/badge.liquid',
@@ -130,7 +129,7 @@ describe('analyze', () => {
   });
 
   it('nối file tới khoá dịch nó dùng, kể cả khoá số nhiều', async () => {
-    await analyze(themeRoot);
+    await core().analyzer.analyze(themeRoot);
 
     expect(query("SELECT src, dst FROM edges WHERE type = 'USES_TRANSLATION' ORDER BY src")).toEqual([
       { src: 'sections/hero.liquid', dst: 't:general.title' },
@@ -141,7 +140,7 @@ describe('analyze', () => {
   it('ghi lỗi của file locale mặc định hỏng mà không dừng cả lần phân tích', async () => {
     await writeFile(path.join(themeRoot, 'locales', 'en.default.json'), '{ "general": ');
 
-    const result = await analyze(themeRoot);
+    const result = await core().analyzer.analyze(themeRoot);
 
     expect(result.errors.map((e) => e.path)).toEqual(['locales/en.default.json']);
     // Không đọc được khoá nào thì mọi lời gọi t đều thành tham chiếu hỏng.
@@ -150,7 +149,7 @@ describe('analyze', () => {
   });
 
   it('nối file tới setting nó đọc: toàn cục, của section, của theme block', async () => {
-    await analyze(themeRoot);
+    await core().analyzer.analyze(themeRoot);
 
     expect(query("SELECT src, dst FROM edges WHERE type = 'READS_SETTING' ORDER BY src")).toEqual([
       { src: 'blocks/text.liquid', dst: 'setting:blocks/text.liquid#block.text' },
@@ -165,7 +164,7 @@ describe('analyze', () => {
       '{{ section.settings.title }}\n{{ settings.acent }}\n{% schema %}{ "name": "Promo", "settings": [{ "type": "text", "id": "heading" }] }{% endschema %}',
     );
 
-    const result = await analyze(themeRoot);
+    const result = await core().analyzer.analyze(themeRoot);
 
     expect(result.missing.filter((r) => r.kind === 'setting').map((r) => [r.from, r.line, r.target])).toEqual([
       ['sections/promo.liquid', 1, 'setting:sections/promo.liquid#section.title'],
@@ -177,7 +176,7 @@ describe('analyze', () => {
     // hero render card; cho card đọc setting của section.
     await writeFile(path.join(themeRoot, 'snippets', 'card.liquid'), '{{ section.settings.show_card }}');
 
-    await analyze(themeRoot);
+    await core().analyzer.analyze(themeRoot);
 
     expect(query("SELECT dst FROM edges WHERE src = 'snippets/card.liquid' AND type = 'READS_SETTING'")).toEqual([
       { dst: 'setting:sections/hero.liquid#section.show_card' },
@@ -187,14 +186,14 @@ describe('analyze', () => {
   it('ghi unresolved cho lần đọc trong snippet không tìm ra chủ, và không coi là hỏng', async () => {
     await writeFile(path.join(themeRoot, 'snippets', 'card.liquid'), '{{ section.settings.khong_ai_khai }}');
 
-    const result = await analyze(themeRoot);
+    const result = await core().analyzer.analyze(themeRoot);
 
     expect(result.stats.refsByStatus.unresolved).toBe(1);
     expect(result.missing.some((r) => r.kind === 'setting')).toBe(false);
   });
 
   it('ghi theme vào sổ đăng ký toàn cục, khớp với những gì ghi trong graph.db', async () => {
-    const result = await analyze(themeRoot);
+    const result = await core().analyzer.analyze(themeRoot);
 
     const [meta] = query("SELECT value FROM meta WHERE key = 'analyzed_at'");
 
@@ -205,9 +204,9 @@ describe('analyze', () => {
   });
 
   it('phân tích lại thì cập nhật mục cũ trong sổ đăng ký, không thêm mục trùng', async () => {
-    await analyze(themeRoot);
+    await core().analyzer.analyze(themeRoot);
     await writeFile(path.join(themeRoot, 'snippets', 'moi.liquid'), '<p></p>');
-    await analyze(themeRoot);
+    await core().analyzer.analyze(themeRoot);
 
     expect(registered().map((e) => [e.name, e.nodes])).toEqual([['mini-theme', 23]]);
   });
@@ -218,7 +217,7 @@ describe('analyze', () => {
     process.env.THEMEGRAPH_HOME = path.join(themeRoot, 'layout', 'theme.liquid', 'home');
 
     try {
-      const result = await analyze(themeRoot);
+      const result = await core().analyzer.analyze(themeRoot);
 
       expect(result.registered).toBe(false);
       expect(result.stats.nodes).toBe(22);
@@ -229,19 +228,19 @@ describe('analyze', () => {
   });
 
   it('không ghi vào sổ đăng ký khi thư mục không phải theme', async () => {
-    const before = existsSync(registryPath()) ? readRegistry() : [];
+    const before = existsSync(registry().location) ? registry().list() : [];
     const notTheme = await mkdtemp(path.join(os.tmpdir(), 'themegraph-empty-'));
 
     try {
-      await expect(analyze(notTheme)).rejects.toThrow();
-      expect(readRegistry()).toEqual(before);
+      await expect(core().analyzer.analyze(notTheme)).rejects.toThrow();
+      expect(registry().list()).toEqual(before);
     } finally {
       await rm(notTheme, { recursive: true, force: true });
     }
   });
 
   it('ghi hash nội dung của mọi file Liquid và JSON, không ghi cho file khác', async () => {
-    await analyze(themeRoot);
+    await core().analyzer.analyze(themeRoot);
 
     const rows = query('SELECT file, hash FROM file_hashes ORDER BY file');
     const files = rows.map((r) => String(r.file));
@@ -258,7 +257,7 @@ describe('analyze', () => {
     await writeFile(path.join(themeRoot, 'snippets', 'a.liquid'), '<p>giong</p>');
     await writeFile(path.join(themeRoot, 'snippets', 'b.liquid'), '<p>giong</p>');
     await writeFile(path.join(themeRoot, 'snippets', 'c.liquid'), '<p>khac</p>');
-    await analyze(themeRoot);
+    await core().analyzer.analyze(themeRoot);
 
     const hashOf = (file: string) => query('SELECT hash FROM file_hashes WHERE file = ?', file)[0]?.hash;
 
@@ -267,13 +266,13 @@ describe('analyze', () => {
   });
 
   it('liệt kê file bị bỏ qua', async () => {
-    const result = await analyze(themeRoot);
+    const result = await core().analyzer.analyze(themeRoot);
 
     expect(result.skipped).toEqual(['listings/velyn/index.json']);
   });
 
   it('trả lời được: sửa snippets/card.liquid thì trang nào bị ảnh hưởng', async () => {
-    await analyze(themeRoot);
+    await core().analyzer.analyze(themeRoot);
 
     const pages = query(
       `WITH RECURSIVE affected(id) AS (
@@ -293,7 +292,7 @@ describe('analyze', () => {
   });
 
   it('trả lời được: trang index render những file nào', async () => {
-    await analyze(themeRoot);
+    await core().analyzer.analyze(themeRoot);
 
     const reached = query(
       `WITH RECURSIVE reach(id) AS (
@@ -327,7 +326,7 @@ describe('analyze', () => {
   it('một file hỏng không làm dừng cả lần phân tích', async () => {
     await writeFile(path.join(themeRoot, 'snippets', 'broken.liquid'), "{% render 'card'");
 
-    const result = await analyze(themeRoot);
+    const result = await core().analyzer.analyze(themeRoot);
 
     expect(result.errors.map((e) => e.path)).toEqual(['snippets/broken.liquid']);
     expect(result.errors[0]?.message).toContain('snippets/broken.liquid');
@@ -337,7 +336,7 @@ describe('analyze', () => {
   });
 
   it('không có lỗi nào khi mọi file đều đọc được', async () => {
-    const result = await analyze(themeRoot);
+    const result = await core().analyzer.analyze(themeRoot);
 
     expect(result.errors).toEqual([]);
   });
@@ -351,9 +350,9 @@ describe('analyze', () => {
       fileHashes: query('SELECT * FROM file_hashes ORDER BY file'),
     });
 
-    const first = await analyze(themeRoot);
+    const first = await core().analyzer.analyze(themeRoot);
     const firstDump = dump();
-    const second = await analyze(themeRoot);
+    const second = await core().analyzer.analyze(themeRoot);
 
     // Lần hai gặp .themegraph/graph.db do lần một ghi ra: không được quét nó.
     expect(second.stats).toEqual(first.stats);
@@ -367,7 +366,7 @@ describe('analyze', () => {
     try {
       // Đây là cách dùng chính của lệnh: đứng trong thư mục theme, gõ "analyze ."
       process.chdir(themeRoot);
-      const result = await analyze('.');
+      const result = await core().analyzer.analyze('.');
 
       expect(result.stats.files).toBe(13);
       expect(existsSync(path.join(themeRoot, '.themegraph', 'graph.db'))).toBe(true);
@@ -388,7 +387,7 @@ describe('analyze', () => {
     const notTheme = await mkdtemp(path.join(os.tmpdir(), 'themegraph-empty-'));
 
     try {
-      await expect(analyze(notTheme)).rejects.toThrow('thiếu layout');
+      await expect(core().analyzer.analyze(notTheme)).rejects.toThrow('thiếu layout');
       expect(existsSync(path.join(notTheme, '.themegraph'))).toBe(false);
     } finally {
       await rm(notTheme, { recursive: true, force: true });

@@ -3,3 +3,4 @@ export * from "./theme-file.model.js";
 export * from "./ref.model.js";
 export * from "./extraction.model.js";
 export * from "./graph.model.js";
+export * from "./theme-registry.model.js";

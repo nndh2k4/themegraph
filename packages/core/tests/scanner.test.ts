@@ -3,8 +3,9 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import { ThemeScanner } from '../src/theme/theme-scanner.js';
+import { FsThemeFileRepository } from '../src/infrastructure/fs/fs-theme-file.repository.js';
 
-import { scanThemeDir } from '../src/infrastructure/fs/fs-theme-file.repository.js';
 
 // Vị trí fixture tính theo vị trí của chính file test này,
 // KHÔNG theo process.cwd() — scanner phải độc lập với thư mục làm việc.
@@ -12,7 +13,7 @@ const MINI_THEME = path.join(import.meta.dirname, 'fixtures', 'mini-theme');
 
 describe('scanThemeDir', () => {
   it('phân loại snippets/card.liquid là snippet', async () => {
-    const result = await scanThemeDir(MINI_THEME);
+    const result = await new ThemeScanner(new FsThemeFileRepository()).scan(MINI_THEME);
 
     const file = result.files.find((f) => f.path === 'snippets/card.liquid');
 
@@ -21,7 +22,7 @@ describe('scanThemeDir', () => {
   });
 
   it('phân biệt section và section_group bằng đuôi file, không bằng tên', async () => {
-    const result = await scanThemeDir(MINI_THEME);
+    const result = await new ThemeScanner(new FsThemeFileRepository()).scan(MINI_THEME);
 
     const section = result.files.find((f) => f.path === 'sections/hero.liquid');
     const group = result.files.find((f) => f.path === 'sections/footer-group.json');
@@ -34,7 +35,7 @@ describe('scanThemeDir', () => {
   });
 
   it('đi vào thư mục con của templates và trả path dùng dấu /', async () => {
-    const result = await scanThemeDir(MINI_THEME);
+    const result = await new ThemeScanner(new FsThemeFileRepository()).scan(MINI_THEME);
 
     const file = result.files.find((f) => f.kind === 'template' && f.path.includes('login'));
 
@@ -45,7 +46,7 @@ describe('scanThemeDir', () => {
   });
 
   it('nhận templates/*.liquid là template, ext không có dấu chấm', async () => {
-    const result = await scanThemeDir(MINI_THEME);
+    const result = await new ThemeScanner(new FsThemeFileRepository()).scan(MINI_THEME);
 
     const file = result.files.find((f) => f.path === 'templates/gift_card.liquid');
 
@@ -55,7 +56,7 @@ describe('scanThemeDir', () => {
   });
 
   it('tách locale_schema khỏi locale bằng đuôi kép .schema.json', async () => {
-    const result = await scanThemeDir(MINI_THEME);
+    const result = await new ThemeScanner(new FsThemeFileRepository()).scan(MINI_THEME);
 
     const locale = result.files.find((f) => f.path === 'locales/en.default.json');
     const schema = result.files.find((f) => f.path === 'locales/en.default.schema.json');
@@ -69,7 +70,7 @@ describe('scanThemeDir', () => {
   });
 
   it('phân loại layout, asset và config theo thư mục cấp một', async () => {
-    const result = await scanThemeDir(MINI_THEME);
+    const result = await new ThemeScanner(new FsThemeFileRepository()).scan(MINI_THEME);
 
     const kindOf = (p: string) => result.files.find((f) => f.path === p)?.kind;
 
@@ -79,7 +80,7 @@ describe('scanThemeDir', () => {
   });
 
   it('phân loại blocks/*.liquid là block', async () => {
-    const result = await scanThemeDir(MINI_THEME);
+    const result = await new ThemeScanner(new FsThemeFileRepository()).scan(MINI_THEME);
 
     const file = result.files.find((f) => f.path === 'blocks/text.liquid');
 
@@ -88,7 +89,7 @@ describe('scanThemeDir', () => {
   });
 
   it('đưa file ngoài quy ước thư mục của Shopify vào skipped', async () => {
-    const result = await scanThemeDir(MINI_THEME);
+    const result = await new ThemeScanner(new FsThemeFileRepository()).scan(MINI_THEME);
 
     const paths = result.files.map((f) => f.path);
 
@@ -98,7 +99,7 @@ describe('scanThemeDir', () => {
   });
 
   it('không đi vào thư mục ẩn như .themegraph', async () => {
-    const result = await scanThemeDir(MINI_THEME);
+    const result = await new ThemeScanner(new FsThemeFileRepository()).scan(MINI_THEME);
 
     const all = [...result.files.map((f) => f.path), ...result.skipped];
 
@@ -108,7 +109,7 @@ describe('scanThemeDir', () => {
   });
 
   it('không trả đường dẫn nào chứa dấu gạch chéo ngược', async () => {
-    const result = await scanThemeDir(MINI_THEME);
+    const result = await new ThemeScanner(new FsThemeFileRepository()).scan(MINI_THEME);
 
     const all = [...result.files.map((f) => f.path), ...result.skipped];
 
@@ -116,7 +117,7 @@ describe('scanThemeDir', () => {
   });
 
   it('trả files và skipped đã sắp xếp theo đường dẫn', async () => {
-    const result = await scanThemeDir(MINI_THEME);
+    const result = await new ThemeScanner(new FsThemeFileRepository()).scan(MINI_THEME);
 
     const paths = result.files.map((f) => f.path);
 
@@ -128,20 +129,20 @@ describe('scanThemeDir', () => {
     const emptyDir = await mkdtemp(path.join(os.tmpdir(), 'themegraph-test-'));
 
     try {
-      await expect(scanThemeDir(emptyDir)).rejects.toThrow('thiếu layout');
+      await expect(new ThemeScanner(new FsThemeFileRepository()).scan(emptyDir)).rejects.toThrow('thiếu layout');
     } finally {
       await rm(emptyDir, { recursive: true, force: true });
     }
   });
 
   it('cho cùng kết quả khi thư mục làm việc ở chỗ khác', async () => {
-    const before = await scanThemeDir(MINI_THEME);
+    const before = await new ThemeScanner(new FsThemeFileRepository()).scan(MINI_THEME);
     const originalCwd = process.cwd();
 
     try {
       // Đứng ở một thư mục không liên quan gì tới repo hay fixture.
       process.chdir(os.tmpdir());
-      const after = await scanThemeDir(MINI_THEME);
+      const after = await new ThemeScanner(new FsThemeFileRepository()).scan(MINI_THEME);
 
       expect(after).toEqual(before);
     } finally {

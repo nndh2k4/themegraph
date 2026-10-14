@@ -2,8 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { queryGraph, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
-import { openGraph } from '../src/legacy.js';
+import { openGraph, queryGraph, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
 import type { GraphRepository } from '../src/graph/graph.repository.js';
 import { graphDbPath } from '../src/infrastructure/sqlite/schema.js';
 import type { PlainEdge } from '../src/graph/dto/index.js';

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildGraph } from '../src/analyze/graph-builder.js';
 import type { FileKind, RawRef, RefKind, RefSource, ThemeFile } from '../src/models/index.js';
+import { buildGraph } from './helpers.js';
 
 const file = (path: string, kind: FileKind): ThemeFile => ({
   path,

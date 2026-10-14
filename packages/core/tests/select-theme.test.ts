@@ -3,11 +3,9 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { ThemeSelectionError } from '../src/common/errors.js';
+import { buildGraph, core, registry, saveGraph } from './helpers.js';
 
-import { buildGraph } from '../src/analyze/graph-builder.js';
-import { readRegistry, registerTheme, unregisterTheme } from '../src/infrastructure/registry/json-theme-registry.repository.js';
-import { selectTheme, ThemeSelectionError } from '../src/theme/select-theme.js';
-import { saveGraph } from '../src/legacy.js';
 
 let tmp: string;
 
@@ -15,7 +13,7 @@ beforeEach(async () => {
   tmp = await mkdtemp(path.join(os.tmpdir(), 'themegraph-select-'));
   // Sổ đăng ký tạm của file test này dùng chung cho mọi test trong file, nên
   // mỗi test bắt đầu từ một sổ trống.
-  for (const entry of readRegistry()) unregisterTheme(entry.path);
+  for (const entry of registry().list()) registry().unregister(entry.path);
 });
 
 afterEach(async () => {
@@ -29,7 +27,7 @@ async function makeTheme(dir: string, options: { register?: boolean } = {}): Pro
   saveGraph(themeRoot, buildGraph([], [], {}));
 
   if (options.register ?? true) {
-    registerTheme({ path: themeRoot, name: path.basename(themeRoot), analyzedAt: '2026-10-05T00:00:00.000Z', nodes: 0, edges: 0 });
+    registry().register({ path: themeRoot, name: path.basename(themeRoot), analyzedAt: '2026-10-05T00:00:00.000Z', nodes: 0, edges: 0 });
   }
   return themeRoot;
 }
@@ -37,7 +35,7 @@ async function makeTheme(dir: string, options: { register?: boolean } = {}): Pro
 /** Gọi selectTheme và trả về lỗi nó ném ra. */
 function errorOf(requested: string | undefined, cwd: string): ThemeSelectionError {
   try {
-    selectTheme(requested, cwd);
+    core().themes.select(requested, cwd);
   } catch (error) {
     if (error instanceof ThemeSelectionError) return error;
     throw error;
@@ -50,21 +48,21 @@ describe('selectTheme — có nêu theme', () => {
     const dawn = await makeTheme('dawn');
     await makeTheme('purity');
 
-    expect(selectTheme('dawn', tmp)).toBe(dawn);
-    expect(selectTheme('  DAWN ', tmp)).toBe(dawn);
+    expect(core().themes.select('dawn', tmp)).toBe(dawn);
+    expect(core().themes.select('  DAWN ', tmp)).toBe(dawn);
     // Đứng ở nơi mà "DAWN" không thể là đường dẫn tới theme: chỉ còn cách
     // hiểu là tên. (Trên Windows, đường dẫn vốn không phân biệt hoa thường,
     // nên hai dòng trên chưa đủ để kiểm phép so tên.)
-    expect(selectTheme('DAWN', path.join(tmp, 'purity'))).toBe(dawn);
+    expect(core().themes.select('DAWN', path.join(tmp, 'purity'))).toBe(dawn);
   });
 
   it('nhận đường dẫn tuyệt đối và đường dẫn tương đối so với cwd', async () => {
     await makeTheme('dawn');
     const purity = await makeTheme('purity');
 
-    expect(selectTheme(purity, os.tmpdir())).toBe(purity);
-    expect(selectTheme('purity', tmp)).toBe(purity);
-    expect(selectTheme('../purity', path.join(tmp, 'dawn'))).toBe(purity);
+    expect(core().themes.select(purity, os.tmpdir())).toBe(purity);
+    expect(core().themes.select('purity', tmp)).toBe(purity);
+    expect(core().themes.select('../purity', path.join(tmp, 'dawn'))).toBe(purity);
   });
 
   it('đường dẫn trong sổ thắng tên: thư mục con trùng tên với một theme khác', async () => {
@@ -73,7 +71,7 @@ describe('selectTheme — có nêu theme', () => {
     const inner = await makeTheme(path.join('a', 'dawn'));
     await makeTheme('dawn');
 
-    expect(selectTheme('dawn', path.join(tmp, 'a'))).toBe(inner);
+    expect(core().themes.select('dawn', path.join(tmp, 'a'))).toBe(inner);
   });
 
   it('báo mơ hồ khi hai theme trùng tên và tên không chỉ ra được đường dẫn nào', async () => {
@@ -92,7 +90,7 @@ describe('selectTheme — có nêu theme', () => {
   it('nhận thư mục có graph.db dù không có trong sổ đăng ký', async () => {
     const loose = await makeTheme('loose', { register: false });
 
-    expect(selectTheme(loose, os.tmpdir())).toBe(loose);
+    expect(core().themes.select(loose, os.tmpdir())).toBe(loose);
   });
 
   it('báo không có theme và liệt kê các theme đang có', async () => {
@@ -126,21 +124,21 @@ describe('selectTheme — không nêu theme', () => {
     const dawn = await makeTheme('dawn');
     await makeTheme('purity');
 
-    expect(selectTheme(undefined, dawn)).toBe(dawn);
-    expect(selectTheme(undefined, path.join(dawn, 'sections'))).toBe(dawn);
+    expect(core().themes.select(undefined, dawn)).toBe(dawn);
+    expect(core().themes.select(undefined, path.join(dawn, 'sections'))).toBe(dawn);
     // Chuỗi rỗng hay toàn dấu cách cũng là "không nêu".
-    expect(selectTheme('', dawn)).toBe(dawn);
-    expect(selectTheme('  ', dawn)).toBe(dawn);
+    expect(core().themes.select('', dawn)).toBe(dawn);
+    expect(core().themes.select('  ', dawn)).toBe(dawn);
     // Kể cả khi đứng trong thư mục con, nơi chuỗi rỗng không thể bị hiểu
     // nhầm thành "đường dẫn tới chính thư mục này".
-    expect(selectTheme('', path.join(dawn, 'sections'))).toBe(dawn);
+    expect(core().themes.select('', path.join(dawn, 'sections'))).toBe(dawn);
   });
 
   it('theme chứa cwd thắng "chỉ có một theme trong sổ"', async () => {
     await makeTheme('dawn');
     const loose = await makeTheme('loose', { register: false });
 
-    expect(selectTheme(undefined, loose)).toBe(loose);
+    expect(core().themes.select(undefined, loose)).toBe(loose);
   });
 
   it('lấy theme chứa cwd theo sổ đăng ký khi graph.db của nó đã mất', async () => {
@@ -148,13 +146,13 @@ describe('selectTheme — không nêu theme', () => {
     await makeTheme('purity');
     await rm(path.join(dawn, '.themegraph'), { recursive: true });
 
-    expect(selectTheme(undefined, path.join(dawn, 'sections'))).toBe(dawn);
+    expect(core().themes.select(undefined, path.join(dawn, 'sections'))).toBe(dawn);
   });
 
   it('đứng ngoài mọi theme mà sổ chỉ có một theme thì lấy theme đó', async () => {
     const dawn = await makeTheme('dawn');
 
-    expect(selectTheme(undefined, tmp)).toBe(dawn);
+    expect(core().themes.select(undefined, tmp)).toBe(dawn);
   });
 
   it('đứng ngoài mọi theme mà sổ có nhiều theme thì báo mơ hồ và liệt kê', async () => {

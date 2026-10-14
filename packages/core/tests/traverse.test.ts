@@ -1,10 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { buildGraph } from '../src/analyze/graph-builder.js';
 import { FILE_EDGE_TYPES } from '../src/models/index.js';
 import type { EdgeType } from '../src/models/index.js';
-import { file, queryGraph, ref, removeTempTheme, saveToTempTheme } from './helpers.js';
-import { openGraph } from '../src/legacy.js';
+import { buildGraph, file, openGraph, queryGraph, ref, removeTempTheme, saveToTempTheme } from './helpers.js';
 import type { GraphRepository } from '../src/graph/graph.repository.js';
 
 let themeRoot: string;

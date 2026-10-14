@@ -1,9 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { buildGraph } from '../src/analyze/graph-builder.js';
 import type { ThemeGraph } from '../src/models/index.js';
-import { file, queryGraph, ref, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
-import { openGraph } from '../src/legacy.js';
+import { buildGraph, file, openGraph, queryGraph, ref, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
 import type { GraphRepository } from '../src/graph/graph.repository.js';
 
 let themeRoot: string;

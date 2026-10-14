@@ -1,10 +1,13 @@
 import { NodeTypes, toLiquidAST, walk } from "@shopify/liquid-html-parser";
 import type { LiquidHtmlNode } from "@shopify/liquid-html-parser";
 
+import type { Extraction, RawRef, RefKind, RefSource, SchemaInfo, ThemeFile } from "../../models/index.js";
+import { extractElements } from "./custom-elements.parser.js";
+import type { FileParser } from "./file-parser.js";
+import { settingNodeId } from "./global-settings.parser.js";
 import { parseSchema } from "./schema.parser.js";
 import type { ParsedSchema } from "./schema.parser.js";
-import { settingNodeId } from "./global-settings.parser.js";
-import type { Extraction, RawRef, RefKind, RefSource, SchemaInfo, ThemeFile } from "../../models/index.js";
+import { extractSectionLoads } from "./section-loads.parser.js";
 
 /**
  * Các filter biến tên file thành đường dẫn hoặc nội dung của một file trong
@@ -378,4 +381,30 @@ export function extractLiquid(file: ThemeFile, content: string): Extraction {
   });
 
   return { refs, schema, translationKeys: [], settings, elements: [] };
+}
+
+/**
+ * File .liquid: mọi quan hệ trong mã Liquid (xem extractLiquid), cộng hai thứ
+ * nằm trong phần HTML mà bộ phân tích Liquid không trích:
+ *   - URL kiểu ?section_id=ten (section tải lúc chạy, xem extractSectionLoads)
+ *   - thẻ custom element (xem extractElements)
+ *
+ * File assets/*.js.liquid là JavaScript có chèn Liquid nên phần section tải
+ * lúc chạy được ghi với nguồn "js".
+ */
+export class LiquidParser implements FileParser {
+  supports(file: ThemeFile): boolean {
+    return file.ext === "liquid";
+  }
+
+  parse(file: ThemeFile, content: string): Extraction {
+    const extraction = extractLiquid(file, content);
+    const source = file.path.endsWith(".js.liquid") ? "js" : "liquid";
+
+    return {
+      ...extraction,
+      refs: [...extraction.refs, ...extractSectionLoads(file.path, content, source)],
+      elements: extractElements(content),
+    };
+  }
 }

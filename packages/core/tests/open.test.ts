@@ -5,10 +5,8 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { buildGraph } from '../src/analyze/graph-builder.js';
-import { file, queryGraph, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
+import { buildGraph, core, file, openGraph, queryGraph, removeTempTheme, saveToTempTheme, scopeOf } from './helpers.js';
 import { GraphNotReadyError, NodeNotFoundError } from '../src/common/errors.js';
-import { findThemeRoot, openGraph } from '../src/legacy.js';
 import type { GraphRepository } from '../src/graph/graph.repository.js';
 import { SCHEMA_VERSION, graphDbPath } from '../src/infrastructure/sqlite/schema.js';
 import { SqliteGraphStore } from '../src/infrastructure/sqlite/sqlite-graph.store.js';
@@ -133,19 +131,19 @@ describe('SqliteGraphStore.open', () => {
 
 describe('findThemeRoot', () => {
   it('trả về chính thư mục đó khi nó có .themegraph/graph.db', () => {
-    expect(findThemeRoot(themeRoot)).toBe(themeRoot);
+    expect(core().themes.locate(themeRoot)).toBe(themeRoot);
   });
 
   it('đi ngược lên thư mục cha để tìm theme', async () => {
     const deep = path.join(themeRoot, 'sections', 'nested');
     await mkdir(deep, { recursive: true });
 
-    expect(findThemeRoot(deep)).toBe(themeRoot);
+    expect(core().themes.locate(deep)).toBe(themeRoot);
   });
 
   it('trả null khi không thư mục cha nào là theme đã phân tích', () => {
     // Thư mục cha của thư mục theme tạm là thư mục tạm của hệ điều hành.
-    expect(findThemeRoot(path.dirname(themeRoot))).toBeNull();
+    expect(core().themes.locate(path.dirname(themeRoot))).toBeNull();
   });
 });
 

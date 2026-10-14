@@ -1,5 +1,5 @@
-import path from "node:path";
-
+import { CoreModule } from "./core.module.js";
+import type { AnalyzeResult } from "./analyze/dto/analyze-result.dto.js";
 import type {
   ContextResult,
   DeadCodeResult,
@@ -16,53 +16,45 @@ import type {
 } from "./graph/dto/index.js";
 import { GraphScope } from "./graph/graph-scope.js";
 import type { GraphRepository } from "./graph/graph.repository.js";
+import { defaultRegistryDir, JsonThemeRegistryRepository } from "./infrastructure/registry/json-theme-registry.repository.js";
 import { SqliteGraphStore } from "./infrastructure/sqlite/sqlite-graph.store.js";
-import type { GraphNode, ThemeGraph } from "./models/index.js";
+import type { GraphNode, ListedTheme, RegistryEntry, ThemeGraph } from "./models/index.js";
+import type { CleanResult, StatusResult } from "./theme/dto/theme.dto.js";
 
 /**
  * API dạng hàm của bản cũ, giữ TẠM trong lúc các lớp vỏ chuyển sang module
- * và controller. Mỗi hàm chỉ chuyển lời gọi sang class tương ứng.
+ * và controller. Mỗi hàm chỉ chuyển lời gọi sang class tương ứng, tạo module
+ * mới ở mỗi lần gọi để luôn đọc đúng THEMEGRAPH_HOME hiện tại.
  * File này bị xoá khi không còn ai dùng.
  */
 
-export const legacyStore = new SqliteGraphStore();
+const core = (): CoreModule => new CoreModule();
+const registry = (): JsonThemeRegistryRepository => new JsonThemeRegistryRepository(defaultRegistryDir());
 
 export interface SaveGraphOptions {
   /** Thời điểm ghi vào bảng meta. Mặc định là lúc gọi hàm; test truyền giá trị cố định. */
   analyzedAt?: Date;
 }
 
-/** Mở đồ thị của một theme để đọc. Xem SqliteGraphStore.open(). */
-export function openGraph(themeRoot: string): GraphRepository {
-  return legacyStore.open(themeRoot);
-}
+export const openGraph = (themeRoot: string): GraphRepository => new SqliteGraphStore().open(themeRoot);
+export const saveGraph = (themeRoot: string, graph: ThemeGraph, options: SaveGraphOptions = {}): void =>
+  new SqliteGraphStore().save(themeRoot, graph, options.analyzedAt ?? new Date());
 
-/** Ghi đồ thị của một theme. Xem SqliteGraphStore.save(). */
-export function saveGraph(themeRoot: string, graph: ThemeGraph, options: SaveGraphOptions = {}): void {
-  legacyStore.save(themeRoot, graph, options.analyzedAt ?? new Date());
-}
+// ---- Theme ----------------------------------------------------------------
 
-/**
- * Tìm thư mục theme chứa `startDir`: đi từ `startDir` ngược lên thư mục cha
- * cho tới khi gặp thư mục có .themegraph/graph.db, giống cách git tìm .git.
- *
- * Nhờ vậy người dùng đứng ở bất cứ đâu bên trong theme (ví dụ trong
- * sections/) vẫn gọi được lệnh truy vấn. Trả null nếu không tìm thấy.
- */
-export function findThemeRoot(startDir: string): string | null {
-  let dir = path.resolve(startDir);
+export const analyze = (themeRoot: string): Promise<AnalyzeResult> => core().analyzer.analyze(themeRoot);
+export const listThemes = (): ListedTheme[] => core().themes.list();
+export const findThemeRoot = (startDir: string): string | null => core().themes.locate(startDir);
+export const findRegisteredTheme = (startDir: string): string | null => core().themes.findRegistered(startDir);
+export const selectTheme = (requested: string | undefined, cwd: string): string => core().themes.select(requested, cwd);
+export const themeStatus = (themeRoot: string): Promise<StatusResult> => core().themes.status(themeRoot);
+export const cleanTheme = (themeRoot: string): CleanResult => core().themes.clean(themeRoot);
+export const cleanAllThemes = (): CleanResult[] => core().themes.cleanAll();
+export const registryPath = (): string => registry().location;
+export const readRegistry = (): RegistryEntry[] => registry().list();
+export const unregisterTheme = (themeRoot: string): boolean => registry().unregister(themeRoot);
 
-  for (;;) {
-    if (legacyStore.hasGraph(dir)) return dir;
-
-    // Ở gốc ổ đĩa, thư mục cha của một thư mục là chính nó: hết đường đi lên.
-    const parent = path.dirname(dir);
-    if (parent === dir) return null;
-    dir = parent;
-  }
-}
-
-// ---- Truy vấn dạng hàm: mỗi hàm mở một GraphScope trên đồ thị đã mở ----
+// ---- Truy vấn: mỗi hàm mở một GraphScope trên đồ thị đã mở ----------------
 
 export const findNode = (graph: GraphRepository, input: string, options?: FindNodeOptions): GraphNode =>
   new GraphScope(graph).nodes.find(input, options);

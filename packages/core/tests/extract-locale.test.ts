@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { extractFile } from '../src/analyze/parsers/theme-file.parser.js';
 import { collectTranslationKeys, isDefaultLocale } from '../src/analyze/parsers/default-locale.parser.js';
 import type { ThemeFile } from '../src/models/index.js';
+import { parseFile } from './helpers.js';
 
 const DEFAULT: ThemeFile = { path: 'locales/en.default.json', kind: 'locale', ext: 'json' };
 
@@ -82,7 +82,7 @@ describe('collectTranslationKeys', () => {
 
 describe('extractFile với file locale', () => {
   it('trả khoá dịch của locale mặc định, không có ref nào', () => {
-    const result = extractFile(DEFAULT, JSON.stringify({ a: { b: 'x' } }));
+    const result = parseFile(DEFAULT, JSON.stringify({ a: { b: 'x' } }));
 
     expect(result).toEqual({ refs: [], schema: null, translationKeys: ['a.b'], settings: [], elements: [] });
   });
@@ -90,7 +90,7 @@ describe('extractFile với file locale', () => {
   it('không đọc khoá của các file locale khác', () => {
     const french: ThemeFile = { path: 'locales/fr.json', kind: 'locale', ext: 'json' };
 
-    expect(extractFile(french, JSON.stringify({ a: { b: 'x' } })).translationKeys).toEqual([]);
+    expect(parseFile(french, JSON.stringify({ a: { b: 'x' } })).translationKeys).toEqual([]);
   });
 });
 

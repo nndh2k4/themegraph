@@ -2,11 +2,52 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { buildGraph } from '../src/analyze/graph-builder.js';
+import { GraphBuilder } from '../src/analyze/graph-builder.js';
+import { defaultParsers } from '../src/analyze/parsers/index.js';
+import { ThemeFileParser } from '../src/analyze/parsers/theme-file.parser.js';
+import { CoreModule } from '../src/core.module.js';
 import { GraphScope } from '../src/graph/graph-scope.js';
 import type { GraphRepository } from '../src/graph/graph.repository.js';
-import type { FileKind, FileSchema, RawRef, RefKind, RefSource, ThemeFile, ThemeGraph } from '../src/models/index.js';
-import { saveGraph } from '../src/legacy.js';
+import { defaultRegistryDir, JsonThemeRegistryRepository } from '../src/infrastructure/registry/json-theme-registry.repository.js';
+import { SqliteGraphStore } from '../src/infrastructure/sqlite/sqlite-graph.store.js';
+import type {
+  Extraction,
+  FileKind,
+  FileSchema,
+  GraphFacts,
+  RawRef,
+  RefKind,
+  RefSource,
+  ThemeFile,
+  ThemeGraph,
+} from '../src/models/index.js';
+
+/**
+ * Lõi đầy đủ với các bản hiện thực thật, như lớp vỏ dùng. Tạo mới ở mỗi lần
+ * gọi để đọc đúng THEMEGRAPH_HOME mà test đang đặt.
+ */
+export const core = (): CoreModule => new CoreModule();
+
+/** Sổ đăng ký toàn cục ở THEMEGRAPH_HOME hiện tại. */
+export const registry = (): JsonThemeRegistryRepository => new JsonThemeRegistryRepository(defaultRegistryDir());
+
+/** Dựng đồ thị từ file và quan hệ thô, như bước 4 của analyze. */
+export const buildGraph = (files: readonly ThemeFile[], refs: readonly RawRef[], facts?: GraphFacts): ThemeGraph =>
+  new GraphBuilder().build(files, refs, facts);
+
+/** Phân tích một file bằng đúng danh sách parser mà analyze dùng. */
+export const parseFile = (file: ThemeFile, content: string): Extraction =>
+  new ThemeFileParser(defaultParsers()).parse(file, content);
+
+/** parseFile() chỉ lấy phần quan hệ thô. */
+export const parseRefs = (file: ThemeFile, content: string): RawRef[] => parseFile(file, content).refs;
+
+/** Mở đồ thị đã ghi của một theme. Người gọi tự close(). */
+export const openGraph = (themeRoot: string): GraphRepository => new SqliteGraphStore().open(themeRoot);
+
+/** Ghi một đồ thị vào <themeRoot>/.themegraph/graph.db. */
+export const saveGraph = (themeRoot: string, graph: ThemeGraph, options: { analyzedAt?: Date } = {}): void =>
+  new SqliteGraphStore().save(themeRoot, graph, options.analyzedAt ?? new Date());
 
 /** Tạo một ThemeFile từ đường dẫn và loại. */
 export const file = (p: string, kind: FileKind): ThemeFile => ({

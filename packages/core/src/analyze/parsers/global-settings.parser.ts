@@ -1,5 +1,7 @@
+import type { Extraction, ThemeFile } from "../../models/index.js";
+import { emptyExtraction } from "./file-parser.js";
+import type { FileParser } from "./file-parser.js";
 import { stripJsonComments } from "./json-comments.js";
-import type { ThemeFile } from "../../models/index.js";
 
 /** Tiền tố của id node setting, để không trùng với đường dẫn file nào. */
 export const SETTING_PREFIX = "setting:";
@@ -79,4 +81,15 @@ export function collectGlobalSettings(file: ThemeFile, content: string): string[
     for (const id of settingIdsOf(group.settings)) ids.add(settingNodeId(null, "settings", id));
   }
   return [...ids];
+}
+
+/** config/settings_schema.json: các setting toàn cục của theme. */
+export class GlobalSettingsParser implements FileParser {
+  supports(file: ThemeFile): boolean {
+    return isGlobalSettingsSchema(file);
+  }
+
+  parse(file: ThemeFile, content: string): Extraction {
+    return { ...emptyExtraction(), settings: collectGlobalSettings(file, content) };
+  }
 }

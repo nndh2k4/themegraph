@@ -1,5 +1,7 @@
+import type { Extraction, ThemeFile } from "../../models/index.js";
+import { emptyExtraction } from "./file-parser.js";
+import type { FileParser } from "./file-parser.js";
 import { stripJsonComments } from "./json-comments.js";
-import type { ThemeFile } from "../../models/index.js";
 
 /**
  * Các dạng số nhiều mà Shopify hiểu. Một khoá dịch có số nhiều được viết
@@ -73,4 +75,15 @@ export function collectTranslationKeys(file: ThemeFile, content: string): string
 
   visit(data, "");
   return keys;
+}
+
+/** File locale mặc định: các khoá dịch nó định nghĩa, để lời gọi filter t có đích. */
+export class DefaultLocaleParser implements FileParser {
+  supports(file: ThemeFile): boolean {
+    return isDefaultLocale(file);
+  }
+
+  parse(file: ThemeFile, content: string): Extraction {
+    return { ...emptyExtraction(), translationKeys: collectTranslationKeys(file, content) };
+  }
 }

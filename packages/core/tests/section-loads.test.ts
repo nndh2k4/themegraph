@@ -5,12 +5,8 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { analyze } from '../src/analyze/analyze.service.js';
-import { extractFile } from '../src/analyze/parsers/theme-file.parser.js';
 import { resolveRef } from '../src/analyze/ref-resolver.js';
-import { themeStatus } from '../src/theme/status.js';
-import { file, ref, scopeOf } from './helpers.js';
-import { openGraph } from '../src/legacy.js';
+import { core, file, openGraph, parseFile, ref, scopeOf } from './helpers.js';
 import type { GraphRepository } from '../src/graph/graph.repository.js';
 import { graphDbPath } from '../src/infrastructure/sqlite/schema.js';
 
@@ -49,7 +45,7 @@ const loadFromLayout = (asset: string) =>
 
 async function analyzed(): Promise<GraphRepository> {
   graph?.close();
-  await analyze(themeRoot);
+  await core().analyzer.analyze(themeRoot);
   graph = openGraph(themeRoot);
   return graph;
 }
@@ -77,14 +73,14 @@ describe('section do JavaScript tải — thành cạnh trong đồ thị', () =
 
   it('đếm cạnh mới trong thống kê của analyze', async () => {
     await write('assets/cart.js', 'fetch(`/cart?section_id=drawer`);');
-    const result = await analyze(themeRoot);
+    const result = await core().analyzer.analyze(themeRoot);
 
     expect(result.stats.edgesByType.LOADS_SECTION).toBe(1);
   });
 
   it('tên không ứng với section nào thì bị bỏ, không thành tham chiếu hỏng', async () => {
     await write('assets/cart.js', "fetch(`/cart?section_id=khong-co`);\nconst x = { section: 'cung-khong-co' };");
-    const result = await analyze(themeRoot);
+    const result = await core().analyzer.analyze(themeRoot);
 
     expect(result.stats.edgesByType.LOADS_SECTION).toBeUndefined();
     expect(result.missing.map((entry) => entry.to)).not.toContain('khong-co');
@@ -93,7 +89,7 @@ describe('section do JavaScript tải — thành cạnh trong đồ thị', () =
 
   it('ref tới section có thật được ghi vào bảng refs kèm số dòng', async () => {
     await write('assets/cart.js', '// dòng 1\nfetch(`/cart?section_id=drawer`);');
-    await analyze(themeRoot);
+    await core().analyzer.analyze(themeRoot);
 
     expect(sql("SELECT src, name, source, line, status, target FROM refs WHERE kind = 'section_load'")).toEqual([
       { src: 'assets/cart.js', name: 'drawer', source: 'js', line: 2, status: 'resolved', target: 'sections/drawer.liquid' },
@@ -230,13 +226,13 @@ describe('section do JavaScript tải — hệ quả ở các truy vấn', () =>
 describe('section do JavaScript tải — status', () => {
   it('sửa một file .js làm đồ thị cũ đi; sửa file css thì không', async () => {
     await write('assets/cart.js', 'fetch(`/cart?section_id=drawer`);');
-    await analyze(themeRoot);
+    await core().analyzer.analyze(themeRoot);
 
     await appendFile(path.join(themeRoot, 'assets', 'base.css'), '\nbody { margin: 0 }');
-    expect((await themeStatus(themeRoot)).stale).toBe(false);
+    expect((await core().themes.status(themeRoot)).stale).toBe(false);
 
     await appendFile(path.join(themeRoot, 'assets', 'cart.js'), '\n// sửa');
-    const status = await themeStatus(themeRoot);
+    const status = await core().themes.status(themeRoot);
 
     expect(status.stale).toBe(true);
     expect(status.modified).toEqual(['assets/cart.js']);
@@ -245,7 +241,7 @@ describe('section do JavaScript tải — status', () => {
 
 describe('section do JavaScript tải — tầng trích và resolver', () => {
   it('extractFile trả ref section_load cho file .js, và không trích gì khác từ nó', () => {
-    const extraction = extractFile(file('assets/cart.js', 'asset'), "fetch(`?section_id=a`); {% render 'x' %}");
+    const extraction = parseFile(file('assets/cart.js', 'asset'), "fetch(`?section_id=a`); {% render 'x' %}");
 
     expect(extraction).toEqual({
       refs: [{ from: 'assets/cart.js', to: 'a', kind: 'section_load', source: 'js', conditional: true, line: 1 }],
@@ -257,11 +253,11 @@ describe('section do JavaScript tải — tầng trích và resolver', () => {
   });
 
   it('extractFile vẫn không đọc file css', () => {
-    expect(extractFile(file('assets/base.css', 'asset'), 'a { b: url(?section_id=a) }').refs).toEqual([]);
+    expect(parseFile(file('assets/base.css', 'asset'), 'a { b: url(?section_id=a) }').refs).toEqual([]);
   });
 
   it('extractFile giữ nguyên các ref Liquid và thêm ref section_load vào sau', () => {
-    const refs = extractFile(file('sections/a.liquid', 'section'), "{% render 'x' %}\n<a href=\"?section_id=b\">").refs;
+    const refs = parseFile(file('sections/a.liquid', 'section'), "{% render 'x' %}\n<a href=\"?section_id=b\">").refs;
 
     expect(refs.map((entry) => [entry.kind, entry.to, entry.source, entry.line])).toEqual([
       ['render', 'x', 'liquid', 1],

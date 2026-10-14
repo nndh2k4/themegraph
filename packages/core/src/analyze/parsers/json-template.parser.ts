@@ -1,5 +1,7 @@
+import type { Extraction, RawRef, RefKind, ThemeFile } from "../../models/index.js";
+import { emptyExtraction } from "./file-parser.js";
+import type { FileParser } from "./file-parser.js";
 import { stripJsonComments } from "./json-comments.js";
-import type { RawRef, RefKind, ThemeFile } from "../../models/index.js";
 
 /** Kiểu của một object JSON bất kỳ sau khi parse. */
 type JsonObject = Record<string, unknown>;
@@ -98,4 +100,18 @@ export function extractJsonRefs(file: ThemeFile, content: string): RawRef[] {
   }
 
   return refs;
+}
+
+/**
+ * Các file .json còn lại: chỉ template và section group mới có quan hệ (xem
+ * extractJsonRefs); file JSON khác cho kết quả rỗng.
+ */
+export class JsonTemplateParser implements FileParser {
+  supports(file: ThemeFile): boolean {
+    return file.ext === "json";
+  }
+
+  parse(file: ThemeFile, content: string): Extraction {
+    return { ...emptyExtraction(), refs: extractJsonRefs(file, content) };
+  }
 }

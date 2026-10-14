@@ -3,11 +3,14 @@ import { describe, expect, it } from 'vitest';
 import * as core from '../src/index.js';
 import type { ThemeFile } from '../src/index.js';
 
-describe('extractRefs', () => {
+/** Bộ phân tích đúng như AnalyzeModule nối, lấy qua API công khai của gói. */
+const parser = new core.ThemeFileParser(core.defaultParsers());
+
+describe('ThemeFileParser — chọn parser theo loại file', () => {
   it('dùng bộ trích Liquid cho file .liquid', () => {
     const file: ThemeFile = { path: 'snippets/card.liquid', kind: 'snippet', ext: 'liquid' };
 
-    expect(core.extractRefs(file, "{% render 'price' %}").map((r) => [r.source, r.kind, r.to])).toEqual([
+    expect(parser.parse(file, "{% render 'price' %}").refs.map((r) => [r.source, r.kind, r.to])).toEqual([
       ['liquid', 'render', 'price'],
     ]);
   });
@@ -16,7 +19,7 @@ describe('extractRefs', () => {
     const file: ThemeFile = { path: 'templates/index.json', kind: 'template', ext: 'json' };
     const content = JSON.stringify({ sections: { a: { type: 'hero' } } });
 
-    expect(core.extractRefs(file, content).map((r) => [r.source, r.kind, r.to])).toEqual([
+    expect(parser.parse(file, content).refs.map((r) => [r.source, r.kind, r.to])).toEqual([
       ['json', 'section', 'hero'],
     ]);
   });
@@ -32,17 +35,17 @@ describe('extractRefs', () => {
 
     // Nội dung cố ý không phải JSON hợp lệ: các file này không được đem đi parse.
     for (const file of files) {
-      expect(core.extractRefs(file, "{% render 'x' %} { hỏng")).toEqual([]);
+      expect(parser.parse(file, "{% render 'x' %} { hỏng").refs).toEqual([]);
     }
   });
 });
 
-describe('extractFile', () => {
+describe('ThemeFileParser — toàn bộ kết quả', () => {
   it('trả cả ref lẫn dữ kiện schema của file .liquid', () => {
     const file: ThemeFile = { path: 'sections/hero.liquid', kind: 'section', ext: 'liquid' };
     const content = "{% render 'price' %}{% schema %}{ \"presets\": [{ \"name\": \"Hero\" }] }{% endschema %}";
 
-    const result = core.extractFile(file, content);
+    const result = parser.parse(file, content);
 
     expect(result.refs.map((r) => r.to)).toEqual(['price']);
     expect(result.schema).toEqual({ presets: 1, acceptsThemeBlocks: false });
@@ -52,11 +55,11 @@ describe('extractFile', () => {
     const template: ThemeFile = { path: 'templates/index.json', kind: 'template', ext: 'json' };
     const asset: ThemeFile = { path: 'assets/base.css', kind: 'asset', ext: 'css' };
 
-    const fromJson = core.extractFile(template, JSON.stringify({ sections: { a: { type: 'hero' } } }));
+    const fromJson = parser.parse(template, JSON.stringify({ sections: { a: { type: 'hero' } } }));
 
     expect(fromJson.refs.map((r) => r.to)).toEqual(['hero']);
     expect(fromJson.schema).toBeNull();
-    expect(core.extractFile(asset, 'body {}')).toEqual({
+    expect(parser.parse(asset, 'body {}')).toEqual({
       refs: [],
       schema: null,
       translationKeys: [],
@@ -67,10 +70,9 @@ describe('extractFile', () => {
 });
 
 describe('gói @themegraph/core', () => {
-  it('xuất các hàm chính ra ngoài qua index', () => {
-    expect(typeof core.scanThemeDir).toBe('function');
-    expect(typeof core.extractRefs).toBe('function');
-    expect(typeof core.extractLiquidRefs).toBe('function');
-    expect(typeof core.extractJsonRefs).toBe('function');
+  it('xuất module gốc và các provider chính ra ngoài qua index', () => {
+    for (const name of ['CoreModule', 'AnalyzeService', 'ThemeService', 'GraphScopeFactory', 'ThemeFileParser', 'GraphBuilder'] as const) {
+      expect(typeof core[name], name).toBe('function');
+    }
   });
 });
