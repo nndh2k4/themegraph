@@ -3,11 +3,20 @@ import { cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { analyze, readRegistry, unregisterTheme } from '@themegraph/core';
+import {
+  CoreModule,
+  defaultRegistryDir,
+  JsonThemeRegistryRepository,
+} from '@themegraph/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { HOST, isLocalHost, serveStatic, startServer, themeId } from '../src/index.js';
 import type { RunningServer } from '../src/index.js';
+
+/** Lõi đầy đủ, để tính kết quả mong đợi bằng chính các service mà lớp vỏ gọi. */
+const coreModule = () => new CoreModule();
+/** Sổ đăng ký toàn cục ở THEMEGRAPH_HOME của file test này. */
+const registry = () => new JsonThemeRegistryRepository(defaultRegistryDir());
 
 const FIXTURE = path.join(import.meta.dirname, '../../core/tests/fixtures/mini-theme');
 
@@ -31,8 +40,8 @@ beforeEach(async () => {
 
   themeRoot = path.join(tmp, 'mini-theme');
   await cp(FIXTURE, themeRoot, { recursive: true });
-  for (const entry of readRegistry()) unregisterTheme(entry.path);
-  await analyze(themeRoot);
+  for (const entry of registry().list()) registry().unregister(entry.path);
+  await coreModule().analyzer.analyze(themeRoot);
 });
 
 afterEach(async () => {

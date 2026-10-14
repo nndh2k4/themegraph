@@ -65,30 +65,3 @@ export { SqliteGraphStore } from './infrastructure/sqlite/sqlite-graph.store.js'
 export { graphDbPath, SCHEMA_VERSION } from './infrastructure/sqlite/schema.js';
 export { FsThemeFileRepository } from './infrastructure/fs/fs-theme-file.repository.js';
 export { defaultRegistryDir, JsonThemeRegistryRepository } from './infrastructure/registry/json-theme-registry.repository.js';
-
-// API dạng hàm cũ, giữ tạm cho các lớp vỏ.
-export {
-  analyze,
-  cleanAllThemes,
-  cleanTheme,
-  context,
-  deadCode,
-  exportGraph,
-  findNode,
-  findRegisteredTheme,
-  findThemeRoot,
-  impact,
-  listThemes,
-  openGraph,
-  overview,
-  readRegistry,
-  registryPath,
-  renderFlow,
-  saveGraph,
-  search,
-  selectTheme,
-  themeStatus,
-  unregisterTheme,
-  verify,
-} from './legacy.js';
-export type { SaveGraphOptions } from './legacy.js';

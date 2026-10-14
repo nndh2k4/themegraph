@@ -1,17 +1,18 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
-import { createServer } from "./server.js";
-import type { ServerOptions } from "./server.js";
+import type { ServerOptions } from "./mcp.module.js";
+import { createServer } from "./mcp.router.js";
 
 export {
-  createServer,
   DEFAULT_FLOW_DEPTH,
   DEFAULT_FLOW_LINES,
   DEFAULT_LIST_LIMIT,
   DEFAULT_SEARCH_RESULTS,
   INSTRUCTIONS,
-} from "./server.js";
-export type { ServerOptions } from "./server.js";
+} from "./instructions.js";
+export { McpModule } from "./mcp.module.js";
+export type { ServerOptions } from "./mcp.module.js";
+export { createServer } from "./mcp.router.js";
 
 /**
  * Chạy MCP server trên stdin/stdout của tiến trình, tức cách mà Claude Code

@@ -5,8 +5,13 @@ import path from 'node:path';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { analyze } from '@themegraph/core';
+import {
+  CoreModule,
+} from '@themegraph/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+/** Lõi đầy đủ, để tính kết quả mong đợi bằng chính các service mà lớp vỏ gọi. */
+const coreModule = () => new CoreModule();
 
 /**
  * Các test ở đây mở lệnh ĐÃ BUILD (`node packages/cli/dist/cli.js mcp`) thành
@@ -26,7 +31,7 @@ beforeEach(async () => {
   tmp = await mkdtemp(path.join(os.tmpdir(), 'themegraph-stdio-'));
   themeRoot = path.join(tmp, 'mini-theme');
   await cp(FIXTURE, themeRoot, { recursive: true });
-  await analyze(themeRoot);
+  await coreModule().analyzer.analyze(themeRoot);
 });
 
 afterEach(async () => {
@@ -82,7 +87,7 @@ describe('themegraph mcp — qua stdio, trên lệnh đã build', () => {
     // Thêm theme thứ hai để "theme duy nhất trong sổ" không tự cứu lời gọi.
     const second = path.join(tmp, 'second-theme');
     await cp(FIXTURE, second, { recursive: true });
-    await analyze(second);
+    await coreModule().analyzer.analyze(second);
 
     const transport = new StdioClientTransport({
       command: process.execPath,

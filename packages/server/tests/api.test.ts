@@ -4,25 +4,24 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 import {
-  analyze,
-  context,
-  deadCode,
-  exportGraph,
-  impact,
-  listThemes,
-  openGraph,
-  overview,
-  readRegistry,
-  renderFlow,
-  search,
-  themeStatus,
-  unregisterTheme,
+  CoreModule,
+  defaultRegistryDir,
+  GraphScope,
+  JsonThemeRegistryRepository,
+  SqliteGraphStore,
 } from '@themegraph/core';
 import type { GraphRepository } from '@themegraph/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { handleApi, themeId } from '../src/api.js';
-import type { ApiError, ApiTheme } from '../src/api.js';
+import { handleApi, themeId } from '../src/index.js';
+import type { ApiError, ApiTheme } from '../src/index.js';
+
+/** Lõi đầy đủ, để tính kết quả mong đợi bằng chính các service mà lớp vỏ gọi. */
+const coreModule = () => new CoreModule();
+/** Sổ đăng ký toàn cục ở THEMEGRAPH_HOME của file test này. */
+const registry = () => new JsonThemeRegistryRepository(defaultRegistryDir());
+/** Các service truy vấn trên một đồ thị đã mở. */
+const scopeOf = (graph: GraphRepository) => new GraphScope(graph);
 
 const FIXTURE = path.join(import.meta.dirname, '../../core/tests/fixtures/mini-theme');
 
@@ -35,8 +34,8 @@ beforeEach(async () => {
   themeRoot = path.join(tmp, 'mini-theme');
   await cp(FIXTURE, themeRoot, { recursive: true });
   // Sổ đăng ký tạm của file test dùng chung giữa các test: bắt đầu từ sổ trống.
-  for (const entry of readRegistry()) unregisterTheme(entry.path);
-  await analyze(themeRoot);
+  for (const entry of registry().list()) registry().unregister(entry.path);
+  await coreModule().analyzer.analyze(themeRoot);
   id = themeId(themeRoot);
 });
 
@@ -52,7 +51,7 @@ async function get(url: string, method = 'GET') {
 
 /** Gọi một hàm của lõi trên theme đang test, để đối chiếu với API. */
 function core<T>(body: (graph: GraphRepository) => T): T {
-  const graph = openGraph(themeRoot);
+  const graph = new SqliteGraphStore().open(themeRoot);
   try {
     return body(graph);
   } finally {
@@ -83,7 +82,7 @@ describe('GET /api/themes', () => {
     const response = await get('/api/themes');
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual(listThemes().map((theme) => ({ id: themeId(theme.path), ...theme, problem: null })));
+    expect(response.body).toEqual(coreModule().themes.list().map((theme) => ({ id: themeId(theme.path), ...theme, problem: null })));
     expect((response.body as ApiTheme[])[0]).toMatchObject({ id, name: 'mini-theme', path: themeRoot, present: true });
   });
 
@@ -120,7 +119,7 @@ describe('GET /api/themes', () => {
   });
 
   it('trả mảng rỗng khi chưa có theme nào', async () => {
-    unregisterTheme(themeRoot);
+    registry().unregister(themeRoot);
 
     expect((await get('/api/themes')).body).toEqual([]);
   });
@@ -128,7 +127,7 @@ describe('GET /api/themes', () => {
   it('hai theme trùng tên ở hai nơi có hai mã khác nhau', async () => {
     const second = path.join(tmp, 'elsewhere', 'mini-theme');
     await cp(FIXTURE, second, { recursive: true });
-    await analyze(second);
+    await coreModule().analyzer.analyze(second);
 
     const themes = (await get('/api/themes')).body as ApiTheme[];
 
@@ -142,7 +141,7 @@ describe('các route của một theme trả đúng kết quả của lõi', () 
     const response = await get(`/api/themes/${id}/overview`);
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ overview: core(overview), status: await themeStatus(themeRoot) });
+    expect(response.body).toEqual({ overview: core((graph) => scopeOf(graph).overview.summarize()), status: await coreModule().themes.status(themeRoot) });
   });
 
   it('overview: báo đồ thị cũ khi một file đã đổi', async () => {
@@ -155,15 +154,15 @@ describe('các route của một theme trả đúng kết quả của lõi', () 
   });
 
   it('search: từ khoá, lọc loại, giới hạn', async () => {
-    expect((await get(`/api/themes/${id}/search?q=card`)).body).toEqual(core((graph) => search(graph, 'card')));
+    expect((await get(`/api/themes/${id}/search?q=card`)).body).toEqual(core((graph) => scopeOf(graph).search.search('card')));
     expect((await get(`/api/themes/${id}/search?q=card&limit=1`)).body).toEqual(
-      core((graph) => search(graph, 'card', { limit: 1 })),
+      core((graph) => scopeOf(graph).search.search('card', { limit: 1 })),
     );
     expect((await get(`/api/themes/${id}/search?kind=section,block`)).body).toEqual(
-      core((graph) => search(graph, '', { kinds: ['section', 'block'] })),
+      core((graph) => scopeOf(graph).search.search('', { kinds: ['section', 'block'] })),
     );
     // Không có q: liệt kê.
-    expect((await get(`/api/themes/${id}/search`)).body).toEqual(core((graph) => search(graph, '')));
+    expect((await get(`/api/themes/${id}/search`)).body).toEqual(core((graph) => scopeOf(graph).search.search('')));
   });
 
   it('file: quan hệ trực tiếp và phạm vi ảnh hưởng của một file', async () => {
@@ -171,8 +170,8 @@ describe('các route của một theme trả đúng kết quả của lõi', () 
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
-      context: core((graph) => context(graph, 'snippets/card.liquid')),
-      impact: core((graph) => impact(graph, 'snippets/card.liquid')),
+      context: core((graph) => scopeOf(graph).context.describe('snippets/card.liquid')),
+      impact: core((graph) => scopeOf(graph).impact.findImpact('snippets/card.liquid')),
     });
   });
 
@@ -191,16 +190,16 @@ describe('các route của một theme trả đúng kết quả của lõi', () 
   });
 
   it('flow: cây render của một trang, có và không có giới hạn độ sâu', async () => {
-    expect((await get(`/api/themes/${id}/flow?page=index`)).body).toEqual(core((graph) => renderFlow(graph, 'index')));
+    expect((await get(`/api/themes/${id}/flow?page=index`)).body).toEqual(core((graph) => scopeOf(graph).renderFlow.buildFlow('index')));
     expect((await get(`/api/themes/${id}/flow?page=index&depth=1`)).body).toEqual(
-      core((graph) => renderFlow(graph, 'index', { maxDepth: 1 })),
+      core((graph) => scopeOf(graph).renderFlow.buildFlow('index', { maxDepth: 1 })),
     );
   });
 
   it('graph: mặc định chỉ file và trang; xin thêm nhóm bằng include', async () => {
-    expect((await get(`/api/themes/${id}/graph`)).body).toEqual(core((graph) => exportGraph(graph)));
+    expect((await get(`/api/themes/${id}/graph`)).body).toEqual(core((graph) => scopeOf(graph).exportGraph.export()));
     expect((await get(`/api/themes/${id}/graph?include=translations,settings`)).body).toEqual(
-      core((graph) => exportGraph(graph, { include: ['translations', 'settings'] })),
+      core((graph) => scopeOf(graph).exportGraph.export({ include: ['translations', 'settings'] })),
     );
 
     const translations = (await get(`/api/themes/${id}/graph?include=translations`)).body as {
@@ -212,12 +211,12 @@ describe('các route của một theme trả đúng kết quả của lõi', () 
 
   it('dead-code: danh sách file không dùng', async () => {
     await writeFile(path.join(themeRoot, 'snippets', 'old.liquid'), '<p>cu</p>');
-    await analyze(themeRoot);
+    await coreModule().analyzer.analyze(themeRoot);
 
     const response = await get(`/api/themes/${id}/dead-code`);
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual(core(deadCode));
+    expect(response.body).toEqual(core((graph) => scopeOf(graph).deadCode.findUnused()));
     expect((response.body as { files: { id: string }[] }).files.map((entry) => entry.id)).toEqual(['snippets/old.liquid']);
   });
 

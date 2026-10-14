@@ -5,17 +5,11 @@ import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import {
-  analyze,
-  context,
-  deadCode,
-  impact,
-  listThemes,
-  openGraph,
-  readRegistry,
-  renderFlow,
-  search,
-  themeStatus,
-  unregisterTheme,
+  CoreModule,
+  defaultRegistryDir,
+  GraphScope,
+  JsonThemeRegistryRepository,
+  SqliteGraphStore,
 } from '@themegraph/core';
 import type { GraphRepository } from '@themegraph/core';
 import {
@@ -38,6 +32,13 @@ import {
   INSTRUCTIONS,
 } from '../src/index.js';
 
+/** Lõi đầy đủ, để tính kết quả mong đợi bằng chính các service mà lớp vỏ gọi. */
+const coreModule = () => new CoreModule();
+/** Sổ đăng ký toàn cục ở THEMEGRAPH_HOME của file test này. */
+const registry = () => new JsonThemeRegistryRepository(defaultRegistryDir());
+/** Các service truy vấn trên một đồ thị đã mở. */
+const scopeOf = (graph: GraphRepository) => new GraphScope(graph);
+
 const FIXTURE = path.join(import.meta.dirname, '../../core/tests/fixtures/mini-theme');
 
 let tmp: string;
@@ -50,8 +51,8 @@ beforeEach(async () => {
   await cp(FIXTURE, themeRoot, { recursive: true });
 
   // Sổ đăng ký tạm dùng chung cho cả file test: bắt đầu mỗi test từ sổ trống.
-  for (const entry of readRegistry()) unregisterTheme(entry.path);
-  await analyze(themeRoot);
+  for (const entry of registry().list()) registry().unregister(entry.path);
+  await coreModule().analyzer.analyze(themeRoot);
 });
 
 afterEach(async () => {
@@ -85,9 +86,9 @@ async function call(client: Client, name: string, args: Record<string, unknown> 
 
 /** Câu trả lời mà một tool PHẢI gửi: ghi chú về theme, một dòng trống, rồi các dòng của lõi. */
 async function expected(root: string, query: (graph: GraphRepository) => string[]): Promise<string> {
-  const graph = openGraph(root);
+  const graph = new SqliteGraphStore().open(root);
   try {
-    return [...new ThemeNoteView().render(await themeStatus(root)), '', ...query(graph)].join('\n');
+    return [...new ThemeNoteView().render(await coreModule().themes.status(root)), '', ...query(graph)].join('\n');
   } finally {
     graph.close();
   }
@@ -153,7 +154,7 @@ describe('MCP server — mỗi tool trả đúng những dòng của lõi', () =
     const result = await call(client, 'list_themes');
 
     expect(result.isError).toBe(false);
-    expect(result.text).toBe(new ThemeListView().render(listThemes()).join('\n'));
+    expect(result.text).toBe(new ThemeListView().render(coreModule().themes.list()).join('\n'));
     expect(result.text).toContain(themeRoot);
   });
 
@@ -164,7 +165,7 @@ describe('MCP server — mỗi tool trả đúng những dòng của lõi', () =
     expect(result.isError).toBe(false);
     expect(result.text).toBe(
       await expected(themeRoot, (graph) =>
-        new ImpactView().render(impact(graph, 'snippets/card.liquid'), { limit: DEFAULT_LIST_LIMIT }),
+        new ImpactView().render(scopeOf(graph).impact.findImpact('snippets/card.liquid'), { limit: DEFAULT_LIST_LIMIT }),
       ),
     );
     expect(result.text).toContain('ảnh hưởng 8 file và 4 trên 4 trang');
@@ -176,7 +177,7 @@ describe('MCP server — mỗi tool trả đúng những dòng của lõi', () =
 
     expect(result.text).toBe(
       await expected(themeRoot, (graph) =>
-        new ContextView().render(context(graph, 'sections/hero.liquid'), { limit: DEFAULT_LIST_LIMIT }),
+        new ContextView().render(scopeOf(graph).context.describe('sections/hero.liquid'), { limit: DEFAULT_LIST_LIMIT }),
       ),
     );
     expect(result.text).toContain('Được gọi bởi (3):');
@@ -188,7 +189,7 @@ describe('MCP server — mỗi tool trả đúng những dòng của lõi', () =
 
     expect(result.text).toBe(
       await expected(themeRoot, (graph) =>
-        new RenderFlowView().render(renderFlow(graph, 'index', { maxDepth: DEFAULT_FLOW_DEPTH }), { limit: DEFAULT_FLOW_LINES }),
+        new RenderFlowView().render(scopeOf(graph).renderFlow.buildFlow('index', { maxDepth: DEFAULT_FLOW_DEPTH }), { limit: DEFAULT_FLOW_LINES }),
       ),
     );
     expect(result.text).toContain('page:index (page_type) kéo theo 7 file');
@@ -199,20 +200,20 @@ describe('MCP server — mỗi tool trả đúng những dòng của lõi', () =
     const result = await call(client, 'search', { query: 'card' });
 
     expect(result.text).toBe(
-      await expected(themeRoot, (graph) => new SearchView().render(search(graph, 'card', { limit: DEFAULT_SEARCH_RESULTS }))),
+      await expected(themeRoot, (graph) => new SearchView().render(scopeOf(graph).search.search('card', { limit: DEFAULT_SEARCH_RESULTS }))),
     );
     expect(result.text).toContain('snippets/card.liquid');
   });
 
   it('dead_code', async () => {
     await writeFile(path.join(themeRoot, 'snippets', 'old.liquid'), '<p>cu</p>');
-    await analyze(themeRoot);
+    await coreModule().analyzer.analyze(themeRoot);
 
     const client = await connect();
     const result = await call(client, 'dead_code');
 
     expect(result.text).toBe(
-      await expected(themeRoot, (graph) => new DeadCodeView().render(deadCode(graph), { limit: DEFAULT_LIST_LIMIT })),
+      await expected(themeRoot, (graph) => new DeadCodeView().render(scopeOf(graph).deadCode.findUnused(), { limit: DEFAULT_LIST_LIMIT })),
     );
     expect(result.text).toContain('snippets/old.liquid');
   });
@@ -242,7 +243,7 @@ describe('MCP server — tham số', () => {
 
     expect(result.text).toBe(
       await expected(themeRoot, (graph) =>
-        new SearchView().render(search(graph, '', { kinds: ['section'], limit: DEFAULT_SEARCH_RESULTS })),
+        new SearchView().render(scopeOf(graph).search.search('', { kinds: ['section'], limit: DEFAULT_SEARCH_RESULTS })),
       ),
     );
     expect(result.text).toContain('sections/hero.liquid');
@@ -304,7 +305,7 @@ describe('MCP server — tham số', () => {
       path.join(themeRoot, 'snippets', 'card.liquid'),
       names.map((name) => `{% render '${name}' %}`).join('\n'),
     );
-    await analyze(themeRoot);
+    await coreModule().analyzer.analyze(themeRoot);
 
     const client = await connect();
 
@@ -375,7 +376,7 @@ describe('MCP server — chọn theme', () => {
     const second = path.join(tmp, 'second-theme');
     await cp(FIXTURE, second, { recursive: true });
     await writeFile(path.join(second, 'snippets', 'second-only.liquid'), '<p>x</p>');
-    await analyze(second);
+    await coreModule().analyzer.analyze(second);
     return second;
   }
 
@@ -444,7 +445,7 @@ describe('MCP server — lỗi và đồ thị cũ', () => {
   });
 
   it('chưa có theme nào: chỉ cách analyze', async () => {
-    unregisterTheme(themeRoot);
+    registry().unregister(themeRoot);
     const empty = path.join(tmp, 'empty');
     await mkdir(empty);
 
@@ -497,7 +498,7 @@ describe('MCP server — lỗi và đồ thị cũ', () => {
     expect(result.text).toContain('ảnh hưởng 8 file');
 
     // Sau khi phân tích lại, cùng client đó thấy đồ thị mới.
-    await analyze(themeRoot);
+    await coreModule().analyzer.analyze(themeRoot);
     const fresh = await call(client, 'impact', { target: 'snippets/moi.liquid' });
     expect(fresh.text).not.toContain('ĐỒ THỊ ĐÃ CŨ');
     expect(fresh.text).toContain('Sửa snippets/moi.liquid');
