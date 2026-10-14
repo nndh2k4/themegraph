@@ -890,7 +890,7 @@ describe('themegraph dead-code', () => {
       '',
       'Vì sao cần xem lại:',
       '  section: không có preset, không template nào dùng, và không file nào tải nó bằng tên viết sẵn; JavaScript của theme vẫn có thể tải nó qua Section Rendering API bằng tên là biến.',
-      '  asset: có thể được gọi bằng tên ghép lúc chạy, hoặc từ bên trong một file CSS / JavaScript.',
+      '  asset: có thể được gọi bằng tên ghép từ dữ liệu lúc chạy, từ bên trong một file CSS, hoặc bằng import() với tên là biến.',
       '  File khác trong mục này: chỉ được gọi bởi một file cần xem lại.',
     ]);
   });

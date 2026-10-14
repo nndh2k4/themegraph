@@ -108,7 +108,7 @@ jobs:
           git checkout -q FETCH_HEAD
 
       - name: Chạy đủ luồng trên bản đã cài
-        run: node tools/release/smoke.mjs --theme dawn --expect-nodes 1299 --expect-edges 1848
+        run: node tools/release/smoke.mjs --theme dawn --expect-nodes 1299 --expect-edges 1850
 
   # Đẩy một tag v<phiên bản> thì gói đã qua mọi bước kiểm ở trên được đưa lên
   # GitHub Release. File được đăng dưới hai tên: có phiên bản, và một tên cố

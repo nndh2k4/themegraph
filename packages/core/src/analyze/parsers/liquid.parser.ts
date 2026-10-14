@@ -1,10 +1,13 @@
 import { NodeTypes, toLiquidAST, walk } from "@shopify/liquid-html-parser";
-import type { LiquidHtmlNode } from "@shopify/liquid-html-parser";
+import type { ComplexLiquidExpression, LiquidExpression, LiquidFilter, LiquidHtmlNode } from "@shopify/liquid-html-parser";
 
 import type { Extraction, RawRef, RefKind, RefSource, SchemaInfo, ThemeFile } from "../../models/index.js";
 import { extractElements } from "./custom-elements.parser.js";
 import type { FileParser } from "./file-parser.js";
 import { settingNodeId } from "./global-settings.parser.js";
+import { extractImportMap } from "./import-map.parser.js";
+import { extractImports, extractModuleScriptImports } from "./js-imports.parser.js";
+import { LiquidValues } from "./liquid-values.js";
 import { parseSchema } from "./schema.parser.js";
 import type { ParsedSchema } from "./schema.parser.js";
 import { extractSectionLoads } from "./section-loads.parser.js";
@@ -68,7 +71,7 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
 export function extractLiquid(file: ThemeFile, content: string): Extraction {
   // Chỉ file .liquid mới chứa mã Liquid. Asset (.css, .js) có thể chứa chuỗi
   // trông giống tag nhưng Shopify không chạy Liquid trong đó.
-  if (file.ext !== "liquid") return { refs: [], schema: null, translationKeys: [], settings: [], elements: [] };
+  if (file.ext !== "liquid") return { refs: [], schema: null, translationKeys: [], settings: [], elements: [], importMap: [] };
 
   let ast;
   try {
@@ -108,6 +111,10 @@ export function extractLiquid(file: ThemeFile, content: string): Extraction {
   // dưới: { tên biến mới, biến nguồn, chuỗi truy cập của biến nguồn }.
   const plainAssigns: { name: string; source: string; lookups: string[] }[] = [];
 
+  // Bộ tính giá trị của các tên ghép (xem liquid-values.ts). Nó dùng chung
+  // bảng nút cha, được điền xong ở lượt 1, trước lần tính đầu tiên ở lượt 2.
+  const values = new LiquidValues(parentOf);
+
   walk(ast, (node, parent) => {
     parentOf.set(node, parent);
 
@@ -129,6 +136,8 @@ export function extractLiquid(file: ThemeFile, content: string): Extraction {
     }
 
     if (node.name === "assign") {
+      values.addAssignment(node.markup.name, node.markup.value, node);
+
       const { expression, filters } = node.markup.value;
 
       // Có filter thì giá trị đã bị biến đổi, không còn là chính đối tượng đó.
@@ -204,6 +213,39 @@ export function extractLiquid(file: ThemeFile, content: string): Extraction {
     });
   };
 
+  /**
+   * Ghi một ref cho mỗi giá trị mà tên ghép `expression | filters` có thể
+   * có, đánh dấu computed. Không tính được thì không ghi gì.
+   */
+  const addComputedRefs = (
+    kind: RefKind,
+    expression: ComplexLiquidExpression,
+    filters: readonly LiquidFilter[],
+    node: LiquidHtmlNode,
+    prefix = "",
+  ): void => {
+    const names = new Set<string>();
+    for (const value of values.evaluate(expression, filters, node) ?? []) {
+      if ((typeof value === "string" || typeof value === "number") && value !== "") names.add(String(value));
+    }
+    for (const name of names) {
+      addRef(kind, prefix + name, node);
+      const last = refs.at(-1);
+      if (last !== undefined) last.computed = true;
+    }
+  };
+
+  /**
+   * Ghi lần đọc setting `<object>.<key>`. Khoá viết sẵn (settings.x) thành
+   * một ref; khoá là biểu thức (settings[ten_bien]) thành một ref cho mỗi
+   * giá trị tính được.
+   */
+  const addSettingRef = (object: string, key: LiquidExpression | undefined, node: LiquidHtmlNode): void => {
+    if (key === undefined) return;
+    if (key.type === NodeTypes.String) addRef("setting", `${object}.${key.value}`, node);
+    else addComputedRefs("setting", key, [], node, `${object}.`);
+  };
+
   // LƯỢT 2: tìm các nút là tham chiếu.
   //
   // walk() ghé qua mọi nút của cây, kể cả các câu lệnh bên trong {% liquid %}.
@@ -246,21 +288,23 @@ export function extractLiquid(file: ThemeFile, content: string): Extraction {
     // Nó xuất hiện trong {{ ... }}, trong assign, trong echo... nên bắt ở mức
     // nút này thì không cần quan tâm nó nằm trong tag nào.
     if (node.type === NodeTypes.LiquidVariable) {
-      // Chỉ xét filter ĐẦU TIÊN: nếu trước asset_url hay t còn filter khác
-      // (append, replace...) thì tên thật là kết quả tính toán, không phải
-      // chuỗi gốc.
-      const firstFilter = node.filters[0];
-      if (firstFilter === undefined) return;
+      // Filter đầu tiên tra một file hay một khoá dịch; phần đứng trước nó là
+      // cái tên.
+      const at = node.filters.findIndex((filter) => ASSET_FILTERS.has(filter.name) || TRANSLATION_FILTERS.has(filter.name));
+      const filter = node.filters[at];
+      if (filter === undefined) return;
 
-      // Tên file hay khoá dịch phải là chuỗi viết sẵn; là biến thì không biết
-      // được khi đọc mã.
-      if (node.expression.type !== NodeTypes.String) return;
+      const kind: RefKind = ASSET_FILTERS.has(filter.name) ? "asset" : "translation";
 
-      if (ASSET_FILTERS.has(firstFilter.name)) {
-        addRef("asset", node.expression.value, node);
-      } else if (TRANSLATION_FILTERS.has(firstFilter.name)) {
-        addRef("translation", node.expression.value, node);
+      // Tên viết sẵn: 'base.css' | asset_url.
+      if (at === 0 && node.expression.type === NodeTypes.String) {
+        addRef(kind, node.expression.value, node);
+        return;
       }
+
+      // Tên ghép: 'icon-' | append: name | asset_url, hoặc slide_image |
+      // asset_url với slide_image được assign ở chỗ khác. Chỉ ghi khi tính được.
+      addComputedRefs(kind, node.expression, node.filters.slice(0, at), node);
       return;
     }
 
@@ -269,30 +313,30 @@ export function extractLiquid(file: ThemeFile, content: string): Extraction {
     if (node.type === NodeTypes.VariableLookup) {
       const [first, second] = node.lookups;
 
-      // Chỉ lấy khi tên setting là chữ viết sẵn. section.settings[ten_bien]
-      // chỉ biết được lúc chạy.
-      if (first?.type !== NodeTypes.String) return;
+      // Tên setting là chữ viết sẵn (settings.title), hoặc một biểu thức tính
+      // được (settings[setting_key], với setting_key ghép từ chữ viết sẵn).
+      // Biểu thức không tính được, như section.settings[block.id], bị bỏ qua.
 
       // settings.x: setting toàn cục của theme.
       if (node.name === "settings") {
-        addRef("setting", `settings.${first.value}`, node);
+        addSettingRef("settings", first, node);
         return;
       }
 
       // section_st.x, khi section_st là tên tắt của section.settings.
       const alias = node.name === null ? undefined : settingAliases.get(node.name);
       if (alias !== undefined) {
-        addRef("setting", `${alias}.${first.value}`, node);
+        addSettingRef(alias, first, node);
         return;
       }
 
-      if (first.value !== "settings" || second?.type !== NodeTypes.String) return;
+      if (first?.type !== NodeTypes.String || first.value !== "settings") return;
 
       if (node.name === "section") {
-        addRef("setting", `section.settings.${second.value}`, node);
+        addSettingRef("section.settings", second, node);
       } else if (node.name !== null && blockNames.has(node.name)) {
         // Biến lặp trên section.blocks được ghi lại như block.settings.x.
-        addRef("setting", `block.settings.${second.value}`, node);
+        addSettingRef("block.settings", second, node);
       }
       return;
     }
@@ -380,17 +424,22 @@ export function extractLiquid(file: ThemeFile, content: string): Extraction {
     }
   });
 
-  return { refs, schema, translationKeys: [], settings, elements: [] };
+  // Import map in ra từ file này (xem import-map.parser.ts). Chỉ chạy thử
+  // khi file có chữ đó.
+  const importMap = content.includes("importmap") ? extractImportMap(ast, content, values) : [];
+
+  return { refs, schema, translationKeys: [], settings, elements: [], importMap };
 }
 
 /**
- * File .liquid: mọi quan hệ trong mã Liquid (xem extractLiquid), cộng hai thứ
+ * File .liquid: mọi quan hệ trong mã Liquid (xem extractLiquid), cộng ba thứ
  * nằm trong phần HTML mà bộ phân tích Liquid không trích:
  *   - URL kiểu ?section_id=ten (section tải lúc chạy, xem extractSectionLoads)
+ *   - import trong thẻ <script type="module"> (xem extractImports)
  *   - thẻ custom element (xem extractElements)
  *
  * File assets/*.js.liquid là JavaScript có chèn Liquid nên phần section tải
- * lúc chạy được ghi với nguồn "js".
+ * lúc chạy được ghi với nguồn "js", và import được tìm trong cả file.
  */
 export class LiquidParser implements FileParser {
   supports(file: ThemeFile): boolean {
@@ -399,11 +448,13 @@ export class LiquidParser implements FileParser {
 
   parse(file: ThemeFile, content: string): Extraction {
     const extraction = extractLiquid(file, content);
-    const source = file.path.endsWith(".js.liquid") ? "js" : "liquid";
+    const isJavaScript = file.path.endsWith(".js.liquid");
+    const source = isJavaScript ? "js" : "liquid";
+    const imports = isJavaScript ? extractImports(file.path, content) : extractModuleScriptImports(file.path, content);
 
     return {
       ...extraction,
-      refs: [...extraction.refs, ...extractSectionLoads(file.path, content, source)],
+      refs: [...extraction.refs, ...extractSectionLoads(file.path, content, source), ...imports],
       elements: extractElements(content),
     };
   }

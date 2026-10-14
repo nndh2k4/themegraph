@@ -7,7 +7,7 @@ import type { TextView, ViewOptions } from "./text-view.js";
 const REVIEW_NOTES: Record<string, string> = {
   section:
     "section: không có preset, không template nào dùng, và không file nào tải nó bằng tên viết sẵn; JavaScript của theme vẫn có thể tải nó qua Section Rendering API bằng tên là biến.",
-  asset: "asset: có thể được gọi bằng tên ghép lúc chạy, hoặc từ bên trong một file CSS / JavaScript.",
+  asset: "asset: có thể được gọi bằng tên ghép từ dữ liệu lúc chạy, từ bên trong một file CSS, hoặc bằng import() với tên là biến.",
   layout: "layout: có thể được chọn bằng {% layout %} với tên là biến.",
 };
 

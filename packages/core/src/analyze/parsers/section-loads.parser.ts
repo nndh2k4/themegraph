@@ -10,20 +10,26 @@ import type { RawRef, RefSource } from "../../models/index.js";
  * trong template JSON nào, nên nếu không quét ở đây thì đồ thị coi nó là
  * "không trang nào dùng".
  *
- * File này KHÔNG phân tích cú pháp JavaScript. Nó chỉ tìm bốn cách viết của
- * API đó, và chỉ khi tên section được viết sẵn thành chữ:
+ * File này KHÔNG phân tích cú pháp JavaScript. Nó chỉ tìm các cách viết sau
+ * của API đó, và chỉ khi tên section được viết sẵn thành chữ:
  *
  *   1. ?section_id=cart-drawer            trong một URL (cả ở file .js lẫn .liquid)
  *   2. ?sections=cart-drawer,cart-icon    như trên, nhiều section
  *   3. section: 'cart-icon-bubble'        thuộc tính của object, chỉ ở file .js
  *   4. id: 'cart-notification-product'    chỉ bên trong getSectionsToRender() { ... }
+ *   5. section_id: 'cart-page-edit'       tham số của một hàm dựng URL, chỉ ở file .js;
+ *      sections: 'a,b'                    cả .set('section_id', 'x') của URLSearchParams
+ *   6. section_id=${sectionId}            tên là một biến, chỉ ở file .js: lấy các
+ *      section_id: sectionId              chuỗi viết sẵn được gán cho biến đó trong file,
+ *                                         ví dụ const sectionId = a ? 'x' : 'y'
  *
  * Dạng 3 và 4 là quy ước của theme Dawn mà hầu hết theme khác chép theo: một
  * hàm getSectionsToRender() trả về danh sách section cần xin lại.
  *
- * Tên là biến thì bỏ qua: `section_id=${this.sectionId}` và
- * `section_id={{ section.id }}` không cho biết section nào. Vì vậy quan hệ
- * tìm được ở đây là một phần của sự thật, không phải toàn bộ.
+ * Tên là biến mà biến đó không được gán chữ viết sẵn nào trong file thì bỏ
+ * qua: `section_id=${this.sectionId}` và `section_id={{ section.id }}` không
+ * cho biết section nào. Vì vậy quan hệ tìm được ở đây là một phần của sự
+ * thật, không phải toàn bộ.
  *
  * Mọi kết quả đều `conditional: true`: section chỉ được tải khi người dùng làm
  * một việc gì đó trên trang. Cái tên tìm được có ứng với một file trong
@@ -41,6 +47,42 @@ const SECTIONS = new RegExp(`[?&"'\`]sections=(${NAME}(?:,${NAME})*)(?![\\w\${,-
 const SECTION_PROPERTY = new RegExp(`\\bsection:\\s*["'](${NAME})["']`, "g");
 const ID_PROPERTY = new RegExp(`\\bid:\\s*["'](${NAME})["']`, "g");
 const SECTIONS_TO_RENDER = /getSectionsToRender\s*\([^)]*\)\s*\{/g;
+
+// Dạng 5. (?<![\w$-]) để "data-section_id:" hay "my_section_id:" không bị tính.
+const KEY = `(?<![\\w$-])["']?(?:section_id|sections)["']?`;
+const PARAMETER = new RegExp(`${KEY}\\s*:\\s*["'](${NAME}(?:,${NAME})*)["']`, "g");
+const SEARCH_PARAM = new RegExp(`\\.(?:set|append)\\(\\s*["'](?:section_id|sections)["']\\s*,\\s*["'](${NAME}(?:,${NAME})*)["']`, "g");
+
+// Dạng 6: tên biến đứng ở chỗ của tên section.
+const IDENTIFIER = "[A-Za-z_$][\\w$]*";
+const VARIABLE_USES = [
+  new RegExp(`[?&"'\`](?:section_id|sections)=\\$\\{\\s*(${IDENTIFIER})\\s*\\}`, "g"),
+  new RegExp(`[?&"'\`](?:section_id|sections)=["'\`]\\s*\\+\\s*(${IDENTIFIER})(?![\\w$.(])`, "g"),
+  new RegExp(`${KEY}\\s*:\\s*(${IDENTIFIER})(?![\\w$.(])`, "g"),
+  new RegExp(`\\.(?:set|append)\\(\\s*["'](?:section_id|sections)["']\\s*,\\s*(${IDENTIFIER})\\s*\\)`, "g"),
+];
+
+/** Một chuỗi viết sẵn có dạng tên section, trong vế phải của một phép gán. */
+const NAME_LITERAL = new RegExp(`["'\`](${NAME})["'\`]`, "g");
+
+/**
+ * Các chuỗi viết sẵn được gán cho biến `name` ở bất cứ đâu trong file:
+ * `name = ...`, `const name = ...`, và giá trị mặc định của tham số
+ * `(name = "...")`. Lấy mọi chuỗi trong vế phải, nên `a ? "x" : "y"` cho cả x
+ * và y. Tên không phải section nào thì resolver bỏ. Mỗi tên một lần.
+ */
+function literalsAssignedTo(name: string, content: string): string[] {
+  const escaped = name.replace(/\$/g, "\\$");
+  const assignment = new RegExp(`(?<![\\w$.])${escaped}\\s*=(?![=>])\\s*([^;\\n]*)`, "g");
+  const names = new Set<string>();
+
+  for (const match of content.matchAll(assignment)) {
+    for (const literal of (match[1] ?? "").matchAll(NAME_LITERAL)) {
+      if (literal[1] !== undefined) names.add(literal[1]);
+    }
+  }
+  return [...names];
+}
 
 /** Số dòng (đếm từ 1) của vị trí `index` trong `content`. */
 function lineAt(content: string, index: number): number {
@@ -82,6 +124,19 @@ export function extractSectionLoads(from: string, content: string, source: Extra
 
       for (const match of body.matchAll(ID_PROPERTY)) {
         if (match[1] !== undefined) found.push({ name: match[1], index: start + match.index });
+      }
+    }
+
+    for (const pattern of [PARAMETER, SEARCH_PARAM]) {
+      for (const match of content.matchAll(pattern)) {
+        for (const name of (match[1] ?? "").split(",")) found.push({ name, index: match.index });
+      }
+    }
+
+    for (const pattern of VARIABLE_USES) {
+      for (const match of content.matchAll(pattern)) {
+        if (match[1] === undefined) continue;
+        for (const name of literalsAssignedTo(match[1], content)) found.push({ name, index: match.index });
       }
     }
   }

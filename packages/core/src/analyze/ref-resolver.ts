@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { PLURAL_FORMS } from "./parsers/default-locale.parser.js";
 import type { RawRef, Resolution } from "../models/index.js";
 
@@ -36,6 +38,10 @@ function conventionalPath(ref: RawRef): string | null {
       // Khoá dịch không phải file: đích là node 't:<khoá>'.
       return TRANSLATION_PREFIX + ref.to;
     case "no_layout":
+      return null;
+    case "import":
+      // Specifier của import không theo quy ước thư mục nào: nó đi qua import
+      // map hoặc là đường dẫn tương đối. Xem resolveImport.
       return null;
     case "setting":
       // Đích của một lần đọc setting còn tuỳ file nào render file đang đọc,
@@ -93,6 +99,48 @@ export function resolveRef(ref: RawRef, knownPaths: ReadonlySet<string>): Resolu
   // phải tên section nào. Không thấy file thì coi như không phải tham chiếu,
   // chứ không báo là tham chiếu hỏng.
   if (ref.kind === "section_load") return { status: "none" };
+
+  // Tên tính ra từ một tên ghép có thể thừa (xem RawRef.computed).
+  if (ref.computed === true) return { status: "none" };
+
+  return { status: "missing", expected };
+}
+
+/**
+ * Đổi specifier của một ref import thành file trong assets/.
+ *
+ * `importMap` là import map của theme: specifier -> tên file trong assets/.
+ * Thứ tự thử:
+ *   1. specifier có trong import map ('@theme/global' -> core.js)
+ *   2. đường dẫn tương đối ('./core.js'), tính từ file đang import. Chỉ có
+ *      nghĩa khi file đó nằm trong assets/: mọi asset được phục vụ chung một
+ *      thư mục, nên './core.js' là assets/core.js. Phần ?v=... bị bỏ.
+ *
+ * Specifier không thuộc hai loại trên (URL đầy đủ, '/cdn/...', tên gói không
+ * có trong import map) không trỏ tới file nào của theme: status "none".
+ * Specifier đi tới được một tên file mà theme không có thì là import hỏng.
+ */
+export function resolveImport(
+  ref: RawRef,
+  importMap: ReadonlyMap<string, string>,
+  knownPaths: ReadonlySet<string>,
+): Resolution {
+  const specifier = ref.to.replace(/[?#].*$/, "");
+  let expected: string | undefined;
+
+  const mapped = importMap.get(ref.to) ?? importMap.get(specifier);
+  if (mapped !== undefined) {
+    expected = `assets/${mapped}`;
+  } else if ((specifier.startsWith("./") || specifier.startsWith("../")) && ref.from.startsWith("assets/")) {
+    const target = path.posix.join(path.posix.dirname(ref.from), specifier);
+    if (target.startsWith("assets/")) expected = target;
+  }
+
+  if (expected === undefined) return { status: "none" };
+  if (knownPaths.has(expected)) return { status: "resolved", path: expected };
+
+  const liquidVariant = `${expected}.liquid`;
+  if (knownPaths.has(liquidVariant)) return { status: "resolved", path: liquidVariant };
 
   return { status: "missing", expected };
 }

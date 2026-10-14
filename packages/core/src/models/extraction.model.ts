@@ -32,6 +32,20 @@ export interface FileElement extends ElementMention {
   file: string; // cùng định dạng với ThemeFile.path
 }
 
+/**
+ * Một dòng của import map (<script type="importmap">): mã JavaScript viết
+ * `import "@theme/global"` thì trình duyệt nạp file assets/core.js.
+ */
+export interface ImportMapEntry {
+  specifier: string; // khoá của import map, ví dụ '@theme/global'
+  asset: string; // tên file trong assets/ mà khoá trỏ tới, ví dụ 'core.js'
+}
+
+/** Một ImportMapEntry kèm file Liquid khai nó. */
+export interface FileImportMapEntry extends ImportMapEntry {
+  file: string; // cùng định dạng với ThemeFile.path
+}
+
 /** Mọi thứ tầng parse rút ra được từ một file. */
 export interface Extraction {
   refs: RawRef[];
@@ -45,6 +59,9 @@ export interface Extraction {
   // Các custom element file này định nghĩa và dùng. Chỉ file .liquid và .js
   // mới có; mọi file khác trả mảng rỗng.
   elements: ElementMention[];
+  // Các dòng import map file này khai. Chỉ file .liquid mới có; mọi file khác
+  // trả mảng rỗng.
+  importMap: ImportMapEntry[];
 }
 
 /** Dữ kiện schema của một file cụ thể, dạng lưu trong đồ thị. */
@@ -72,4 +89,6 @@ export interface GraphFacts {
   fileHashes?: readonly FileHash[];
   // Custom element từng file định nghĩa và dùng (xem CustomElementsParser).
   elements?: readonly FileElement[];
+  // Import map của theme, để đổi specifier của ref import thành file.
+  importMap?: readonly FileImportMapEntry[];
 }

@@ -1,0 +1,232 @@
+import { appendFile, cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import { extractImports, extractModuleScriptImports } from '../src/analyze/parsers/js-imports.parser.js';
+import type { GraphRepository } from '../src/graph/graph.repository.js';
+import type { FileImportMapEntry } from '../src/models/index.js';
+import { buildGraph, core, file, openGraph, parseFile, ref, scopeOf } from './helpers.js';
+
+/**
+ * Module JavaScript: import trong mã, import map in ra từ Liquid, và việc nối
+ * hai thứ đó thành cạnh USES_ASSET giữa các file trong assets/.
+ */
+
+/** Viết gọn kết quả thành [specifier, dòng, có điều kiện]. */
+const imports = (content: string) =>
+  extractImports('assets/app.js', content).map((entry) => [entry.to, entry.line, entry.conditional]);
+
+const importMapOf = (content: string) => parseFile(file('snippets/import-map.liquid', 'snippet'), content).importMap;
+
+describe('extractImports — các cách viết', () => {
+  it('lấy import tĩnh, export ... from và import động', () => {
+    const content = [
+      'import "@theme/global";',
+      "import { Cart } from './cart.js';",
+      'import * as motion from "./motion.js";',
+      'import Default, { a as b } from "./c.js";',
+      'export { x } from "./x.js";',
+      'export * from "./y.js";',
+      'const m = await import("@theme/switcher");',
+      "import('./lazy.js').then((m) => m.run());",
+    ].join('\n');
+
+    expect(imports(content)).toEqual([
+      ['@theme/global', 1, false],
+      ['./cart.js', 2, false],
+      ['./motion.js', 3, false],
+      ['./c.js', 4, false],
+      ['./x.js', 5, false],
+      ['./y.js', 6, false],
+      ['@theme/switcher', 7, true],
+      ['./lazy.js', 8, true],
+    ]);
+  });
+
+  it('đọc được import trải nhiều dòng và mã đã nén', () => {
+    expect(imports('import {\n  a,\n  b,\n} from "./ab.js";')).toEqual([['./ab.js', 1, false]]);
+    expect(imports('import t from"./t.js";export{t as default}')).toEqual([['./t.js', 1, false]]);
+  });
+
+  it('bỏ qua chú thích, chuỗi và specifier là biểu thức', () => {
+    const content = [
+      '// import "./commented.js";',
+      '/* import "./block.js"; */',
+      'const url = "https://cdn.example.com/x.js"; import "./real.js";',
+      'const label = "import";',
+      'el.dataset.import = "x";',
+      'import(`./${name}.js`);',
+      'import(path);',
+    ].join('\n');
+
+    expect(imports(content)).toEqual([['./real.js', 3, false]]);
+  });
+
+  it('trong file Liquid chỉ đọc bên trong <script type="module">', () => {
+    const content = [
+      '<p>import "./not-code.js"</p>',
+      '<script type="module">',
+      "  import { open } from '@theme/dialog';",
+      '</script>',
+      '<script>import "./classic.js"</script>',
+    ].join('\n');
+
+    expect(extractModuleScriptImports('sections/x.liquid', content).map((entry) => [entry.to, entry.line])).toEqual([
+      ['@theme/dialog', 3],
+    ]);
+  });
+});
+
+describe('import map — đọc từ Liquid', () => {
+  it('đọc import map viết tay', () => {
+    const content = [
+      '<script type="importmap">',
+      '  { "imports": {',
+      "    \"@theme/global\": \"{{ 'core.js' | asset_url }}\",",
+      "    \"@theme/cart\": {{ 'cart.js' | asset_url | json }},",
+      '    "lodash": "https://cdn.example.com/lodash.js"',
+      '  } }',
+      '</script>',
+    ].join('\n');
+
+    expect(importMapOf(content)).toEqual([
+      { specifier: '@theme/global', asset: 'core.js' },
+      { specifier: '@theme/cart', asset: 'cart.js' },
+    ]);
+  });
+
+  it('đọc import map sinh bằng vòng lặp, giữ đúng từng cặp khoá và file', () => {
+    // Rút gọn từ theme Laurel, snippets/theme-import-map.liquid.
+    const content = [
+      '{%- liquid',
+      "  assign modules = 'global:core,modal:dialog,cart:cart-main' | split: ','",
+      '-%}',
+      '<script type="importmap">',
+      '  { "imports": {',
+      '    {%- for entry in modules -%}',
+      "      {%- assign pair = entry | split: ':' -%}",
+      "      \"@theme/{{ pair.first }}\": \"{{ pair.last | append: '.js' | asset_url }}\"{% unless forloop.last %},{% endunless %}",
+      '    {%- endfor -%}',
+      '  } }',
+      '</script>',
+    ].join('\n');
+
+    expect(importMapOf(content)).toEqual([
+      { specifier: '@theme/global', asset: 'core.js' },
+      { specifier: '@theme/modal', asset: 'dialog.js' },
+      { specifier: '@theme/cart', asset: 'cart-main.js' },
+    ]);
+  });
+
+  it('không lấy gì ngoài thẻ importmap', () => {
+    const content = [
+      "<script>window.assets = { \"main\": \"{{ 'main.js' | asset_url }}\" };</script>",
+      '{% if true %}<script type="importmap">{ "imports": { "a": "{{ \'a.js\' | asset_url }}" } }</script>{% endif %}',
+    ].join('\n');
+
+    expect(importMapOf(content)).toEqual([{ specifier: 'a', asset: 'a.js' }]);
+  });
+
+  it('trả mảng rỗng cho file không có import map', () => {
+    expect(importMapOf("{{ 'a.js' | asset_url | script_tag }}")).toEqual([]);
+    expect(parseFile(file('assets/app.js', 'asset'), 'import "./a.js";').importMap).toEqual([]);
+  });
+});
+
+describe('import — tầng dựng đồ thị', () => {
+  const APP = 'assets/app.js';
+  const FILES = [file(APP, 'asset'), file('assets/core.js', 'asset'), file('assets/cart.js', 'asset'), file('sections/x.liquid', 'section')];
+  const MAP: FileImportMapEntry[] = [{ file: 'snippets/import-map.liquid', specifier: '@theme/global', asset: 'core.js' }];
+
+  const build = (...refs: ReturnType<typeof ref>[]) => buildGraph(FILES, refs, { importMap: MAP });
+
+  it('đổi specifier qua import map và theo đường dẫn tương đối, thành cạnh USES_ASSET', () => {
+    const graph = build(
+      ref(APP, 'import', '@theme/global', { source: 'js' }),
+      ref(APP, 'import', './cart.js?v=3', { source: 'js', conditional: true, line: 2 }),
+    );
+
+    expect(graph.edges.map((edge) => [edge.from, edge.to, edge.type, edge.conditional, edge.sources])).toEqual([
+      [APP, 'assets/cart.js', 'USES_ASSET', true, 'js'],
+      [APP, 'assets/core.js', 'USES_ASSET', false, 'js'],
+    ]);
+  });
+
+  it('báo import hỏng khi đích không có trong theme', () => {
+    const graph = build(ref(APP, 'import', './gone.js', { source: 'js' }));
+
+    expect(graph.refs.map((entry) => [entry.to, entry.status, entry.target])).toEqual([['./gone.js', 'missing', 'assets/gone.js']]);
+  });
+
+  it('bỏ import tới thứ không phải file của theme', () => {
+    const graph = build(
+      ref(APP, 'import', 'https://cdn.example.com/x.js', { source: 'js' }),
+      ref(APP, 'import', 'lodash', { source: 'js' }),
+      ref(APP, 'import', '../outside.js', { source: 'js' }),
+      // Trong file Liquid, đường dẫn tương đối tính theo URL của trang, không theo assets/.
+      ref('sections/x.liquid', 'import', './core.js', { source: 'js' }),
+    );
+
+    expect(graph.refs).toEqual([]);
+    expect(graph.edges).toEqual([]);
+  });
+});
+
+describe('import — từ đầu tới cuối', () => {
+  const FIXTURE = path.join(import.meta.dirname, 'fixtures/mini-theme');
+  let tmp: string;
+  let themeRoot: string;
+  let graph: GraphRepository | null = null;
+
+  beforeEach(async () => {
+    tmp = await mkdtemp(path.join(os.tmpdir(), 'themegraph-modules-'));
+    themeRoot = path.join(tmp, 'mini-theme');
+    await cp(FIXTURE, themeRoot, { recursive: true });
+  });
+
+  afterEach(async () => {
+    graph?.close();
+    graph = null;
+    await rm(tmp, { recursive: true, force: true });
+  });
+
+  it('module chỉ được nạp qua import map và import không còn bị coi là không dùng', async () => {
+    const write = (relative: string, content: string) => writeFile(path.join(themeRoot, relative), content);
+    await mkdir(path.join(themeRoot, 'assets'), { recursive: true });
+
+    await write(
+      'snippets/import-map.liquid',
+      [
+        "{%- assign modules = 'global:core' | split: ',' -%}",
+        '<script type="importmap">{ "imports": {',
+        "{%- for entry in modules -%}{%- assign pair = entry | split: ':' -%}",
+        "\"@theme/{{ pair.first }}\": \"{{ pair.last | append: '.js' | asset_url }}\"",
+        '{%- endfor -%}',
+        '} }</script>',
+      ].join('\n'),
+    );
+    await write('assets/app.js', 'import "@theme/global";\nimport("./lazy.js");');
+    await write('assets/core.js', 'export const x = 1;');
+    await write('assets/lazy.js', 'export const y = 2;');
+    await write('assets/orphan.js', 'export const z = 3;');
+    await appendFile(
+      path.join(themeRoot, 'layout', 'theme.liquid'),
+      "\n{% render 'import-map' %}<script type=\"module\" src=\"{{ 'app.js' | asset_url }}\"></script>",
+    );
+
+    await core().analyzer.analyze(themeRoot);
+    graph = openGraph(themeRoot);
+
+    const unused = scopeOf(graph).deadCode.findUnused().files.map((entry) => entry.id);
+    expect(unused).toContain('assets/orphan.js');
+    expect(unused).not.toContain('assets/core.js');
+    expect(unused).not.toContain('assets/lazy.js');
+
+    expect(graph.edgesTo('assets/core.js').map((edge) => [edge.from, edge.type])).toEqual([
+      ['assets/app.js', 'USES_ASSET'],
+      ['snippets/import-map.liquid', 'USES_ASSET'],
+    ]);
+  });
+});

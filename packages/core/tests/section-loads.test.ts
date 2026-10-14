@@ -249,6 +249,7 @@ describe('section do JavaScript tải — tầng trích và resolver', () => {
       translationKeys: [],
       settings: [],
       elements: [],
+      importMap: [],
     });
   });
 

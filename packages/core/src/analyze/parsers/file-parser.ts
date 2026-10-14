@@ -13,5 +13,5 @@ export interface FileParser {
 
 /** Kết quả của một file không có gì để trích. */
 export function emptyExtraction(): Extraction {
-  return { refs: [], schema: null, translationKeys: [], settings: [], elements: [] };
+  return { refs: [], schema: null, translationKeys: [], settings: [], elements: [], importMap: [] };
 }

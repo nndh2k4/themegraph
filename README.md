@@ -95,9 +95,9 @@ flowchart LR
 
 1. **Quét.** Đi qua thư mục theme, xếp mỗi file vào một loại theo thư mục chứa nó (`sections/` → section, `snippets/` → snippet...). File nằm ngoài quy ước của Shopify bị bỏ qua và được liệt kê ra.
 2. **Trích quan hệ thô.** Mỗi loại file có một bộ đọc riêng:
-   - *Liquid*: phân tích thành cây cú pháp, lấy `render`, `include`, `section`, `sections`, `content_for`, filter `asset_url` và `t`, các lần đọc `settings.x` / `section.settings.x` / `block.settings.x`, và khối `{% schema %}`.
+   - *Liquid*: phân tích thành cây cú pháp, lấy `render`, `include`, `section`, `sections`, `content_for`, filter `asset_url` và `t`, các lần đọc `settings.x` / `section.settings.x` / `block.settings.x`, khối `{% schema %}`, và import map trong `<script type="importmap">`. Tên ghép từ chữ viết sẵn trong cùng file (`assign`, `split`, `append`, vòng `for` trên một danh sách hay một khoảng số) được tính ra, ví dụ `'slide-' | append: i | asset_url` với `i` chạy từ 1 tới 3.
    - *JSON*: template và section group cho biết section và block nào được xếp vào trang; `config/settings_schema.json` cho các setting toàn cục; file locale mặc định cho các khoá dịch.
-   - *JavaScript*: không phân tích cú pháp, chỉ dò vài cách viết quen thuộc (section được tải qua Section Rendering API bằng tên viết sẵn, và `customElements.define("tên")`).
+   - *JavaScript*: không phân tích cú pháp, chỉ dò vài cách viết quen thuộc: `import` tĩnh và động, section được tải qua Section Rendering API (tên viết sẵn, hoặc một biến được gán chữ viết sẵn trong cùng file), và `customElements.define("tên")`.
 3. **Phân giải.** Đổi mỗi cái tên thành một file theo quy ước: `render 'x'` là `snippets/x.liquid`, `section 'x'` là `sections/x.liquid`. Tên không ứng với file nào thành một *tham chiếu hỏng*, được ghi lại kèm file và số dòng.
 4. **Dựng đồ thị.** Gộp các lời gọi trùng thành cạnh, thêm node loại trang suy từ tên template (`templates/product.alt.json` thuộc trang `product`), thêm cạnh suy từ quy ước (template không nêu layout thì dùng `layout/theme.liquid`).
 5. **Ghi.** Toàn bộ đồ thị vào một file SQLite, thay hẳn bản cũ.
@@ -279,7 +279,7 @@ erDiagram
 | `USES_TEMPLATE` | loại trang → template | Trang này dùng template này |
 | `USES_LAYOUT` | template → layout | Template nằm trong layout này |
 | `RENDERS` | file → file | `render`, `include`, `section`, `sections`, block; hoặc JSON xếp section vào trang |
-| `USES_ASSET` | file → asset | Qua filter `asset_url`, `asset_img_url`, `inline_asset_content` |
+| `USES_ASSET` | file → asset | Qua filter `asset_url`, `asset_img_url`, `inline_asset_content`; hoặc JavaScript `import` một file khác trong `assets/` (theo import map hay đường dẫn tương đối) |
 | `LOADS_SECTION` | file → section | JavaScript tải riêng section này lúc chạy |
 | `USES_TRANSLATION` | file → khoá dịch | Qua filter `t` |
 | `READS_SETTING` | file → setting | Đọc `settings.x`, `section.settings.x`, `block.settings.x` |
@@ -321,7 +321,7 @@ Trên Dawn, bốn dòng đầu là `sections/featured-product.liquid` dòng 121,
 | | Dawn | Horizon | Theme thương mại |
 | --- | --- | --- | --- |
 | File được đọc | 192 | 439 | 484 |
-| Node / cạnh | 1 299 / 1 848 | 2 420 / 2 502 | 3 811 / 5 455 |
+| Node / cạnh | 1 299 / 1 850 | 2 420 / 2 725 | 3 811 / 5 620 |
 | `analyze` (trung vị, cả tiến trình) | 0,55 giây | 0,74 giây | 1,64 giây |
 | Một câu hỏi ảnh hưởng (cả tiến trình) | 0,20 giây | 0,30 giây | 0,43 giây |
 | Cỡ `graph.db` | 1,2 MB | 1,6 MB | 3,7 MB |
@@ -333,8 +333,8 @@ Trên Dawn, bốn dòng đầu là `sections/featured-product.liquid` dòng 121,
 
 ThemeGraph phân tích tĩnh: nó đọc mã, không chạy theme. Vì vậy:
 
-- Tên file ghép lúc chạy (`'icon-' | append: name`) không thành quan hệ.
-- JavaScript không được phân tích cú pháp. Section do JavaScript tải bằng tên là biến nằm ngoài đồ thị.
+- Tên ghép chỉ được tính khi mọi mảnh đều là chữ viết sẵn trong cùng file. Mảnh lấy từ dữ liệu của Shopify (`product.type`) hay từ tham số truyền vào snippet (`'icon-' | append: icon`) thì không thành quan hệ.
+- JavaScript không được phân tích cú pháp. Section do JavaScript tải bằng một tên đọc từ DOM hay từ tham số (`this.dataset.section`) nằm ngoài đồ thị; `import()` với specifier là biến cũng vậy.
 - Thư mục `listings/` không được quét.
 - Setting được truyền cả bộ cho snippet (`render 'x', settings: block.settings`) rồi snippet mới đọc thì công cụ không lần theo. Theme viết theo kiểu này (ví dụ Horizon) có gần một nửa số setting bị xếp vào "không thấy đọc" dù đang được dùng.
 - Những gì merchant thêm từ theme editor mà không nằm trong file của theme (app block, nội dung nhập tay) thì công cụ không biết.

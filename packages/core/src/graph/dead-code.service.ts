@@ -14,9 +14,11 @@ const CANDIDATE_KINDS: readonly NodeKind[] = ["section", "section_group", "snipp
  *
  * - section: JavaScript của theme có thể tải nó qua Section Rendering API
  *   (ví dụ giỏ hàng dạng ngăn kéo). Đồ thị chỉ thấy những lần tải có tên
- *   section viết sẵn (cạnh LOADS_SECTION); tên là biến thì không.
- * - asset: có thể được gọi bằng tên ghép lúc chạy ('icon-' | append: name),
- *   hoặc từ bên trong một file CSS / JavaScript.
+ *   section viết sẵn, hoặc là biến được gán chữ viết sẵn (cạnh LOADS_SECTION);
+ *   tên đọc từ DOM hay từ tham số thì không.
+ * - asset: có thể được gọi bằng tên ghép từ dữ liệu lúc chạy
+ *   ('icon-' | append: product.type), từ bên trong một file CSS, hoặc bằng
+ *   import() với tên là biến. Import viết sẵn thì đồ thị đã thấy (USES_ASSET).
  * - layout: có thể được chọn bằng {% layout ten_bien %}.
  *
  * Snippet, block và section group không có ở đây vì chúng chỉ dùng được qua

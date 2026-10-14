@@ -52,7 +52,8 @@ export interface GraphNode {
  * - USES_LAYOUT:   template -> layout bao ngoài nó
  * - RENDERS:       file này chèn nội dung của file kia (snippet, section,
  *                  section group, block)
- * - USES_ASSET:    file này tham chiếu một file trong assets/
+ * - USES_ASSET:    file này tham chiếu một file trong assets/: qua asset_url,
+ *                  hoặc bằng import của JavaScript (nguồn 'js')
  * - USES_TRANSLATION: file này dùng một khoá dịch qua filter t
  * - READS_SETTING: file này đọc giá trị của một setting
  * - LOADS_SECTION: file này (thường là một file JavaScript) tải riêng một

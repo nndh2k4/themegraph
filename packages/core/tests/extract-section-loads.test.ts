@@ -146,3 +146,53 @@ describe('extractSectionLoads — dạng của kết quả', () => {
     expect(loads('const sectionId = el.dataset.section;')).toEqual([]);
   });
 });
+
+describe('extractSectionLoads — tham số của hàm dựng URL', () => {
+  it('lấy section_id: và sections: viết sẵn, cả .set() của URLSearchParams', () => {
+    // Lấy từ theme Laurel: assets/cart-view.js và assets/module-option-swatch.js.
+    expect(loads('return LaurelTheme.sectionRequestUrl(href, {\n  section_id: "cart-page-edit",\n});')).toEqual([
+      ['cart-page-edit', 2],
+    ]);
+    expect(loads("fetch(url, { body: JSON.stringify({ sections: 'cart-drawer,cart-icon' }) })")).toEqual([
+      ['cart-drawer', 1],
+      ['cart-icon', 1],
+    ]);
+    expect(loads("params.set('section_id', 'product-card');")).toEqual([['product-card', 1]]);
+  });
+
+  it('không lấy ở file Liquid, và không nhầm khoá khác có đuôi section_id', () => {
+    expect(loads('{ section_id: "cart-page-edit" }', 'liquid')).toEqual([]);
+    expect(loads('{ my_section_id: "cart-page-edit", "data-sections": "x" }')).toEqual([]);
+  });
+});
+
+describe('extractSectionLoads — tên là một biến được gán chữ viết sẵn', () => {
+  it('lấy mọi chuỗi viết sẵn được gán cho biến, ở số dòng của chỗ dùng', () => {
+    // Lấy từ theme Laurel, assets/search-ui.js.
+    const content = [
+      'onField() {',
+      '  const sectionId = this.overlay ? "live-search-popup" : "live-search-drawer";',
+      '  this.read(term, sectionId);',
+      '}',
+      'async read(term, sectionId) {',
+      '  return fetch(`${routes.predictive_search_url}?q=${term}&section_id=${sectionId}`);',
+      '}',
+    ].join('\n');
+
+    expect(loads(content)).toEqual([
+      ['live-search-drawer', 6],
+      ['live-search-popup', 6],
+    ]);
+  });
+
+  it('đọc được nối chuỗi, tham số object và giá trị mặc định của tham số', () => {
+    expect(loads("let id = 'mini-cart';\nfetch(url + '?section_id=' + id);")).toEqual([['mini-cart', 2]]);
+    expect(loads('function load(name = "quick-view") {\n  return build({ section_id: name });\n}')).toEqual([['quick-view', 2]]);
+  });
+
+  it('bỏ qua biến không được gán chữ viết sẵn nào, và thuộc tính của object', () => {
+    expect(loads('const id = this.dataset.section;\nfetch(`?section_id=${id}`);')).toEqual([]);
+    expect(loads('fetch(`?section_id=${this.sectionId}`);\nthis.sectionId = "cart";')).toEqual([]);
+    expect(loads('build({ section_id: this.id });')).toEqual([]);
+  });
+});

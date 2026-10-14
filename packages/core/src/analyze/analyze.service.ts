@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { hashContent } from "../common/hash.js";
 import type { GraphStore } from "../graph/graph.store.js";
-import type { FileElement, FileHash, FileSchema, RawRef } from "../models/index.js";
+import type { FileElement, FileHash, FileImportMapEntry, FileSchema, RawRef } from "../models/index.js";
 import { READ_EXTENSIONS } from "../theme/theme-layout.js";
 import type { ThemeFileRepository } from "../theme/theme-file.repository.js";
 import type { ThemeRegistryRepository } from "../theme/theme-registry.repository.js";
@@ -63,6 +63,7 @@ export class AnalyzeService {
     const settings: string[] = [];
     const fileHashes: FileHash[] = [];
     const elements: FileElement[] = [];
+    const importMap: FileImportMapEntry[] = [];
     const errors: AnalyzeError[] = [];
 
     for (const file of files) {
@@ -82,6 +83,7 @@ export class AnalyzeService {
         translationKeys.push(...extraction.translationKeys);
         settings.push(...extraction.settings);
         for (const mention of extraction.elements) elements.push({ file: file.path, ...mention });
+        for (const entry of extraction.importMap) importMap.push({ file: file.path, ...entry });
         if (extraction.schema !== null) {
           schemas.push({ file: file.path, ...extraction.schema });
         }
@@ -96,7 +98,14 @@ export class AnalyzeService {
     }
 
     // Bước 4: dựng đồ thị (phân giải tên thô thành file, gộp cạnh, thêm loại trang).
-    const graph = this.builder.build(files, rawRefs, { schemas, translationKeys, settings, fileHashes, elements });
+    const graph = this.builder.build(files, rawRefs, {
+      schemas,
+      translationKeys,
+      settings,
+      fileHashes,
+      elements,
+      importMap,
+    });
 
     // Bước 5: ghi xuống đĩa. Cùng một thời điểm được ghi vào đồ thị và vào sổ
     // đăng ký, để hai nơi không bao giờ lệch nhau.

@@ -20,6 +20,10 @@
  * - section_load: JavaScript (hoặc một URL trong Liquid) xin Shopify render
  *   riêng một section qua Section Rendering API, ví dụ ?section_id=cart-drawer.
  *   `to` là tên section. Xem section-loads.parser.ts.
+ * - import: mã JavaScript nạp một module khác bằng import (tĩnh hoặc động).
+ *   `to` là specifier đúng như viết trong mã ('./core.js', '@theme/global');
+ *   tầng dựng đồ thị đổi nó thành file trong assets/, qua import map nếu cần.
+ *   Xem js-imports.parser.ts.
  */
 export type RefKind =
   | "render"
@@ -32,7 +36,8 @@ export type RefKind =
   | "no_layout"
   | "translation"
   | "setting"
-  | "section_load";
+  | "section_load"
+  | "import";
 
 /**
  * Nơi quan hệ được khai báo.
@@ -40,7 +45,8 @@ export type RefKind =
  * - liquid: một tag hoặc filter trong mã Liquid
  * - json: file JSON (template, section group)
  * - schema: khối {% schema %} của section hoặc block
- * - js: mã JavaScript trong assets/ (chỉ ref section_load mới có nguồn này)
+ * - js: mã JavaScript, trong assets/ hoặc trong thẻ <script type="module"> của
+ *   một file Liquid (chỉ ref section_load và import mới có nguồn này)
  */
 export type RefSource = "liquid" | "json" | "schema" | "js";
 
@@ -63,6 +69,12 @@ export interface RawRef {
   // snippet đó, chữ settings là tham số này chứ không còn là setting toàn cục
   // của theme, nên các lần đọc settings.x ở đó không được nối vào đâu cả.
   passesSettings?: true;
+  // Chỉ có khi `to` là kết quả TÍNH từ một tên ghép, ví dụ
+  //   {% assign icon = 'icon-' | append: name %}{{ icon | asset_url }}
+  // với name lấy từ một danh sách viết sẵn (xem liquid-values.ts). Phép tính
+  // có thể ra thừa giá trị, nên tên tính ra mà không ứng với gì trong theme
+  // thì bị bỏ, không bị coi là tham chiếu hỏng.
+  computed?: true;
 }
 
 /**

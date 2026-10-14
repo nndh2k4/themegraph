@@ -1,6 +1,6 @@
 import { resolveSettingRef } from "./setting-resolver.js";
 import type { Ancestor } from "./setting-resolver.js";
-import { resolveRef, TRANSLATION_PREFIX } from "./ref-resolver.js";
+import { resolveImport, resolveRef, TRANSLATION_PREFIX } from "./ref-resolver.js";
 import type {
   EdgeType,
   GraphEdge,
@@ -38,6 +38,8 @@ const EDGE_TYPE_OF: Partial<Record<RefKind, EdgeType>> = {
   translation: "USES_TRANSLATION",
   setting: "READS_SETTING",
   section_load: "LOADS_SECTION",
+  // Một file JavaScript import một file khác trong assets/.
+  import: "USES_ASSET",
 };
 
 /**
@@ -79,6 +81,8 @@ function pageTypeOf(templatePath: string): { page: string; alternate: boolean } 
  *   - elements: custom element từng file định nghĩa và dùng; không thành node
  *     hay cạnh nào. Lần dùng một thẻ mà không file nào định nghĩa bị bỏ: đó
  *     là thẻ của một app, của Shopify, hoặc một kết quả tìm thừa
+ *   - importMap: import map của theme, để đổi specifier của ref import thành
+ *     file. Không được giữ lại trong đồ thị
  *
  * Thuần: không đọc đĩa, không phụ thuộc thứ tự đầu vào. Cùng một tập file
  * và ref luôn cho ra đúng một kết quả, đã sắp xếp.
@@ -89,7 +93,7 @@ export class GraphBuilder {
     rawRefs: readonly RawRef[],
     facts: GraphFacts = {},
   ): ThemeGraph {
-    const { schemas = [], translationKeys = [], settings = [], fileHashes = [], elements = [] } = facts;
+    const { schemas = [], translationKeys = [], settings = [], fileHashes = [], elements = [], importMap = [] } = facts;
 
     const filePaths = new Set(files.map((file) => file.path));
 
@@ -114,6 +118,14 @@ export class GraphBuilder {
     // Mọi thứ một ref có thể trỏ tới: file, khoá dịch và setting. Loại trang
     // không có ở đây vì không ref nào trỏ tới loại trang.
     const knownPaths = new Set(nodes.keys());
+
+    // Import map: specifier -> tên file. Theme có thể in import map ở nhiều
+    // layout; nếu hai nơi khai cùng một specifier khác nhau thì lấy nơi có
+    // đường dẫn đứng trước, để kết quả không phụ thuộc thứ tự đầu vào.
+    const importTargets = new Map<string, string>();
+    for (const entry of [...importMap].sort((a, b) => compareText(a.file, b.file))) {
+      if (!importTargets.has(entry.specifier)) importTargets.set(entry.specifier, entry.asset);
+    }
 
     // ---- Cạnh -------------------------------------------------------------
 
@@ -184,7 +196,7 @@ export class GraphBuilder {
         continue;
       }
 
-      const resolution = resolveRef(ref, knownPaths);
+      const resolution = ref.kind === "import" ? resolveImport(ref, importTargets, knownPaths) : resolveRef(ref, knownPaths);
 
       // Section được tải lúc chạy: chỉ giữ những tên ứng với một section có
       // thật, và bỏ trường hợp một section tự xin lại chính nó (cách thường gặp
@@ -192,6 +204,10 @@ export class GraphBuilder {
       if (ref.kind === "section_load" && (resolution.status !== "resolved" || resolution.path === ref.from)) {
         continue;
       }
+
+      // Import tới thứ không phải file của theme (URL, gói ngoài), và tên
+      // tính ra không ứng với gì: không phải quan hệ, không giữ lại.
+      if ((ref.kind === "import" || ref.computed === true) && resolution.status === "none") continue;
 
       if (ref.kind === "layout" || ref.kind === "no_layout") {
         templatesWithLayoutChoice.add(ref.from);
@@ -282,6 +298,9 @@ export class GraphBuilder {
         : resolveSettingRef(ref, kindOf.get(ref.from), ancestorsOf(ref.from), knownPaths);
 
       if (resolution.status !== "resolved") {
+        // Tên setting tính ra mà theme không khai: không phải lần đọc nào cả.
+        if (ref.computed === true) continue;
+
         refs.push({
           ...ref,
           status: resolution.status,
