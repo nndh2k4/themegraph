@@ -1,6 +1,6 @@
 {
   "name": "@themegraph/views",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Tầng view của ThemeGraph: đổi kết quả truy vấn thành các dòng chữ cho CLI và MCP server",
   "type": "module",
