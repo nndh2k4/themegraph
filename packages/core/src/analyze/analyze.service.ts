@@ -2,11 +2,21 @@ import path from "node:path";
 
 import { hashContent } from "../common/hash.js";
 import type { GraphStore } from "../graph/graph.store.js";
-import type { FileElement, FileHash, FileImportMapEntry, FileSchema, RawRef } from "../models/index.js";
+import type {
+  Extraction,
+  FileElement,
+  FileHash,
+  FileImportMapEntry,
+  FileSchema,
+  RawRef,
+  ResourceSetting,
+  ThemeFile,
+} from "../models/index.js";
 import { READ_EXTENSIONS } from "../theme/theme-layout.js";
 import type { ThemeFileRepository } from "../theme/theme-file.repository.js";
 import type { ThemeRegistryRepository } from "../theme/theme-registry.repository.js";
 import type { ThemeScanner } from "../theme/theme-scanner.js";
+import { buildCallContexts, contextKey } from "./call-context.js";
 import type { AnalyzeError, AnalyzeResult } from "./dto/analyze-result.dto.js";
 import type { GraphBuilder } from "./graph-builder.js";
 import type { ThemeFileParser } from "./parsers/theme-file.parser.js";
@@ -22,11 +32,26 @@ function countBy<T>(items: readonly T[], keyOf: (item: T) => string): Record<str
 }
 
 /**
+ * Số lượt phân tích lại snippet tối đa (xem propagateCallContexts). Mỗi lượt
+ * đưa ngữ cảnh xuống thêm một tầng snippet lồng nhau; theme thật hiếm khi
+ * lồng quá vài tầng.
+ */
+const MAX_CONTEXT_PASSES = 8;
+
+/** Một file đã đọc và phân tích. Nội dung chỉ được giữ với snippet, để phân tích lại. */
+interface ParsedFile {
+  file: ThemeFile;
+  content: string | null;
+  extraction: Extraction;
+}
+
+/**
  * Phân tích một Shopify theme và ghi đồ thị của nó.
  *
  * Đây là đường ghi DUY NHẤT của chương trình, một dây chuyền (Pipes and Filters):
- *   quét thư mục -> đọc từng file -> trích quan hệ thô -> dựng đồ thị -> ghi
- *   -> ghi theme vào sổ đăng ký toàn cục
+ *   quét thư mục -> đọc từng file -> trích quan hệ thô -> phân tích lại snippet
+ *   theo những gì nơi gọi truyền vào -> dựng đồ thị -> ghi -> ghi theme vào
+ *   sổ đăng ký toàn cục
  *
  * Mỗi bước là một provider nhận qua constructor; service chỉ nối chúng lại.
  */
@@ -57,13 +82,8 @@ export class AnalyzeService {
     const { files, skipped } = await this.scanner.scan(root);
 
     // Bước 2 và 3: đọc nội dung và trích quan hệ thô.
-    const rawRefs: RawRef[] = [];
-    const schemas: FileSchema[] = [];
-    const translationKeys: string[] = [];
-    const settings: string[] = [];
+    const parsed: ParsedFile[] = [];
     const fileHashes: FileHash[] = [];
-    const elements: FileElement[] = [];
-    const importMap: FileImportMapEntry[] = [];
     const errors: AnalyzeError[] = [];
 
     for (const file of files) {
@@ -78,15 +98,7 @@ export class AnalyzeService {
         // vẫn cần hash để status biết nó có được sửa lại hay chưa.
         fileHashes.push({ file: file.path, hash: hashContent(content) });
         const extraction = this.parser.parse(file, content);
-
-        rawRefs.push(...extraction.refs);
-        translationKeys.push(...extraction.translationKeys);
-        settings.push(...extraction.settings);
-        for (const mention of extraction.elements) elements.push({ file: file.path, ...mention });
-        for (const entry of extraction.importMap) importMap.push({ file: file.path, ...entry });
-        if (extraction.schema !== null) {
-          schemas.push({ file: file.path, ...extraction.schema });
-        }
+        parsed.push({ file, content: file.kind === "snippet" ? content : null, extraction });
       } catch (error) {
         // File hỏng vẫn là một node của đồ thị (nó tồn tại và có thể được file
         // khác gọi); chỉ là không biết nó gọi những gì.
@@ -94,6 +106,28 @@ export class AnalyzeService {
           path: file.path,
           message: error instanceof Error ? error.message : String(error),
         });
+      }
+    }
+
+    this.propagateCallContexts(parsed);
+
+    const rawRefs: RawRef[] = [];
+    const schemas: FileSchema[] = [];
+    const translationKeys: string[] = [];
+    const settings: string[] = [];
+    const elements: FileElement[] = [];
+    const importMap: FileImportMapEntry[] = [];
+    const resourceSettings: ResourceSetting[] = [];
+
+    for (const { file, extraction } of parsed) {
+      resourceSettings.push(...extraction.resourceSettings);
+      rawRefs.push(...extraction.refs);
+      translationKeys.push(...extraction.translationKeys);
+      settings.push(...extraction.settings);
+      for (const mention of extraction.elements) elements.push({ file: file.path, ...mention });
+      for (const entry of extraction.importMap) importMap.push({ file: file.path, ...entry });
+      if (extraction.schema !== null) {
+        schemas.push({ file: file.path, ...extraction.schema });
       }
     }
 
@@ -105,6 +139,7 @@ export class AnalyzeService {
       fileHashes,
       elements,
       importMap,
+      resourceSettings,
     });
 
     // Bước 5: ghi xuống đĩa. Cùng một thời điểm được ghi vào đồ thị và vào sổ
@@ -146,5 +181,38 @@ export class AnalyzeService {
       registered,
       durationMs: Math.round(performance.now() - startedAt),
     };
+  }
+
+  /**
+   * Phân tích lại các snippet với những gì nơi gọi truyền vào (xem
+   * call-context.ts), thay kết quả cũ của chúng trong `parsed`.
+   *
+   * Lặp vì ngữ cảnh đi xuống từng tầng: section truyền section.settings vào
+   * snippet A, A chuyển tiếp nó cho snippet B; B chỉ nhận được ngữ cảnh ở lượt
+   * sau lượt A được phân tích lại. Dừng khi không snippet nào có ngữ cảnh mới,
+   * hoặc sau MAX_CONTEXT_PASSES lượt.
+   */
+  private propagateCallContexts(parsed: ParsedFile[]): void {
+    const applied = new Map<string, string>();
+
+    for (let pass = 0; pass < MAX_CONTEXT_PASSES; pass++) {
+      const contexts = buildCallContexts(parsed.map((entry) => entry.extraction.calls));
+      let changed = false;
+
+      for (const entry of parsed) {
+        if (entry.content === null) continue;
+
+        const context = contexts.get(entry.file.path);
+        const key = contextKey(context);
+        if ((applied.get(entry.file.path) ?? "") === key) continue;
+
+        applied.set(entry.file.path, key);
+        changed = true;
+        // Lần đầu file đã phân tích được, nên lần này cũng vậy: chỉ khác ngữ cảnh.
+        entry.extraction = this.parser.parse(entry.file, entry.content, context);
+      }
+
+      if (!changed) return;
+    }
   }
 }

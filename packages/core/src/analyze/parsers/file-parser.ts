@@ -1,4 +1,4 @@
-import type { Extraction, ThemeFile } from "../../models/index.js";
+import type { CallContext, Extraction, ThemeFile } from "../../models/index.js";
 
 /**
  * Một bộ phân tích cho một loại file của theme (mẫu Strategy). ThemeFileParser
@@ -7,11 +7,15 @@ import type { Extraction, ThemeFile } from "../../models/index.js";
 export interface FileParser {
   /** Bộ này có phân tích file này không. Chỉ nhìn đường dẫn và đuôi, không đọc nội dung. */
   supports(file: ThemeFile): boolean;
-  /** Mọi thứ rút ra được từ file. Ném lỗi có tên file nếu nội dung không phân tích được. */
-  parse(file: ThemeFile, content: string): Extraction;
+  /**
+   * Mọi thứ rút ra được từ file. Ném lỗi có tên file nếu nội dung không phân
+   * tích được. `context` là những gì các nơi gọi truyền vào khi file là một
+   * snippet; bộ nào không cần thì bỏ qua nó.
+   */
+  parse(file: ThemeFile, content: string, context?: CallContext): Extraction;
 }
 
 /** Kết quả của một file không có gì để trích. */
 export function emptyExtraction(): Extraction {
-  return { refs: [], schema: null, translationKeys: [], settings: [], elements: [], importMap: [] };
+  return { refs: [], schema: null, translationKeys: [], settings: [], elements: [], importMap: [], calls: [], resourceSettings: [] };
 }

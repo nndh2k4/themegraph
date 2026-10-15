@@ -75,6 +75,10 @@ export interface RawRef {
   // có thể ra thừa giá trị, nên tên tính ra mà không ứng với gì trong theme
   // thì bị bỏ, không bị coi là tham chiếu hỏng.
   computed?: true;
+  // Chỉ có ở ref đọc setting qua một đối tượng mà nơi gọi truyền vào snippet
+  // (xem ObjectOrigin): setting được tìm trong các file này, như thể lần đọc
+  // nằm ở đó, thay vì trong mọi tổ tiên của file đang đọc.
+  scope?: string[];
 }
 
 /**

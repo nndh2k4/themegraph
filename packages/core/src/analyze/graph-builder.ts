@@ -1,5 +1,5 @@
 import { resolveSettingRef } from "./setting-resolver.js";
-import type { Ancestor } from "./setting-resolver.js";
+import type { Ancestor, SettingResolution } from "./setting-resolver.js";
 import { resolveImport, resolveRef, TRANSLATION_PREFIX } from "./ref-resolver.js";
 import type {
   EdgeType,
@@ -83,6 +83,8 @@ function pageTypeOf(templatePath: string): { page: string; alternate: boolean } 
  *     là thẻ của một app, của Shopify, hoặc một kết quả tìm thừa
  *   - importMap: import map của theme, để đổi specifier của ref import thành
  *     file. Không được giữ lại trong đồ thị
+ *   - resourceSettings: setting kiểu tài nguyên (product, collection...), để
+ *     phân giải closest.<kiểu>. Không được giữ lại trong đồ thị
  *
  * Thuần: không đọc đĩa, không phụ thuộc thứ tự đầu vào. Cùng một tập file
  * và ref luôn cho ra đúng một kết quả, đã sắp xếp.
@@ -93,7 +95,15 @@ export class GraphBuilder {
     rawRefs: readonly RawRef[],
     facts: GraphFacts = {},
   ): ThemeGraph {
-    const { schemas = [], translationKeys = [], settings = [], fileHashes = [], elements = [], importMap = [] } = facts;
+    const {
+      schemas = [],
+      translationKeys = [],
+      settings = [],
+      fileHashes = [],
+      elements = [],
+      importMap = [],
+      resourceSettings = [],
+    } = facts;
 
     const filePaths = new Set(files.map((file) => file.path));
 
@@ -290,19 +300,106 @@ export class GraphBuilder {
       return found;
     };
 
+    // Theme block mà mỗi section có thể chứa: block nó khai trong schema hay
+    // được xếp trong JSON template (cạnh RENDERS tới một file trong blocks/),
+    // cộng mọi theme block công khai nếu schema của nó nhận "@theme".
+    const publicBlocks = files
+      .filter((file) => file.kind === "block" && !file.path.startsWith("blocks/_"))
+      .map((file) => file.path);
+    const acceptsAnyBlock = new Set(schemas.filter((schema) => schema.acceptsThemeBlocks).map((schema) => schema.file));
+
+    const themeBlocks = new Map<string, Set<string>>();
+    for (const edge of edges.values()) {
+      if (edge.type !== "RENDERS" || kindOf.get(edge.from) !== "section" || kindOf.get(edge.to) !== "block") continue;
+      themeBlocks.set(edge.from, (themeBlocks.get(edge.from) ?? new Set()).add(edge.to));
+    }
+
+    const themeBlocksOf = (section: string): string[] => {
+      const list = new Set(themeBlocks.get(section));
+      if (acceptsAnyBlock.has(section)) for (const block of publicBlocks) list.add(block);
+      return [...list].sort(compareText);
+    };
+
+    /**
+     * Phân giải một lần đọc setting. Ref có phạm vi (đọc qua đối tượng nơi gọi
+     * truyền vào, xem RawRef.scope) được phân giải như thể nó nằm ở từng file
+     * trong phạm vi; đích là hợp của các lần đó. Lần đọc gián tiếp như vậy
+     * không bao giờ bị coi là hỏng, chỉ là không xác định.
+     */
+    // Setting kiểu tài nguyên của từng file, theo kiểu: 'product' -> file -> id.
+    const resourceSettingsOf = new Map<string, Map<string, string[]>>();
+    for (const { setting, type } of resourceSettings) {
+      if (!knownPaths.has(setting)) continue;
+      const file = setting.slice("setting:".length, setting.indexOf("#"));
+      const byFile = resourceSettingsOf.get(type) ?? new Map<string, string[]>();
+      byFile.set(file, [...(byFile.get(file) ?? []), setting]);
+      resourceSettingsOf.set(type, byFile);
+    }
+
+    /**
+     * Những file có thể bao quanh `path` trong cây block lúc chạy: tổ tiên qua
+     * cạnh RENDERS, cộng mọi file nhận "@theme" (và tổ tiên của chúng) khi
+     * trên đường đi có một theme block công khai, vì merchant đặt được block
+     * đó vào bất kỳ file nào nhận "@theme".
+     */
+    const containersCache = new Map<string, Set<string>>();
+    const containersOf = (path: string): Set<string> => {
+      const cached = containersCache.get(path);
+      if (cached !== undefined) return cached;
+
+      const found = new Set(ancestorsOf(path).map((ancestor) => ancestor.path));
+      const queue = [path, ...found];
+      for (let current = queue.shift(); current !== undefined; current = queue.shift()) {
+        if (kindOf.get(current) !== "block" || current.startsWith("blocks/_")) continue;
+        for (const acceptor of acceptsAnyBlock) {
+          for (const container of [acceptor, ...ancestorsOf(acceptor).map((ancestor) => ancestor.path)]) {
+            if (container === path || found.has(container)) continue;
+            found.add(container);
+            queue.push(container);
+          }
+        }
+      }
+      containersCache.set(path, found);
+      return found;
+    };
+
+    const resolveSetting = (ref: RawRef): SettingResolution => {
+      // closest.product: setting kiểu product của một section hay block bao
+      // quanh. Không thể biết file nào gần nhất ở lúc chạy, nên đích là
+      // setting kiểu đó của mọi file có thể bao quanh.
+      if (ref.to.startsWith("closest.")) {
+        const byFile = resourceSettingsOf.get(ref.to.slice("closest.".length));
+        const targets = [...containersOf(ref.from)].flatMap((container) => byFile?.get(container) ?? []);
+        return targets.length > 0 ? { status: "resolved", targets: [...new Set(targets)].sort(compareText) } : { status: "unresolved" };
+      }
+
+      if (ref.scope === undefined) {
+        return resolveSettingRef(ref, kindOf.get(ref.from), ancestorsOf(ref.from), knownPaths, themeBlocksOf);
+      }
+
+      const targets = new Set<string>();
+      for (const origin of ref.scope) {
+        const resolution = resolveSettingRef({ ...ref, from: origin }, kindOf.get(origin), ancestorsOf(origin), knownPaths, themeBlocksOf);
+        if (resolution.status === "resolved") for (const target of resolution.targets) targets.add(target);
+      }
+      return targets.size > 0 ? { status: "resolved", targets: [...targets].sort(compareText) } : { status: "unresolved" };
+    };
+
     for (const ref of settingRefs) {
       const shadowed = ref.to.startsWith("settings.") && settingsShadowedIn.has(ref.from);
 
-      const resolution = shadowed
-        ? ({ status: "unresolved" } as const)
-        : resolveSettingRef(ref, kindOf.get(ref.from), ancestorsOf(ref.from), knownPaths);
+      const resolution = shadowed ? ({ status: "unresolved" } as const) : resolveSetting(ref);
+
+      // Phạm vi chỉ dùng để phân giải; ref ghi vào đồ thị không giữ nó.
+      const plain: RawRef = { ...ref };
+      delete plain.scope;
 
       if (resolution.status !== "resolved") {
         // Tên setting tính ra mà theme không khai: không phải lần đọc nào cả.
         if (ref.computed === true) continue;
 
         refs.push({
-          ...ref,
+          ...plain,
           status: resolution.status,
           target: resolution.status === "missing" ? resolution.expected : null,
         });
@@ -312,7 +409,7 @@ export class GraphBuilder {
       // Một lần đọc trong snippet có thể ứng với setting của nhiều section:
       // ghi một dòng ref và một cạnh cho mỗi đích.
       for (const target of resolution.targets) {
-        refs.push({ ...ref, status: "resolved", target });
+        refs.push({ ...plain, status: "resolved", target });
         addEdge(ref.from, target, "READS_SETTING", ref.source, ref.conditional);
       }
     }

@@ -22,6 +22,14 @@ function toBlockList(blocks: unknown): unknown[] {
 }
 
 /** Kết quả đọc một khối {% schema %}. */
+/**
+ * Kiểu setting chọn một tài nguyên của cửa hàng. Theme block con đọc chúng
+ * qua closest.<kiểu> (closest.product, closest.collection...) mà không viết
+ * tên setting: Shopify lấy setting kiểu đó của section hay block gần nhất
+ * bao quanh nó.
+ */
+export const RESOURCE_SETTING_TYPES: ReadonlySet<string> = new Set(["product", "collection", "article", "blog", "page"]);
+
 export interface ParsedSchema {
   blockTypes: string[]; // tên các theme block (file trong blocks/) được nhắc tới
   presets: number; // số mục trong "presets"
@@ -31,6 +39,8 @@ export interface ParsedSchema {
   // trùng. Gộp vì mã đọc chúng qua cùng một cách viết, block.settings.x, và
   // khi đọc mã không biết lúc đó block thuộc loại nào.
   blockSettings: string[];
+  // Các setting ở tầng ngoài có kiểu là một tài nguyên (xem RESOURCE_SETTING_TYPES).
+  resourceSettings: { id: string; type: string }[];
 }
 
 /**
@@ -49,7 +59,7 @@ export interface ParsedSchema {
 export function parseSchema(schemaBody: string): ParsedSchema {
   const schema: unknown = JSON.parse(schemaBody);
   if (!isObject(schema)) {
-    return { blockTypes: [], presets: 0, acceptsThemeBlocks: false, settings: [], blockSettings: [] };
+    return { blockTypes: [], presets: 0, acceptsThemeBlocks: false, settings: [], blockSettings: [], resourceSettings: [] };
   }
 
   // Block CỤC BỘ: khai báo ngay trong schema, nhận ra nhờ có "name" (Shopify
@@ -115,5 +125,9 @@ export function parseSchema(schemaBody: string): ParsedSchema {
     acceptsThemeBlocks: declared.some((block) => block.type === "@theme"),
     settings: settingIdsOf(schema.settings),
     blockSettings: [...new Set(declared.flatMap((block) => settingIdsOf(block.settings)))],
+    resourceSettings: (Array.isArray(schema.settings) ? schema.settings : [])
+      .filter(isObject)
+      .filter((entry) => typeof entry.id === "string" && typeof entry.type === "string" && RESOURCE_SETTING_TYPES.has(entry.type))
+      .map((entry) => ({ id: entry.id as string, type: entry.type as string })),
   };
 }

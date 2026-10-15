@@ -53,7 +53,7 @@ function unusedSettingLines(settings: readonly string[], options: ViewOptions): 
       options,
       "setting",
     ),
-    "  Setting vẫn có thể đang được dùng theo cách công cụ không lần theo: snippet nhận cả bộ setting qua tham số (render 'x', settings: block.settings), tên là biến (section.settings[ten]), hoặc do chính Shopify đọc.",
+    "  Setting vẫn có thể đang được dùng theo cách công cụ không lần theo: tên ghép từ dữ liệu lúc chạy (section.settings[block.id]), hoặc do chính Shopify đọc.",
   ];
 }
 

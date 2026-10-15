@@ -1,14 +1,34 @@
 import { NodeTypes, toLiquidAST, walk } from "@shopify/liquid-html-parser";
-import type { ComplexLiquidExpression, LiquidExpression, LiquidFilter, LiquidHtmlNode } from "@shopify/liquid-html-parser";
+import type {
+  ComplexLiquidExpression,
+  LiquidExpression,
+  LiquidFilter,
+  LiquidHtmlNode,
+  RenderMarkup,
+} from "@shopify/liquid-html-parser";
 
-import type { Extraction, RawRef, RefKind, RefSource, SchemaInfo, ThemeFile } from "../../models/index.js";
+import type {
+  CallArgument,
+  CallContext,
+  Extraction,
+  ObjectKind,
+  RawRef,
+  RefKind,
+  RefSource,
+  ResourceSetting,
+  SchemaInfo,
+  SnippetCall,
+  StaticValue,
+  ThemeFile,
+} from "../../models/index.js";
 import { extractElements } from "./custom-elements.parser.js";
 import type { FileParser } from "./file-parser.js";
 import { settingNodeId } from "./global-settings.parser.js";
 import { extractImportMap } from "./import-map.parser.js";
 import { extractImports, extractModuleScriptImports } from "./js-imports.parser.js";
+import { LiquidObjects } from "./liquid-objects.js";
 import { LiquidValues } from "./liquid-values.js";
-import { parseSchema } from "./schema.parser.js";
+import { parseSchema, RESOURCE_SETTING_TYPES } from "./schema.parser.js";
 import type { ParsedSchema } from "./schema.parser.js";
 import { extractSectionLoads } from "./section-loads.parser.js";
 
@@ -25,6 +45,12 @@ const ASSET_FILTERS = new Set(["asset_url", "asset_img_url", "inline_asset_conte
 const TRANSLATION_FILTERS = new Set(["t", "translate"]);
 
 /**
+ * Filter định dạng ngày. Tham số `format: 'ten'` là một khoá dịch mà Shopify
+ * tự tra: date_formats.ten trong file locale, không qua filter t nào.
+ */
+const DATE_FILTERS = new Set(["date", "time_tag"]);
+
+/**
  * Các tag mà nội dung bên trong KHÔNG chắc được chạy:
  *   - if / unless / case: chỉ chạy khi điều kiện đúng
  *   - for / tablerow: chạy 0 lần nếu danh sách rỗng
@@ -35,6 +61,17 @@ const TRANSLATION_FILTERS = new Set(["t", "translate"]);
  * capture, form, paginate KHÔNG có ở đây: nội dung của chúng luôn được chạy.
  */
 const CONDITIONAL_TAGS = new Set(["if", "unless", "case", "for", "tablerow"]);
+
+/**
+ * Loại đối tượng sẵn có của ba tên settings, section, block. Một biến chỉ
+ * mang đúng loại này thì không cần truyền qua {% include %}: snippet được
+ * include cũng tự thấy nó.
+ */
+const BUILTIN_KIND: ReadonlyMap<string, ObjectKind> = new Map([
+  ["settings", "settings"],
+  ["section", "section"],
+  ["block", "block"],
+]);
 
 /**
  * Đổi một vị trí ký tự (offset) trong chuỗi thành số dòng, đếm từ 1.
@@ -53,8 +90,8 @@ function lineAt(content: string, offset: number): number {
 /**
  * Trích quan hệ thô từ một file Liquid. Là extractLiquid() chỉ lấy phần refs.
  */
-export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
-  return extractLiquid(file, content).refs;
+export function extractLiquidRefs(file: ThemeFile, content: string, context?: CallContext): RawRef[] {
+  return extractLiquid(file, content, context).refs;
 }
 
 /**
@@ -65,13 +102,18 @@ export function extractLiquidRefs(file: ThemeFile, content: string): RawRef[] {
  * Quan hệ được trích: {% render %}, {% include %}, {% section %}, {% sections %},
  * {% content_for 'block' %}, các theme block nhắc trong {% schema %},
  * file asset đi qua filter asset_url / asset_img_url / inline_asset_content,
- * khoá dịch đi qua filter t, và các lần đọc setting (settings.x,
- * section.settings.x, block.settings.x).
+ * khoá dịch đi qua filter t và qua format: của filter date, và các lần đọc
+ * setting (settings.x, section.settings.x, block.settings.x, kể cả qua tên
+ * khác của các đối tượng đó). Trả kèm các lời gọi snippet và tham số của
+ * chúng (xem SnippetCall).
+ *
+ * `context` là những gì các nơi gọi truyền vào khi file là một snippet (xem
+ * CallContext); không có thì tham số của snippet là không biết.
  */
-export function extractLiquid(file: ThemeFile, content: string): Extraction {
+export function extractLiquid(file: ThemeFile, content: string, context?: CallContext): Extraction {
   // Chỉ file .liquid mới chứa mã Liquid. Asset (.css, .js) có thể chứa chuỗi
   // trông giống tag nhưng Shopify không chạy Liquid trong đó.
-  if (file.ext !== "liquid") return { refs: [], schema: null, translationKeys: [], settings: [], elements: [], importMap: [] };
+  if (file.ext !== "liquid") return { refs: [], schema: null, translationKeys: [], settings: [], elements: [], importMap: [], calls: [], resourceSettings: [] };
 
   let ast;
   try {
@@ -95,6 +137,9 @@ export function extractLiquid(file: ThemeFile, content: string): Extraction {
   // Id node của các setting mà schema của file này khai.
   const settings: string[] = [];
 
+  // Trong số đó, các setting có kiểu là một tài nguyên (xem ResourceSetting).
+  const resourceSettings: ResourceSetting[] = [];
+
   // LƯỢT 1: ghi lại nút cha của từng nút.
   //
   // Cần lượt riêng vì walk() của parser gọi hàm cho nút CON trước, nút cha
@@ -102,74 +147,35 @@ export function extractLiquid(file: ThemeFile, content: string): Extraction {
   // xa phía trên hay không thì phải có sẵn toàn bộ quan hệ cha-con để leo lên.
   const parentOf = new Map<LiquidHtmlNode, LiquidHtmlNode | undefined>();
 
-  // Các tên biến đang đóng vai "block". Ngoài chính chữ block còn có biến lặp
-  // của {% for item in section.blocks %}: item.settings.x cũng là đọc setting
-  // của block. Gom ở lượt này để lượt 2 dùng được dù vòng for nằm phía sau.
-  const blockNames = new Set(["block"]);
-
-  // Các lệnh {% assign ten = <một biến> %} không có filter, ghi lại để xét ở
-  // dưới: { tên biến mới, biến nguồn, chuỗi truy cập của biến nguồn }.
-  const plainAssigns: { name: string; source: string; lookups: string[] }[] = [];
-
-  // Bộ tính giá trị của các tên ghép (xem liquid-values.ts). Nó dùng chung
-  // bảng nút cha, được điền xong ở lượt 1, trước lần tính đầu tiên ở lượt 2.
-  const values = new LiquidValues(parentOf);
+  // Hai bộ tính dùng chung bảng nút cha, được điền xong ở lượt 1, trước lần
+  // tính đầu tiên ở lượt 2:
+  //   - values: giá trị của các tên ghép (xem liquid-values.ts)
+  //   - objects: biến nào đang chứa section, block hay bộ setting nào, để
+  //     section_st.title hay last_block.settings.x vẫn là lần đọc setting
+  //     (xem liquid-objects.ts)
+  const values = new LiquidValues(parentOf, content, context);
+  const objects = new LiquidObjects(file.path, context);
 
   walk(ast, (node, parent) => {
     parentOf.set(node, parent);
 
     if (node.type !== NodeTypes.LiquidTag || typeof node.markup === "string") return;
 
-    if (node.name === "for") {
-      const { collection, variableName } = node.markup;
-      const first = collection.type === NodeTypes.VariableLookup ? collection.lookups[0] : undefined;
-
-      if (
-        collection.type === NodeTypes.VariableLookup &&
-        collection.name === "section" &&
-        first?.type === NodeTypes.String &&
-        first.value === "blocks"
-      ) {
-        blockNames.add(variableName);
-      }
+    if (node.name === "for" || node.name === "tablerow") {
+      objects.addLoop(node.markup.variableName, node.markup.collection);
       return;
     }
 
     if (node.name === "assign") {
       values.addAssignment(node.markup.name, node.markup.value, node);
+      objects.addAssignment(node.markup.name, node.markup.value);
+      return;
+    }
 
-      const { expression, filters } = node.markup.value;
-
-      // Có filter thì giá trị đã bị biến đổi, không còn là chính đối tượng đó.
-      if (filters.length > 0 || expression.type !== NodeTypes.VariableLookup || expression.name === null) return;
-
-      const lookups: string[] = [];
-      for (const lookup of expression.lookups) {
-        if (lookup.type !== NodeTypes.String) return;
-        lookups.push(lookup.value);
-      }
-
-      plainAssigns.push({ name: node.markup.name, source: expression.name, lookups });
+    if (node.name === "capture" && node.markup.name !== null) {
+      values.addCapture(node.markup.name, node);
     }
   });
-
-  // Tên tắt của các đối tượng chứa setting. Nhiều theme viết
-  //   {% assign section_st = section.settings %}
-  // một lần ở đầu file rồi đọc section_st.title ở mọi chỗ. Bảng này ghi tên
-  // tắt nào ứng với cách viết đầy đủ nào, để section_st.title được hiểu là
-  // section.settings.title. Tên tắt có hiệu lực trong cả file.
-  const settingAliases = new Map<string, string>();
-
-  for (const assign of plainAssigns) {
-    const [first, ...rest] = assign.lookups;
-
-    if (assign.source === "settings" && first === undefined) {
-      settingAliases.set(assign.name, "settings");
-    } else if (first === "settings" && rest.length === 0) {
-      if (assign.source === "section") settingAliases.set(assign.name, "section.settings");
-      else if (blockNames.has(assign.source)) settingAliases.set(assign.name, "block.settings");
-    }
-  }
 
   /** Leo từ một nút lên tới gốc; trả true nếu gặp một tag có điều kiện. */
   const isInsideConditional = (node: LiquidHtmlNode): boolean => {
@@ -240,11 +246,69 @@ export function extractLiquid(file: ThemeFile, content: string): Extraction {
    * một ref; khoá là biểu thức (settings[ten_bien]) thành một ref cho mỗi
    * giá trị tính được.
    */
-  const addSettingRef = (object: string, key: LiquidExpression | undefined, node: LiquidHtmlNode): void => {
+  const addSettingRef = (
+    object: string,
+    key: LiquidExpression | undefined,
+    node: LiquidHtmlNode,
+    origins: readonly string[] = [file.path],
+  ): void => {
     if (key === undefined) return;
+    const before = refs.length;
+
     if (key.type === NodeTypes.String) addRef("setting", `${object}.${key.value}`, node);
     else addComputedRefs("setting", key, [], node, `${object}.`);
+
+    // Đối tượng nhận từ nơi gọi (xem ObjectOrigin): ghi phạm vi tìm setting.
+    // Setting toàn cục không thuộc file nào nên không cần.
+    const own = origins.length === 1 && origins[0] === file.path;
+    if (own || object === "settings") return;
+    for (const ref of refs.slice(before)) ref.scope = [...origins];
   };
+
+  /** Một tham số truyền vào snippet: biểu thức `expression` tính tại `node`. */
+  const argumentOf = (name: string, expression: ComplexLiquidExpression, node: LiquidHtmlNode, each = false): CallArgument => {
+    let passed = values.evaluate(expression, [], node);
+
+    // {% render 'x' for list as item %}: snippet nhận TỪNG phần tử.
+    if (each && passed !== undefined) {
+      const items: StaticValue[] = [];
+      for (const value of passed) {
+        if (Array.isArray(value)) items.push(...value);
+      }
+      passed = items;
+    }
+    return { name, kinds: objects.originsOf(expression, each), values: passed ?? null };
+  };
+
+  /**
+   * Các tham số của một lời gọi snippet. {% include %} dùng chung biến với
+   * nơi gọi, nên mọi biến của nơi gọi đều được truyền theo.
+   */
+  const callOf = (node: LiquidHtmlNode, snippet: string, markup: RenderMarkup, include: boolean): SnippetCall => {
+    const args = new Map<string, CallArgument>();
+
+    if (include) {
+      const names = new Set([...values.names(), ...objects.names(), ...(context?.kinds.keys() ?? []), ...(context?.values.keys() ?? [])]);
+      for (const name of names) {
+        const kinds = objects.originsOfVariable(name).filter((entry) => entry.kind !== BUILTIN_KIND.get(name));
+        args.set(name, { name, kinds, values: values.valuesOf(name, node) ?? null });
+      }
+    }
+
+    for (const arg of markup.args) args.set(arg.name, argumentOf(arg.name, arg.value, node));
+
+    if (markup.variable !== null) {
+      const name = markup.alias?.value ?? snippet;
+      args.set(name, argumentOf(name, markup.variable.name, node, markup.variable.kind === "for"));
+    }
+
+    // Chỉ giữ tham số mang thông tin; xếp theo tên để kết quả ổn định.
+    const informative = [...args.values()].filter((arg) => arg.kinds.length > 0 || arg.values !== null);
+    informative.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    return { snippet, args: informative };
+  };
+
+  const calls: SnippetCall[] = [];
 
   // LƯỢT 2: tìm các nút là tham chiếu.
   //
@@ -280,6 +344,9 @@ export function extractLiquid(file: ThemeFile, content: string): Extraction {
       const own = file.kind === "block" ? "block" : "section";
       for (const id of parsed.settings) settings.push(settingNodeId(file.path, own, id));
       for (const id of parsed.blockSettings) settings.push(settingNodeId(file.path, "block", id));
+      for (const { id, type } of parsed.resourceSettings) {
+        resourceSettings.push({ setting: settingNodeId(file.path, own, id), type });
+      }
       return;
     }
 
@@ -288,6 +355,18 @@ export function extractLiquid(file: ThemeFile, content: string): Extraction {
     // Nó xuất hiện trong {{ ... }}, trong assign, trong echo... nên bắt ở mức
     // nút này thì không cần quan tâm nó nằm trong tag nào.
     if (node.type === NodeTypes.LiquidVariable) {
+      // date: format: 'month_day_year' đọc khoá date_formats.month_day_year.
+      // Shopify còn có sẵn vài định dạng không cần khoá, nên tên không có
+      // trong locale thì bỏ (computed).
+      for (const dateFilter of node.filters) {
+        if (!DATE_FILTERS.has(dateFilter.name)) continue;
+        for (const arg of dateFilter.args) {
+          if (arg.type === NodeTypes.NamedArgument && arg.name === "format") {
+            addComputedRefs("translation", arg.value, [], node, "date_formats.");
+          }
+        }
+      }
+
       // Filter đầu tiên tra một file hay một khoá dịch; phần đứng trước nó là
       // cái tên.
       const at = node.filters.findIndex((filter) => ASSET_FILTERS.has(filter.name) || TRANSLATION_FILTERS.has(filter.name));
@@ -311,33 +390,23 @@ export function extractLiquid(file: ThemeFile, content: string): Extraction {
     // VariableLookup là một biến kèm chuỗi truy cập phía sau, ví dụ
     // section.settings.title có name 'section' và lookups ['settings', 'title'].
     if (node.type === NodeTypes.VariableLookup) {
-      const [first, second] = node.lookups;
-
-      // Tên setting là chữ viết sẵn (settings.title), hoặc một biểu thức tính
-      // được (settings[setting_key], với setting_key ghép từ chữ viết sẵn).
-      // Biểu thức không tính được, như section.settings[block.id], bị bỏ qua.
-
-      // settings.x: setting toàn cục của theme.
-      if (node.name === "settings") {
-        addSettingRef("settings", first, node);
+      // closest.product: setting kiểu product của section hay block gần nhất
+      // bao quanh. Không có thì Shopify lấy sản phẩm của trang, nên tầng dựng
+      // đồ thị bỏ những lần đọc không tìm được setting nào (computed).
+      const [resource] = node.lookups;
+      if (node.name === "closest" && resource?.type === NodeTypes.String && RESOURCE_SETTING_TYPES.has(resource.value)) {
+        addRef("setting", `closest.${resource.value}`, node);
+        const last = refs.at(-1);
+        if (last !== undefined) last.computed = true;
         return;
       }
 
-      // section_st.x, khi section_st là tên tắt của section.settings.
-      const alias = node.name === null ? undefined : settingAliases.get(node.name);
-      if (alias !== undefined) {
-        addSettingRef(alias, first, node);
-        return;
-      }
-
-      if (first?.type !== NodeTypes.String || first.value !== "settings") return;
-
-      if (node.name === "section") {
-        addSettingRef("section.settings", second, node);
-      } else if (node.name !== null && blockNames.has(node.name)) {
-        // Biến lặp trên section.blocks được ghi lại như block.settings.x.
-        addSettingRef("block.settings", second, node);
-      }
+      // Một lần đọc setting cho mỗi cách hiểu biến gốc: settings.x,
+      // section.settings.x, block.settings.x, hoặc qua một tên khác của các
+      // đối tượng đó (xem liquid-objects.ts). Tên setting là chữ viết sẵn,
+      // hoặc một biểu thức tính được (settings[setting_key]); biểu thức không
+      // tính được, như section.settings[block.id], bị bỏ qua.
+      for (const read of objects.settingReads(node)) addSettingRef(read.object, read.key, node, read.origins);
       return;
     }
 
@@ -360,6 +429,8 @@ export function extractLiquid(file: ThemeFile, content: string): Extraction {
       if (last !== undefined && node.markup.args.some((arg) => arg.name === "settings")) {
         last.passesSettings = true;
       }
+
+      calls.push(callOf(node, snippet.value, node.markup, node.name === "include"));
       return;
     }
 
@@ -428,7 +499,7 @@ export function extractLiquid(file: ThemeFile, content: string): Extraction {
   // khi file có chữ đó.
   const importMap = content.includes("importmap") ? extractImportMap(ast, content, values) : [];
 
-  return { refs, schema, translationKeys: [], settings, elements: [], importMap };
+  return { refs, schema, translationKeys: [], settings, elements: [], importMap, calls, resourceSettings };
 }
 
 /**
@@ -446,8 +517,8 @@ export class LiquidParser implements FileParser {
     return file.ext === "liquid";
   }
 
-  parse(file: ThemeFile, content: string): Extraction {
-    const extraction = extractLiquid(file, content);
+  parse(file: ThemeFile, content: string, context?: CallContext): Extraction {
+    const extraction = extractLiquid(file, content, context);
     const isJavaScript = file.path.endsWith(".js.liquid");
     const source = isJavaScript ? "js" : "liquid";
     const imports = isJavaScript ? extractImports(file.path, content) : extractModuleScriptImports(file.path, content);

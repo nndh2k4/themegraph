@@ -1,4 +1,4 @@
-import type { Extraction, ThemeFile } from "../../models/index.js";
+import type { CallContext, Extraction, ThemeFile } from "../../models/index.js";
 import { emptyExtraction } from "./file-parser.js";
 import type { FileParser } from "./file-parser.js";
 
@@ -17,8 +17,8 @@ import type { FileParser } from "./file-parser.js";
 export class ThemeFileParser {
   constructor(private readonly parsers: readonly FileParser[]) {}
 
-  parse(file: ThemeFile, content: string): Extraction {
+  parse(file: ThemeFile, content: string, context?: CallContext): Extraction {
     const parser = this.parsers.find((candidate) => candidate.supports(file));
-    return parser === undefined ? emptyExtraction() : parser.parse(file, content);
+    return parser === undefined ? emptyExtraction() : parser.parse(file, content, context);
   }
 }

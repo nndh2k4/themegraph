@@ -36,7 +36,8 @@ export type SettingResolution =
  *
  *   block.settings.x     trong một theme block: setting của chính block đó
  *                        trong một section: setting của block cục bộ khai
- *                        trong schema của section đó
+ *                        trong schema của section đó, hoặc của một theme
+ *                        block mà section đó nhận (xem `themeBlocksOf`)
  *                        trong snippet: mọi section và block tổ tiên có khai x
  *
  * Hai trường hợp đầu của mỗi dạng là đọc TRỰC TIẾP: file đọc setting của
@@ -50,6 +51,7 @@ export function resolveSettingRef(
   fromKind: FileKind | undefined,
   ancestors: readonly Ancestor[],
   knownIds: ReadonlySet<string>,
+  themeBlocksOf: (section: string) => readonly string[] = () => [],
 ): SettingResolution {
   const [object, second, third] = ref.to.split(".");
 
@@ -70,10 +72,20 @@ export function resolveSettingRef(
       direct = false;
     }
   } else if (object === "block" && third !== undefined) {
-    if (fromKind === "block" || fromKind === "section") {
+    if (fromKind === "block") {
       candidates = [settingNodeId(ref.from, "block", third)];
       direct = true;
+    } else if (fromKind === "section") {
+      // Section nhận theme block thì block.settings.x có thể là setting của
+      // một trong các block đó. Các block đó đều là file của theme, nên không
+      // block nào (kể cả block cục bộ) khai x thì đúng là lần đọc hỏng; đích
+      // lẽ ra phải có được ghi là setting của theme block đầu tiên.
+      const themeBlocks = themeBlocksOf(ref.from);
+      candidates = [...themeBlocks, ref.from].map((path) => settingNodeId(path, "block", third));
+      direct = true;
     } else {
+      // Không lấy theme block của section tổ tiên: trong snippet, block là
+      // block đang render nó, đã có mặt trong danh sách tổ tiên nếu có.
       candidates = ancestors
         .filter((ancestor) => ancestor.kind === "section" || ancestor.kind === "block")
         .map((ancestor) => settingNodeId(ancestor.path, "block", third));

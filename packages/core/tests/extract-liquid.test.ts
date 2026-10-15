@@ -422,6 +422,8 @@ describe('extractLiquid — dữ kiện schema', () => {
       settings: [],
       elements: [],
       importMap: [],
+      calls: [],
+      resourceSettings: [],
     });
   });
 
@@ -455,6 +457,8 @@ describe('extractLiquid — dữ kiện schema', () => {
       settings: [],
       elements: [],
       importMap: [],
+      calls: [],
+      resourceSettings: [],
     });
   });
 

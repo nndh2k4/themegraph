@@ -95,7 +95,11 @@ flowchart LR
 
 1. **Quét.** Đi qua thư mục theme, xếp mỗi file vào một loại theo thư mục chứa nó (`sections/` → section, `snippets/` → snippet...). File nằm ngoài quy ước của Shopify bị bỏ qua và được liệt kê ra.
 2. **Trích quan hệ thô.** Mỗi loại file có một bộ đọc riêng:
-   - *Liquid*: phân tích thành cây cú pháp, lấy `render`, `include`, `section`, `sections`, `content_for`, filter `asset_url` và `t`, các lần đọc `settings.x` / `section.settings.x` / `block.settings.x`, khối `{% schema %}`, và import map trong `<script type="importmap">`. Tên ghép từ chữ viết sẵn trong cùng file (`assign`, `split`, `append`, vòng `for` trên một danh sách hay một khoảng số) được tính ra, ví dụ `'slide-' | append: i | asset_url` với `i` chạy từ 1 tới 3.
+   - *Liquid*: phân tích thành cây cú pháp, lấy `render`, `include`, `section`, `sections`, `content_for`, filter `asset_url` và `t`, các lần đọc `settings.x` / `section.settings.x` / `block.settings.x`, khối `{% schema %}`, và import map trong `<script type="importmap">`.
+     - Tên ghép từ chữ viết sẵn được tính ra: `assign`, `capture`, `split`, `append`, vòng `for` trên một danh sách hay một khoảng số, theo thứ tự thực thi (lệnh gán chắc chắn đã chạy che lệnh gán cũ, nên phép cộng dồn `x = x | append: ...` tính được). Ví dụ `'slide-' | append: i | asset_url` với `i` chạy từ 1 tới 3.
+     - Lần đọc setting qua tên khác cũng được nhận ra: `assign st = section.settings`, `assign b = block`, `section.blocks | where: ... | first`, `x | default: block.settings`.
+     - Khoá Shopify tự đọc: `date: format: 'x'` dùng `date_formats.x`; `closest.product` (và collection, article, blog, page) đọc setting kiểu đó của section hay block bao quanh.
+   - *Ngữ cảnh gọi snippet*: snippet không tự biết tham số của nó là gì, nên sau lượt đọc đầu, mỗi snippet được phân tích lại với những gì mọi nơi gọi truyền vào: tham số của `render` (kể cả `with`/`for ... as`), mọi biến của nơi `include`. Lặp tới khi ổn định, nên đi qua được nhiều tầng snippet. Đối tượng truyền vào giữ nguồn gốc: `section_st: section.settings` từ `sections/product.liquid` chỉ nối tới setting của chính file đó; giá trị viết sẵn (`icon: 'cart'`) dùng được trong tên ghép của snippet.
    - *JSON*: template và section group cho biết section và block nào được xếp vào trang; `config/settings_schema.json` cho các setting toàn cục; file locale mặc định cho các khoá dịch.
    - *JavaScript*: không phân tích cú pháp, chỉ dò vài cách viết quen thuộc: `import` tĩnh và động, section được tải qua Section Rendering API (tên viết sẵn, hoặc một biến được gán chữ viết sẵn trong cùng file), và `customElements.define("tên")`.
 3. **Phân giải.** Đổi mỗi cái tên thành một file theo quy ước: `render 'x'` là `snippets/x.liquid`, `section 'x'` là `sections/x.liquid`. Tên không ứng với file nào thành một *tham chiếu hỏng*, được ghi lại kèm file và số dòng.
@@ -321,7 +325,7 @@ Trên Dawn, bốn dòng đầu là `sections/featured-product.liquid` dòng 121,
 | | Dawn | Horizon | Theme thương mại |
 | --- | --- | --- | --- |
 | File được đọc | 192 | 439 | 484 |
-| Node / cạnh | 1 299 / 1 850 | 2 420 / 2 725 | 3 811 / 5 620 |
+| Node / cạnh | 1 299 / 1 850 | 2 420 / 3 747 | 3 811 / 5 801 |
 | `analyze` (trung vị, cả tiến trình) | 0,55 giây | 0,74 giây | 1,64 giây |
 | Một câu hỏi ảnh hưởng (cả tiến trình) | 0,20 giây | 0,30 giây | 0,43 giây |
 | Cỡ `graph.db` | 1,2 MB | 1,6 MB | 3,7 MB |
@@ -333,10 +337,11 @@ Trên Dawn, bốn dòng đầu là `sections/featured-product.liquid` dòng 121,
 
 ThemeGraph phân tích tĩnh: nó đọc mã, không chạy theme. Vì vậy:
 
-- Tên ghép chỉ được tính khi mọi mảnh đều là chữ viết sẵn trong cùng file. Mảnh lấy từ dữ liệu của Shopify (`product.type`) hay từ tham số truyền vào snippet (`'icon-' | append: icon`) thì không thành quan hệ.
+- Tên ghép chỉ được tính khi mọi mảnh đều là chữ viết sẵn, trong file hoặc truyền vào từ nơi gọi. Mảnh lấy từ dữ liệu của Shopify (`product.type`, `section.settings[block.id]`) thì không thành quan hệ.
+- Giá trị của một tham số snippet là hợp của mọi nơi gọi, và mọi nhánh `if` đều được coi là có thể chạy. Kết quả có thể thừa tên; tên không ứng với file, khoá dịch hay setting nào thì bị bỏ, không báo là tham chiếu hỏng.
+- Trong snippet, `section.settings.x` và `block.settings.x` viết thẳng (không qua tham số) được nối tới mọi section hay block tổ tiên có khai `x`, vì không biết lúc chạy ai đang render snippet.
 - JavaScript không được phân tích cú pháp. Section do JavaScript tải bằng một tên đọc từ DOM hay từ tham số (`this.dataset.section`) nằm ngoài đồ thị; `import()` với specifier là biến cũng vậy.
 - Thư mục `listings/` không được quét.
-- Setting được truyền cả bộ cho snippet (`render 'x', settings: block.settings`) rồi snippet mới đọc thì công cụ không lần theo. Theme viết theo kiểu này (ví dụ Horizon) có gần một nửa số setting bị xếp vào "không thấy đọc" dù đang được dùng.
 - Những gì merchant thêm từ theme editor mà không nằm trong file của theme (app block, nội dung nhập tay) thì công cụ không biết.
 - File JavaScript được nạp ở trang này nhưng thẻ của nó viết ở trang khác thì chưa phát hiện.
 
