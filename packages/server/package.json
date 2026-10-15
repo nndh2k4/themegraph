@@ -1,6 +1,6 @@
 {
   "name": "@themegraph/server",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "description": "HTTP server của ThemeGraph: API JSON chỉ đọc bọc quanh @themegraph/core, kèm phục vụ giao diện web",
   "type": "module",

@@ -1,6 +1,6 @@
 {
   "name": "themegraph",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "description": "Đồ thị tri thức cho Shopify Liquid theme",
   "type": "module",
