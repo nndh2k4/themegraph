@@ -749,3 +749,40 @@ describe('extractLiquidRefs — render truyền tham số settings', () => {
     expect(ref).not.toHaveProperty('passesSettings');
   });
 });
+
+describe('render và include viết lỏng mà Shopify vẫn chạy', () => {
+  const X: ThemeFile = { path: 'sections/x.liquid', kind: 'section', ext: 'liquid' };
+
+  it('đọc render viết lỏng mà Shopify vẫn chạy', () => {
+    const refs = extractLiquidRefs(X, "{% render 'icon-quote' | custom_width: 56 %}{%- include \"row\", size: 'lg' -%}");
+
+    expect(refs.map((r) => [r.kind, r.to])).toEqual([
+      ['render', 'icon-quote'],
+      ['include', 'row'],
+    ]);
+  });
+
+  it('tham số của render lỏng vẫn vào ngữ cảnh gọi', () => {
+    const { calls } = extractLiquid(X, "{%- assign st = section.settings -%}{% render 'card' | st: st, icon: 'cart' %}");
+
+    expect(calls).toEqual([
+      {
+        snippet: 'card',
+        args: [
+          { name: 'icon', kinds: [], values: ['cart'] },
+          { name: 'st', kinds: [{ kind: 'section.settings', origins: ['sections/x.liquid'] }], values: null },
+        ],
+      },
+    ]);
+  });
+
+  it('đánh dấu passesSettings khi render lỏng truyền tham số settings', () => {
+    const [ref] = extractLiquidRefs(X, "{% render 'size' | settings: block.settings %}");
+
+    expect(ref?.passesSettings).toBe(true);
+  });
+
+  it('bỏ qua markup lỏng không có tên snippet trong nháy', () => {
+    expect(extractLiquidRefs(X, '{% render | foo: 1 %}')).toEqual([]);
+  });
+});

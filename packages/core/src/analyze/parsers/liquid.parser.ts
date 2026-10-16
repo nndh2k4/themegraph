@@ -41,6 +41,43 @@ import { extractSectionLoads } from "./section-loads.parser.js";
  */
 const ASSET_FILTERS = new Set(["asset_url", "asset_img_url", "inline_asset_content"]);
 
+/**
+ * Đọc markup của render/include mà parser không hiểu, theo cách lỏng của
+ * Shopify: chuỗi trong nháy đầu tiên là tên snippet; tham số là mọi cặp
+ * `ten: gia_tri` trong phần còn lại (giá trị là chuỗi trong nháy, số, hoặc
+ * một tên biến có dấu chấm).
+ *
+ * Vì sao cần: tag Render của Shopify dùng regex không neo và quét
+ * `key: value` trên toàn markup, nên `{% render 'a' | f: 1 %}` vẫn chạy được
+ * dù parser chuẩn coi cả phần sau tên snippet là chuỗi thô.
+ */
+const LAX_SNIPPET = /^\s*(["'])([^"']+)\1/;
+const LAX_ARG = /(\w[\w-]*)\s*:\s*("[^"]*"|'[^']*'|-?\d+(?:\.\d+)?|[A-Za-z_][\w.-]*)/g;
+
+interface LaxRender {
+  snippet: string;
+  /** `value` là chữ gốc của giá trị. */
+  args: { name: string; value: string }[];
+}
+
+function parseLaxRenderMarkup(markup: string): LaxRender | null {
+  const head = LAX_SNIPPET.exec(markup);
+  if (head === null || head[2] === undefined) return null;
+  const rest = markup.slice(head[0].length);
+  return { snippet: head[2], args: [...rest.matchAll(LAX_ARG)].map((m) => ({ name: m[1] ?? "", value: m[2] ?? "" })) };
+}
+
+/** Đọc một giá trị rời thành biểu thức bằng cách bọc nó trong {{ }}; không đọc được thì null. */
+function parseExpression(source: string): ComplexLiquidExpression | null {
+  try {
+    const [output] = toLiquidAST(`{{ ${source} }}`).children;
+    if (output?.type !== NodeTypes.LiquidVariableOutput || typeof output.markup === "string") return null;
+    return output.markup.expression;
+  } catch {
+    return null;
+  }
+}
+
 /** Filter tra một khoá dịch trong file locale; `translate` là tên đầy đủ của `t`. */
 const TRANSLATION_FILTERS = new Set(["t", "translate"]);
 
@@ -292,19 +329,29 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
   };
 
   /**
-   * Các tham số của một lời gọi snippet. {% include %} dùng chung biến với
-   * nơi gọi, nên mọi biến của nơi gọi đều được truyền theo.
+   * Mọi biến của nơi gọi tại `node`. {% include %} dùng chung biến với nơi
+   * gọi, nên cả bộ này được truyền theo.
    */
-  const callOf = (node: LiquidHtmlNode, snippet: string, markup: RenderMarkup, include: boolean): SnippetCall => {
+  const callerVariables = (node: LiquidHtmlNode): Map<string, CallArgument> => {
     const args = new Map<string, CallArgument>();
-
-    if (include) {
-      const names = new Set([...values.names(), ...objects.names(), ...(context?.kinds.keys() ?? []), ...(context?.values.keys() ?? [])]);
-      for (const name of names) {
-        const kinds = objects.originsOfVariable(name).filter((entry) => entry.kind !== BUILTIN_KIND.get(name));
-        args.set(name, { name, kinds, values: values.valuesOf(name, node) ?? null });
-      }
+    const names = new Set([...values.names(), ...objects.names(), ...(context?.kinds.keys() ?? []), ...(context?.values.keys() ?? [])]);
+    for (const name of names) {
+      const kinds = objects.originsOfVariable(name).filter((entry) => entry.kind !== BUILTIN_KIND.get(name));
+      args.set(name, { name, kinds, values: values.valuesOf(name, node) ?? null });
     }
+    return args;
+  };
+
+  /** Chỉ giữ tham số mang thông tin; xếp theo tên để kết quả ổn định. */
+  const callFrom = (snippet: string, args: Map<string, CallArgument>): SnippetCall => {
+    const informative = [...args.values()].filter((arg) => arg.kinds.length > 0 || arg.values !== null);
+    informative.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    return { snippet, args: informative };
+  };
+
+  /** Các tham số của một lời gọi snippet. */
+  const callOf = (node: LiquidHtmlNode, snippet: string, markup: RenderMarkup, include: boolean): SnippetCall => {
+    const args = include ? callerVariables(node) : new Map<string, CallArgument>();
 
     for (const arg of markup.args) args.set(arg.name, argumentOf(arg.name, arg.value, node));
 
@@ -313,10 +360,19 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
       args.set(name, argumentOf(name, markup.variable.name, node, markup.variable.kind === "for"));
     }
 
-    // Chỉ giữ tham số mang thông tin; xếp theo tên để kết quả ổn định.
-    const informative = [...args.values()].filter((arg) => arg.kinds.length > 0 || arg.values !== null);
-    informative.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-    return { snippet, args: informative };
+    return callFrom(snippet, args);
+  };
+
+  /** Lời gọi viết lỏng (xem parseLaxRenderMarkup): mỗi giá trị được đọc riêng như một biểu thức. */
+  const laxCallOf = (node: LiquidHtmlNode, lax: LaxRender, include: boolean): SnippetCall => {
+    const args = include ? callerVariables(node) : new Map<string, CallArgument>();
+
+    for (const arg of lax.args) {
+      const expression = parseExpression(arg.value);
+      if (expression !== null) args.set(arg.name, argumentOf(arg.name, expression, node));
+    }
+
+    return callFrom(lax.snippet, args);
   };
 
   const calls: SnippetCall[] = [];
@@ -425,7 +481,19 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
 
     if (node.name === "render" || node.name === "include") {
       // Khi parser không hiểu được phần sau tên tag, markup là chuỗi thô.
-      if (typeof node.markup === "string") return;
+      // Shopify vẫn chạy được nhiều dạng như vậy, nên đọc theo cách của nó.
+      if (typeof node.markup === "string") {
+        const lax = parseLaxRenderMarkup(node.markup);
+        if (lax === null) return;
+
+        addRef(node.name, lax.snippet, node);
+
+        const last = refs.at(-1);
+        if (last !== undefined && lax.args.some((arg) => arg.name === "settings")) last.passesSettings = true;
+
+        calls.push(laxCallOf(node, lax, node.name === "include"));
+        return;
+      }
 
       const snippet = node.markup.snippet;
 
