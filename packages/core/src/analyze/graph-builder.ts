@@ -259,7 +259,11 @@ export class GraphBuilder {
       const type = EDGE_TYPE_OF[ref.kind];
       if (type === undefined) continue;
 
-      addEdge(ref.from, resolution.path, type, ref.source, ref.conditional);
+      // Mục import map chỉ là ánh xạ nên không thành cạnh; URL đưa cho JavaScript
+      // chỉ được nạp nếu mã chạy tới nó, nên luôn có điều kiện.
+      if (ref.usage === "map") continue;
+
+      addEdge(ref.from, resolution.path, type, ref.source, ref.usage === "url" || ref.conditional);
     }
 
     // ---- Layout mặc định ------------------------------------------------------

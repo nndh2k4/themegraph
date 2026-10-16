@@ -5,6 +5,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { extractImports, extractModuleScriptImports } from '../src/analyze/parsers/js-imports.parser.js';
+import { extractLiquidRefs } from '../src/analyze/parsers/liquid.parser.js';
 import type { GraphRepository } from '../src/graph/graph.repository.js';
 import type { FileImportMapEntry } from '../src/models/index.js';
 import { buildGraph, core, file, openGraph, parseFile, ref, scopeOf } from './helpers.js';
@@ -199,7 +200,7 @@ describe('import — từ đầu tới cuối', () => {
     await write(
       'snippets/import-map.liquid',
       [
-        "{%- assign modules = 'global:core' | split: ',' -%}",
+        "{%- assign modules = 'global:core,spare:mapped-only' | split: ',' -%}",
         '<script type="importmap">{ "imports": {',
         "{%- for entry in modules -%}{%- assign pair = entry | split: ':' -%}",
         "\"@theme/{{ pair.first }}\": \"{{ pair.last | append: '.js' | asset_url }}\"",
@@ -211,6 +212,7 @@ describe('import — từ đầu tới cuối', () => {
     await write('assets/core.js', 'export const x = 1;');
     await write('assets/lazy.js', 'export const y = 2;');
     await write('assets/orphan.js', 'export const z = 3;');
+    await write('assets/mapped-only.js', 'export const w = 4;');
     await appendFile(
       path.join(themeRoot, 'layout', 'theme.liquid'),
       "\n{% render 'import-map' %}<script type=\"module\" src=\"{{ 'app.js' | asset_url }}\"></script>",
@@ -221,12 +223,61 @@ describe('import — từ đầu tới cuối', () => {
 
     const unused = scopeOf(graph).deadCode.findUnused().files.map((entry) => entry.id);
     expect(unused).toContain('assets/orphan.js');
+    // Chỉ có trong import map mà không ai import: không có gì nạp nó.
+    expect(unused).toContain('assets/mapped-only.js');
     expect(unused).not.toContain('assets/core.js');
     expect(unused).not.toContain('assets/lazy.js');
 
-    expect(graph.edgesTo('assets/core.js').map((edge) => [edge.from, edge.type])).toEqual([
-      ['assets/app.js', 'USES_ASSET'],
-      ['snippets/import-map.liquid', 'USES_ASSET'],
+    // Mục import map chỉ là ánh xạ: không thành cạnh từ snippet in nó ra.
+    expect(graph.edgesTo('assets/core.js').map((edge) => [edge.from, edge.type])).toEqual([['assets/app.js', 'USES_ASSET']]);
+  });
+});
+
+describe('asset_url theo chỗ in ra', () => {
+  const usages = (content: string) =>
+    extractLiquidRefs(file('snippets/head.liquid', 'snippet'), content)
+      .filter((r) => r.kind === 'asset')
+      .map((r) => [r.to, r.usage ?? 'load']);
+
+  it('phân biệt nạp thật, mục import map và URL đưa cho JS', () => {
+    const content = [
+      "<script src=\"{{ 'app.js' | asset_url }}\" type=\"module\"></script>",
+      "{{ 'base.css' | asset_url | stylesheet_tag }}",
+      '<script type="importmap">{"imports": {"@t/core": "{{ \'core.js\' | asset_url }}"}}</script>',
+      "<script>window.cfg = { slider: {{ 'slider.js' | asset_url | json }}, zoom: \"{{ 'zoom.js' | asset_url }}\" };</script>",
+      "<div data-src=\"{{ 'lazy.js' | asset_url }}\"></div>",
+    ].join('\n');
+
+    expect(usages(content)).toEqual([
+      ['app.js', 'load'],
+      ['base.css', 'load'],
+      ['core.js', 'map'],
+      ['slider.js', 'url'],
+      ['zoom.js', 'url'],
+      ['lazy.js', 'load'],
+    ]);
+  });
+
+  it('URL đưa cho JS ngoài thẻ script: json đứng sau asset_url mới tính', () => {
+    const content = [
+      "<div data-cfg=\"{{ 'a.js' | asset_url | json }}\"></div>",
+      "<div data-cfg=\"{{ cfg | json | append: 'b.js' | asset_url }}\"></div>",
+    ].join('\n');
+
+    expect(usages(content)).toEqual([['a.js', 'url']]);
+  });
+
+  it('tên tính ra trong import map cũng là mục map', () => {
+    const content = [
+      "{%- assign mods = 'a,b' | split: ',' -%}",
+      '<script type="importmap">{ "imports": {',
+      "{%- for m in mods -%}\"@t/{{ m }}\": \"{{ m | append: '.js' | asset_url }}\",{%- endfor -%}",
+      '} }</script>',
+    ].join('\n');
+
+    expect(usages(content)).toEqual([
+      ['a.js', 'map'],
+      ['b.js', 'map'],
     ]);
   });
 });

@@ -77,6 +77,14 @@ export interface RawRef {
   // có thể ra thừa giá trị, nên tên tính ra mà không ứng với gì trong theme
   // thì bị bỏ, không bị coi là tham chiếu hỏng.
   computed?: true;
+  // Chỉ có ở ref asset nguồn liquid, khi chỗ in ra asset_url không phải để
+  // nạp file:
+  // - "map": mục trong <script type="importmap">. Chỉ là ánh xạ, không thành
+  //   cạnh; ref vẫn được giữ trong bảng refs để tra số dòng.
+  // - "url": URL đưa cho JavaScript (trong <script> nội tuyến, hoặc đi qua
+  //   filter json). File chỉ được nạp lúc chạy nên cạnh luôn có điều kiện.
+  // Không có usage: nạp thật (src, href, stylesheet_tag...).
+  usage?: "map" | "url";
   // Chỉ có ở ref đọc setting qua một đối tượng mà nơi gọi truyền vào snippet
   // (xem ObjectOrigin): setting được tìm trong các file này, như thể lần đọc
   // nằm ở đó, thay vì trong mọi tổ tiên của file đang đọc.

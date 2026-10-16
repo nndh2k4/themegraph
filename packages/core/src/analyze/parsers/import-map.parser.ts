@@ -32,9 +32,15 @@ import type { LiquidValues, LoopBindings } from "./liquid-values.js";
  * ngoài (CDN) không phải quan hệ giữa hai file.
  */
 
-/** Thẻ mở và thẻ đóng của một import map. */
-const IMPORT_MAP_OPEN = /<script\b[^>]*\btype\s*=\s*["']?importmap["']?[^>]*>/gi;
+/** Thẻ mở <script ...> (nhóm 1 là phần thuộc tính) và thẻ đóng </script>. */
+const SCRIPT_OPEN = /<script\b([^>]*)>/gi;
 const SCRIPT_CLOSE = /<\/script\s*>/gi;
+
+/** Thuộc tính type="importmap"; `(?<![\w-])` để không dính data-type. */
+const IMPORT_MAP_TYPE = /(?<![\w-])type\s*=\s*["']?importmap\b/i;
+
+/** Thuộc tính src; `(?<![\w-])` để không dính data-src. */
+const SRC_ATTRIBUTE = /(?<![\w-])src\s*=/i;
 
 /** Ký tự bọc tên file của theme trong chuỗi chạy thử; không thể có trong mã. */
 const MARK = "\u0001";
@@ -49,6 +55,35 @@ const ASSET_URL = "asset_url";
 const MAX_ITERATIONS = 1000;
 
 /**
+ * Phần thân (giữa thẻ mở và thẻ đóng) của các thẻ <script> trong một file
+ * Liquid, theo thứ tự xuất hiện. `end` là vị trí ngay trước `</script>`.
+ *
+ * - importmap: <script type="importmap">; mục trong đó chỉ là ánh xạ
+ * - inline: mọi <script> còn lại không có src; chuỗi in ra ở đây là mã
+ *   JavaScript (hoặc JSON-LD) nên một URL in vào là để mã đó dùng
+ *
+ * <script src="..."> bị bỏ qua vì thân của nó rỗng; còn URL trong chính thẻ mở
+ * là URL nạp file thật, không thuộc vùng nào.
+ */
+export function scriptRanges(content: string): { start: number; end: number; kind: "importmap" | "inline" }[] {
+  const ranges: { start: number; end: number; kind: "importmap" | "inline" }[] = [];
+
+  for (const open of content.matchAll(SCRIPT_OPEN)) {
+    const attributes = open[1] ?? "";
+    if (SRC_ATTRIBUTE.test(attributes)) continue;
+
+    const start = open.index + open[0].length;
+    SCRIPT_CLOSE.lastIndex = start;
+    const close = SCRIPT_CLOSE.exec(content);
+    const end = close === null ? content.length : close.index;
+
+    ranges.push({ start, end, kind: IMPORT_MAP_TYPE.test(attributes) ? "importmap" : "inline" });
+  }
+
+  return ranges;
+}
+
+/**
  * Các dòng import map mà `content` khai, theo thứ tự in ra.
  *
  * `ast` là cây Liquid của chính `content`; `values` là bộ tính giá trị của
@@ -57,11 +92,8 @@ const MAX_ITERATIONS = 1000;
 export function extractImportMap(ast: DocumentNode, content: string, values: LiquidValues): ImportMapEntry[] {
   const entries: ImportMapEntry[] = [];
 
-  for (const open of content.matchAll(IMPORT_MAP_OPEN)) {
-    const start = open.index + open[0].length;
-    SCRIPT_CLOSE.lastIndex = start;
-    const close = SCRIPT_CLOSE.exec(content);
-    const end = close === null ? content.length : close.index;
+  for (const { start, end, kind } of scriptRanges(content)) {
+    if (kind !== "importmap") continue;
 
     const printed = new ImportMapPrinter(content, start, end, values).print(ast.children);
 

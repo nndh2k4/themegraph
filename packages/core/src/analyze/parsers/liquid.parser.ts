@@ -4,6 +4,7 @@ import type {
   LiquidExpression,
   LiquidFilter,
   LiquidHtmlNode,
+  LiquidVariable,
   RenderMarkup,
 } from "@shopify/liquid-html-parser";
 
@@ -24,7 +25,7 @@ import { extractCssUrls } from "./css.parser.js";
 import { extractElements } from "./custom-elements.parser.js";
 import type { FileParser } from "./file-parser.js";
 import { settingNodeId } from "./global-settings.parser.js";
-import { extractImportMap } from "./import-map.parser.js";
+import { extractImportMap, scriptRanges } from "./import-map.parser.js";
 import { extractImports, extractModuleScriptImports } from "./js-imports.parser.js";
 import { lineIndex } from "./line-index.js";
 import { LiquidObjects } from "./liquid-objects.js";
@@ -227,6 +228,10 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
   // nhị phân, không đếm lại từ đầu file ở mỗi ref.
   const lineAt = lineIndex(content);
 
+  // Vùng thân các thẻ <script> không có src, tính một lần: mỗi asset_url hỏi
+  // xem mình in ra ở đâu (xem usageOfAsset).
+  const ranges = scriptRanges(content);
+
   // Hàm con để mọi ref được tạo ở đúng một chỗ, cùng một khuôn.
   // Mặc định source là 'liquid' và conditional được tính từ vị trí của nút;
   // nhánh schema truyền giá trị riêng cho cả hai.
@@ -245,6 +250,26 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
       conditional,
       line: lineAt(node.position.start),
     });
+  };
+
+  /**
+   * Chỗ một {{ ... | asset_url }} được in ra quyết định nó có nạp file hay không:
+   *
+   * - trong <script type="importmap">: chỉ là ánh xạ specifier -> URL, trình
+   *   duyệt chỉ tải file khi có mã import nó, và cạnh import đã có riêng
+   * - trong <script> nội tuyến, hoặc đứng trước filter json: URL được đưa cho
+   *   JavaScript, file chỉ được nạp nếu mã đó chạy tới và dùng nó
+   * - còn lại (src, href, data-*, stylesheet_tag...): nạp thật, trả undefined
+   *
+   * json phải đứng SAU filter asset: `cfg | json | append: ... | asset_url`
+   * không đưa URL cho JavaScript.
+   */
+  const usageOfAsset = (node: LiquidVariable, assetAt: number): RawRef["usage"] => {
+    const at = node.position.start;
+    const range = ranges.find((r) => at >= r.start && at < r.end);
+    if (range?.kind === "importmap") return "map";
+    if (range?.kind === "inline") return "url";
+    return node.filters.slice(assetAt + 1).some((f) => f.name === "json") ? "url" : undefined;
   };
 
   /**
@@ -423,15 +448,21 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
 
       const kind: RefKind = ASSET_FILTERS.has(filter.name) ? "asset" : "translation";
 
+      // inline_asset_content in NỘI DUNG file chứ không in URL, nên chỗ in ra
+      // không đổi ý nghĩa của nó.
+      const usage = kind === "asset" && filter.name !== "inline_asset_content" ? usageOfAsset(node, at) : undefined;
+      const before = refs.length;
+
       // Tên viết sẵn: 'base.css' | asset_url.
       if (at === 0 && node.expression.type === NodeTypes.String) {
         addRef(kind, node.expression.value, node);
-        return;
+      } else {
+        // Tên ghép: 'icon-' | append: name | asset_url, hoặc slide_image |
+        // asset_url với slide_image được assign ở chỗ khác. Chỉ ghi khi tính được.
+        addComputedRefs(kind, node.expression, node.filters.slice(0, at), node);
       }
 
-      // Tên ghép: 'icon-' | append: name | asset_url, hoặc slide_image |
-      // asset_url với slide_image được assign ở chỗ khác. Chỉ ghi khi tính được.
-      addComputedRefs(kind, node.expression, node.filters.slice(0, at), node);
+      if (usage !== undefined) for (const added of refs.slice(before)) added.usage = usage;
       return;
     }
 

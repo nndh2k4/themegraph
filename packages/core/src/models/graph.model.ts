@@ -59,7 +59,8 @@ export interface GraphNode {
  * - RENDERS:       file này chèn nội dung của file kia (snippet, section,
  *                  section group, block)
  * - USES_ASSET:    file này tham chiếu một file trong assets/: qua asset_url,
- *                  bằng import của JavaScript (nguồn 'js'), hoặc bằng url() trong CSS (nguồn 'css')
+ *                  bằng import của JavaScript (nguồn 'js'), hoặc bằng url() trong CSS (nguồn 'css').
+ *                  URL đưa cho JavaScript luôn có điều kiện; mục import map không thành cạnh
  * - USES_TRANSLATION: file này dùng một khoá dịch qua filter t
  * - READS_SETTING: file này đọc giá trị của một setting
  * - LOADS_SECTION: file này (thường là một file JavaScript) tải riêng một
