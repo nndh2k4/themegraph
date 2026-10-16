@@ -224,11 +224,12 @@ describe('section do JavaScript tải — hệ quả ở các truy vấn', () =>
 });
 
 describe('section do JavaScript tải — status', () => {
-  it('sửa một file .js làm đồ thị cũ đi; sửa file css thì không', async () => {
+  it('sửa một file .js làm đồ thị cũ đi; sửa file ảnh thì không', async () => {
     await write('assets/cart.js', 'fetch(`/cart?section_id=drawer`);');
+    await write('assets/logo.png', 'a');
     await core().analyzer.analyze(themeRoot);
 
-    await appendFile(path.join(themeRoot, 'assets', 'base.css'), '\nbody { margin: 0 }');
+    await appendFile(path.join(themeRoot, 'assets', 'logo.png'), 'b');
     expect((await core().themes.status(themeRoot)).stale).toBe(false);
 
     await appendFile(path.join(themeRoot, 'assets', 'cart.js'), '\n// sửa');

@@ -6,13 +6,13 @@ import { extractImports } from "./js-imports.parser.js";
 import { extractSectionLoads } from "./section-loads.parser.js";
 
 /**
- * File .js trong assets/: các section nó tải qua Section Rendering API, các
+ * File .js và .mjs trong assets/: các section nó tải qua Section Rendering API, các
  * module nó import, và các custom element nó định nghĩa hoặc dùng. Mã
  * JavaScript không được phân tích cú pháp; chỉ tìm các mẫu chữ quen thuộc.
  */
 export class JavaScriptParser implements FileParser {
   supports(file: ThemeFile): boolean {
-    return file.ext === "js";
+    return file.ext === "js" || file.ext === "mjs";
   }
 
   parse(file: ThemeFile, content: string): Extraction {

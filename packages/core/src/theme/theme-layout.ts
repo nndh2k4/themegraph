@@ -11,7 +11,7 @@ import type { FileKind, ScanResult, ThemeFile } from "../models/index.js";
  * Đuôi của những file mà analyze đọc nội dung. Status dùng cùng danh sách này
  * để biết sửa file nào thì đồ thị cũ đi.
  */
-export const READ_EXTENSIONS: ReadonlySet<string> = new Set(["liquid", "json", "js"]);
+export const READ_EXTENSIONS: ReadonlySet<string> = new Set(["liquid", "json", "js", "mjs", "css"]);
 
 /**
  * Quyết định một file thuộc loại nào dựa trên vị trí và tên của nó.

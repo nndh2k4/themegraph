@@ -239,17 +239,20 @@ describe('analyze', () => {
     }
   });
 
-  it('ghi hash nội dung của mọi file Liquid và JSON, không ghi cho file khác', async () => {
+  it('ghi hash nội dung của mọi file Liquid, JSON, JavaScript và CSS, không ghi cho file khác', async () => {
+    await writeFile(path.join(themeRoot, 'assets', 'logo.png'), 'khong-phai-van-ban');
     await core().analyzer.analyze(themeRoot);
 
     const rows = query('SELECT file, hash FROM file_hashes ORDER BY file');
     const files = rows.map((r) => String(r.file));
 
-    // 12 file .liquid / .json của fixture; assets/base.css không được đọc.
-    expect(files).toHaveLength(12);
+    // 12 file .liquid / .json của fixture, cộng assets/base.css (đọc để lấy url());
+    // ảnh thì không đọc.
+    expect(files).toHaveLength(13);
     expect(files).toContain('snippets/card.liquid');
     expect(files).toContain('locales/en.default.json');
-    expect(files).not.toContain('assets/base.css');
+    expect(files).toContain('assets/base.css');
+    expect(files).not.toContain('assets/logo.png');
     expect(rows.every((r) => /^[0-9a-f]{40}$/.test(String(r.hash)))).toBe(true);
   });
 

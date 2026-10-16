@@ -21,6 +21,7 @@ import type {
   StaticValue,
   ThemeFile,
 } from "../../models/index.js";
+import { extractCssUrls } from "./css.parser.js";
 import { extractElements } from "./custom-elements.parser.js";
 import type { FileParser } from "./file-parser.js";
 import { settingNodeId } from "./global-settings.parser.js";
@@ -590,6 +591,8 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
  *
  * File assets/*.js.liquid là JavaScript có chèn Liquid nên phần section tải
  * lúc chạy được ghi với nguồn "js", và import được tìm trong cả file.
+ * File assets/*.css.liquid là CSS có chèn Liquid nên url() cũng được trích
+ * (xem extractCssUrls).
  */
 export class LiquidParser implements FileParser {
   supports(file: ThemeFile): boolean {
@@ -602,9 +605,11 @@ export class LiquidParser implements FileParser {
     const source = isJavaScript ? "js" : "liquid";
     const imports = isJavaScript ? extractImports(file.path, content) : extractModuleScriptImports(file.path, content);
 
+    const cssUrls = file.path.endsWith(".css.liquid") ? extractCssUrls(file.path, content) : [];
+
     return {
       ...extraction,
-      refs: [...extraction.refs, ...extractSectionLoads(file.path, content, source), ...imports],
+      refs: [...extraction.refs, ...extractSectionLoads(file.path, content, source), ...imports, ...cssUrls],
       elements: extractElements(content),
     };
   }

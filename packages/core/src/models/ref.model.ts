@@ -47,8 +47,10 @@ export type RefKind =
  * - schema: khối {% schema %} của section hoặc block
  * - js: mã JavaScript, trong assets/ hoặc trong thẻ <script type="module"> của
  *   một file Liquid (chỉ ref section_load và import mới có nguồn này)
+ * - css: url() trong assets/*.css hoặc assets/*.css.liquid (chỉ ref asset mới
+ *   có nguồn này)
  */
-export type RefSource = "liquid" | "json" | "schema" | "js";
+export type RefSource = "liquid" | "json" | "schema" | "js" | "css";
 
 /**
  * Một tham chiếu THÔ từ file này tới một thứ khác trong theme.

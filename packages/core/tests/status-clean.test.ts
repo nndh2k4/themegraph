@@ -131,14 +131,25 @@ describe('themeStatus', () => {
     expect((await core().themes.status(themeRoot)).modified).toEqual(['snippets/card.liquid']);
   });
 
-  it('bỏ qua file không phải Liquid hay JSON bị sửa: chúng không làm đồ thị đổi', async () => {
+  it('bỏ qua file không được đọc (ảnh, font) bị sửa: chúng không làm đồ thị đổi', async () => {
+    await writeFile(path.join(themeRoot, 'assets', 'logo.png'), 'a');
     await core().analyzer.analyze(themeRoot);
-    await edit('assets/base.css');
+    await edit('assets/logo.png');
 
     const status = await core().themes.status(themeRoot);
 
     expect(status.stale).toBe(false);
     expect(status.modified).toEqual([]);
+  });
+
+  it('sửa file css làm đồ thị cũ đi: url() trong đó có thể đã đổi', async () => {
+    await core().analyzer.analyze(themeRoot);
+    await edit('assets/base.css');
+
+    const status = await core().themes.status(themeRoot);
+
+    expect(status.stale).toBe(true);
+    expect(status.modified).toEqual(['assets/base.css']);
   });
 
   it('vẫn theo dõi được file mà lần phân tích không đọc hiểu nổi', async () => {

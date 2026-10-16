@@ -87,8 +87,8 @@ export class AnalyzeService {
     const errors: AnalyzeError[] = [];
 
     for (const file of files) {
-      // Chỉ file Liquid, JSON và JavaScript mới có quan hệ để trích; ảnh và css
-      // thì không cần đọc nội dung.
+      // Chỉ file Liquid, JSON, JavaScript và CSS (url()) mới có quan hệ để
+      // trích; ảnh, font thì không cần đọc nội dung.
       if (!READ_EXTENSIONS.has(file.ext)) continue;
 
       try {
