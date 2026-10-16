@@ -172,6 +172,11 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
   // xa phía trên hay không thì phải có sẵn toàn bộ quan hệ cha-con để leo lên.
   const parentOf = new Map<LiquidHtmlNode, LiquidHtmlNode | undefined>();
 
+  // {% content_for 'blocks' %} đầu tiên của file. Các block khai trong
+  // {% schema %} được render đúng ở đó, nên số dòng của chúng là dòng này chứ
+  // không phải dòng thẻ schema ở cuối file.
+  let blocksCall: LiquidHtmlNode | null = null;
+
   // Hai bộ tính dùng chung bảng nút cha, được điền xong ở lượt 1, trước lần
   // tính đầu tiên ở lượt 2:
   //   - values: giá trị của các tên ghép (xem liquid-values.ts)
@@ -185,6 +190,10 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
     parentOf.set(node, parent);
 
     if (node.type !== NodeTypes.LiquidTag || typeof node.markup === "string") return;
+
+    if (blocksCall === null && node.name === "content_for" && node.markup.contentForType.value === "blocks") {
+      blocksCall = node;
+    }
 
     if (node.name === "for" || node.name === "tablerow") {
       objects.addLoop(node.markup.variableName, node.markup.collection);
@@ -405,8 +414,10 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
 
       // conditional = true: schema chỉ nói file này NHẬN ĐƯỢC các block đó.
       // Block có thật sự được render hay không tuỳ cấu hình trong JSON template.
+      // Có lời gọi 'blocks' thì ghi dòng đó; không có thì giữ dòng thẻ schema.
+      const blockSite = blocksCall ?? node;
       for (const blockType of parsed.blockTypes) {
-        addRef("block", blockType, node, "schema", true);
+        addRef("block", blockType, blockSite, "schema", true);
       }
 
       schema = { presets: parsed.presets, acceptsThemeBlocks: parsed.acceptsThemeBlocks, localBlockTypes: parsed.localBlockTypes };

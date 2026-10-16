@@ -786,3 +786,26 @@ describe('render và include viết lỏng mà Shopify vẫn chạy', () => {
     expect(extractLiquidRefs(X, '{% render | foo: 1 %}')).toEqual([]);
   });
 });
+
+describe('extractLiquidRefs — dòng của block lấy từ schema', () => {
+  it('block từ schema mang số dòng của {% content_for "blocks" %} khi file có lời gọi đó', () => {
+    const content = "<div>\n{% content_for 'blocks' %}\n</div>\n{% schema %}{\"blocks\": [{\"type\": \"@theme\"}, {\"type\": \"text\"}]}{% endschema %}";
+    const refs = extractLiquidRefs(SECTION, content).filter((r) => r.kind === 'block');
+
+    expect(refs.map((r) => [r.to, r.line, r.source])).toEqual([['text', 2, 'schema']]);
+  });
+
+  it('lấy lời gọi content_for "blocks" đầu tiên, bỏ qua dạng "block" số ít', () => {
+    const content = "{% content_for 'block', type: 'a', id: 'x' %}\n{% content_for 'blocks' %}\n{% content_for 'blocks' %}\n{% schema %}{\"blocks\": [{\"type\": \"text\"}]}{% endschema %}";
+    const refs = extractLiquidRefs(SECTION, content).filter((r) => r.source === 'schema');
+
+    expect(refs.map((r) => r.line)).toEqual([2]);
+  });
+
+  it('không có content_for "blocks" thì giữ dòng của thẻ schema', () => {
+    const content = "<div></div>\n{% schema %}{\"blocks\": [{\"type\": \"text\"}]}{% endschema %}";
+    const refs = extractLiquidRefs(SECTION, content).filter((r) => r.kind === 'block');
+
+    expect(refs.map((r) => r.line)).toEqual([2]);
+  });
+});

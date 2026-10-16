@@ -10,6 +10,15 @@ function linkNotes(link: ContextLink): string {
     .join("  ");
 }
 
+/**
+ * Nguồn của quan hệ, chỉ ghi khi không phải lời gọi viết thẳng trong Liquid:
+ * "dòng 51 (schema)" cho biết dòng đó là chỗ block được render, không phải
+ * một lời gọi tường minh.
+ */
+function sourceNote(link: ContextLink): string {
+  return link.sources === "liquid" || link.sources === "" ? "" : ` (${link.sources.split(",").join(", ")})`;
+}
+
 /** Mọi thứ ở ngay quanh một file: ai gọi nó, nó gọi ai, đọc setting và khoá dịch nào. */
 export class ContextView implements TextView<ContextResult> {
   render(result: ContextResult, options: ViewOptions = {}): string[] {
@@ -34,7 +43,7 @@ export class ContextView implements TextView<ContextResult> {
       ...capped(
         table(
           usedBy.map((link) => [
-            link.lines.length > 0 ? `${link.id}:${link.lines.join(",")}` : link.id,
+            link.lines.length > 0 ? `${link.id}:${link.lines.join(",")}${sourceNote(link)}` : link.id,
             linkNotes(link),
           ]),
         ),
@@ -50,7 +59,7 @@ export class ContextView implements TextView<ContextResult> {
         table(
           uses.map((link) => [
             link.id,
-            link.lines.length > 0 ? `dòng ${link.lines.join(", ")}` : "",
+            link.lines.length > 0 ? `dòng ${link.lines.join(", ")}${sourceNote(link)}` : "",
             linkNotes(link),
           ]),
         ),
