@@ -1,7 +1,7 @@
 import type { Extraction, ThemeFile } from "../../models/index.js";
 import { emptyExtraction } from "./file-parser.js";
 import type { FileParser } from "./file-parser.js";
-import { stripJsonComments } from "./json-comments.js";
+import { parseThemeJson } from "./json-comments.js";
 
 /** Tiền tố của id node setting, để không trùng với đường dẫn file nào. */
 export const SETTING_PREFIX = "setting:";
@@ -67,7 +67,7 @@ export function settingIdsOf(settings: unknown): string[] {
 export function collectGlobalSettings(file: ThemeFile, content: string): string[] {
   let data: unknown;
   try {
-    data = JSON.parse(stripJsonComments(content));
+    data = parseThemeJson(content);
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     throw new Error(`Không đọc được JSON của "${file.path}": ${reason}`, { cause: error });

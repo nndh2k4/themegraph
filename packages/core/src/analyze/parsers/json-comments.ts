@@ -73,3 +73,45 @@ export function stripJsonComments(content: string): string {
 
   return out + text.slice(copiedTo);
 }
+
+/**
+ * Bỏ dấu phẩy thừa đứng ngay trước } hoặc ] (chỉ cách nhau bởi khoảng trắng),
+ * bỏ qua mọi thứ nằm trong chuỗi. Shopify chấp nhận cách viết này trong
+ * schema, settings_schema.json và file locale, nên rất nhiều theme thương mại
+ * có nó. Thay dấu phẩy bằng dấu cách để vị trí các ký tự không đổi.
+ *
+ * Phải gọi SAU stripJsonComments: chú thích nằm giữa dấu phẩy và dấu đóng đã
+ * thành khoảng trắng nên không còn cản đường.
+ */
+export function stripTrailingCommas(text: string): string {
+  if (!text.includes(",")) return text;
+
+  let out = "";
+  let copiedTo = 0;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === '"') {
+      // Nhảy qua cả chuỗi; ký tự sau dấu \ luôn thuộc về chuỗi.
+      i++;
+      while (i < text.length && text[i] !== '"') i += text[i] === "\\" ? 2 : 1;
+      continue;
+    }
+    if (char !== ",") continue;
+
+    let next = i + 1;
+    while (next < text.length && /\s/.test(text[next] ?? "")) next++;
+    if (text[next] === "}" || text[next] === "]") {
+      out += text.slice(copiedTo, i) + " ";
+      copiedTo = i + 1;
+    }
+  }
+  return out + text.slice(copiedTo);
+}
+
+/**
+ * Đọc một file JSON của theme theo cách Shopify đọc: cho phép chú thích và
+ * dấu phẩy thừa. Ném lỗi của JSON.parse nếu vẫn sai.
+ */
+export function parseThemeJson(content: string): unknown {
+  return JSON.parse(stripTrailingCommas(stripJsonComments(content)));
+}

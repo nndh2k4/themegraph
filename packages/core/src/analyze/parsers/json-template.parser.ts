@@ -1,7 +1,7 @@
 import type { Extraction, RawRef, RefKind, ThemeFile } from "../../models/index.js";
 import { emptyExtraction } from "./file-parser.js";
 import type { FileParser } from "./file-parser.js";
-import { stripJsonComments } from "./json-comments.js";
+import { parseThemeJson } from "./json-comments.js";
 
 /** Kiểu của một object JSON bất kỳ sau khi parse. */
 type JsonObject = Record<string, unknown>;
@@ -29,7 +29,7 @@ export function extractJsonRefs(file: ThemeFile, content: string): RawRef[] {
 
   let data: unknown;
   try {
-    data = JSON.parse(stripJsonComments(content));
+    data = parseThemeJson(content);
   } catch (error) {
     // Bọc lỗi lại để thông báo nói rõ file nào hỏng; lỗi gốc của JSON.parse
     // chỉ có vị trí ký tự, không có tên file. Giữ lỗi gốc trong `cause` để

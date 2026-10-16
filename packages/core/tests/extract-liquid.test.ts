@@ -572,7 +572,16 @@ describe('extractLiquid — setting khai trong schema', () => {
     expect(extractLiquid(SECTION, '<div></div>').settings).toEqual([]);
     expect(extractLiquid(SECTION, withSchema({ name: 'Hero' })).settings).toEqual([]);
   });
+
+  it('đọc được schema có dấu phẩy thừa và chú thích', () => {
+    const content =
+      '{% schema %}{"name": "x", "settings": [{"id": "a", "type": "text"},], /* c */ "presets": [{"name": "x"},],}{% endschema %}';
+    const result = extractLiquid(SECTION, content);
+
+    expect(result.schema).toEqual(expect.objectContaining({ presets: 1 }));
+    expect(result.settings).toEqual(['setting:sections/hero.liquid#section.a']);
 });
+  });
 
 describe('extractLiquidRefs — đọc setting', () => {
   const settingRefs = (content: string, file: ThemeFile = SECTION) =>

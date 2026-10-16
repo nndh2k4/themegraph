@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { stripJsonComments } from '../src/analyze/parsers/json-comments.js';
+import { parseThemeJson, stripJsonComments } from '../src/analyze/parsers/json-comments.js';
 
 /** Gỡ chú thích rồi đọc bằng JSON.parse, như các bộ trích của lõi làm. */
 const parse = (content: string): unknown => JSON.parse(stripJsonComments(content));
@@ -101,5 +101,20 @@ describe('stripJsonComments', () => {
   it('chuỗi không đóng không làm hàm chạy quá cuối nội dung', () => {
     expect(stripJsonComments('{ "a": "dở dang // không phải chú thích')).toBe('{ "a": "dở dang // không phải chú thích');
     expect(stripJsonComments('{ "a": "kết thúc bằng \\')).toBe('{ "a": "kết thúc bằng \\');
+  });
+});
+
+describe('parseThemeJson — cú pháp Shopify chấp nhận', () => {
+  it('bỏ dấu phẩy thừa trước } và ]', () => {
+    expect(parseThemeJson('{"a": [1, 2,], "b": {"c": 3,},}')).toEqual({ a: [1, 2], b: { c: 3 } });
+    expect(parseThemeJson('[\n  {"x": 1},\n  // ghi chú\n]')).toEqual([{ x: 1 }]);
+  });
+
+  it('không đụng vào dấu phẩy nằm trong chuỗi', () => {
+    expect(parseThemeJson('{"a": "x,]", "b": ",}"}')).toEqual({ a: 'x,]', b: ',}' });
+  });
+
+  it('vẫn báo lỗi JSON thật, với số dòng của file gốc', () => {
+    expect(() => parseThemeJson('{\n  "a": 1\n  "b": 2\n}')).toThrow(/line 3/);
   });
 });

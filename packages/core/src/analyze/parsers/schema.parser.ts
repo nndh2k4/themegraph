@@ -1,4 +1,5 @@
 import { settingIdsOf } from "./global-settings.parser.js";
+import { parseThemeJson } from "./json-comments.js";
 
 /** Kiểu của một object JSON bất kỳ sau khi parse. */
 type JsonObject = Record<string, unknown>;
@@ -57,7 +58,7 @@ export interface ParsedSchema {
  * Ném lỗi của JSON.parse nếu thân schema không phải JSON hợp lệ.
  */
 export function parseSchema(schemaBody: string): ParsedSchema {
-  const schema: unknown = JSON.parse(schemaBody);
+  const schema: unknown = parseThemeJson(schemaBody);
   if (!isObject(schema)) {
     return { blockTypes: [], presets: 0, acceptsThemeBlocks: false, settings: [], blockSettings: [], resourceSettings: [] };
   }
