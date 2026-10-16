@@ -11,7 +11,6 @@ import type {
   CallArgument,
   CallContext,
   Extraction,
-  ObjectKind,
   RawRef,
   RefKind,
   RefSource,
@@ -102,17 +101,6 @@ const DATE_FILTERS = new Set(["date", "time_tag"]);
 const CONDITIONAL_TAGS = new Set(["if", "unless", "case", "for", "tablerow"]);
 
 /**
- * Loại đối tượng sẵn có của ba tên settings, section, block. Một biến chỉ
- * mang đúng loại này thì không cần truyền qua {% include %}: snippet được
- * include cũng tự thấy nó.
- */
-const BUILTIN_KIND: ReadonlyMap<string, ObjectKind> = new Map([
-  ["settings", "settings"],
-  ["section", "section"],
-  ["block", "block"],
-]);
-
-/**
  * Trích quan hệ thô từ một file Liquid. Là extractLiquid() chỉ lấy phần refs.
  */
 export function extractLiquidRefs(file: ThemeFile, content: string, context?: CallContext): RawRef[] {
@@ -190,7 +178,7 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
   //     section_st.title hay last_block.settings.x vẫn là lần đọc setting
   //     (xem liquid-objects.ts)
   const values = new LiquidValues(parentOf, content, context);
-  const objects = new LiquidObjects(file.path, context);
+  const objects = new LiquidObjects(file.path, file.kind, context);
 
   walk(ast, (node, parent) => {
     parentOf.set(node, parent);
@@ -298,8 +286,9 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
     if (key.type === NodeTypes.String) addRef("setting", `${object}.${key.value}`, node);
     else addComputedRefs("setting", key, [], node, `${object}.`);
 
-    // Đối tượng nhận từ nơi gọi (xem ObjectOrigin): ghi phạm vi tìm setting.
-    // Setting toàn cục không thuộc file nào nên không cần.
+    // Đối tượng nhận từ nơi gọi (xem ObjectOrigin), hay section có sẵn của
+    // một file không phải section (ANCESTOR_SECTIONS): ghi phạm vi tìm
+    // setting. Setting toàn cục không thuộc file nào nên không cần.
     const own = origins.length === 1 && origins[0] === file.path;
     if (own || object === "settings") return;
     for (const ref of refs.slice(before)) ref.scope = [...origins];
@@ -328,7 +317,7 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
     const args = new Map<string, CallArgument>();
     const names = new Set([...values.names(), ...objects.names(), ...(context?.kinds.keys() ?? []), ...(context?.values.keys() ?? [])]);
     for (const name of names) {
-      const kinds = objects.originsOfVariable(name).filter((entry) => entry.kind !== BUILTIN_KIND.get(name));
+      const kinds = objects.originsOfVariable(name);
       args.set(name, { name, kinds, values: values.valuesOf(name, node) ?? null });
     }
     return args;

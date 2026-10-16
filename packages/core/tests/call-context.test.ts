@@ -44,6 +44,16 @@ describe('lời gọi snippet và tham số', () => {
     const [call] = callsOf('sections/s.liquid', 'section', "{%- assign icon = 'x' -%}{%- assign st = section.settings -%}{% include 'row' %}");
     expect(call?.args.map((arg) => arg.name)).toEqual(['icon', 'st']);
   });
+
+  it('include truyền biến lặp block của section', () => {
+    const [call] = callsOf('sections/s.liquid', 'section', "{%- for block in section.blocks -%}{% include 'row' %}{%- endfor -%}");
+    expect(call?.args).toEqual([{ name: 'block', kinds: [{ kind: 'block', origins: ['sections/s.liquid'] }], values: null }]);
+  });
+
+  it('section có sẵn của snippet truyền đi mang theo file truyền nó', () => {
+    const [call] = callsOf('snippets/a.liquid', 'snippet', "{% render 'x', st: section.settings %}");
+    expect(call?.args).toEqual([{ name: 'st', kinds: [{ kind: 'section.settings', origins: ['@ancestor-sections:snippets/a.liquid'] }], values: null }]);
+  });
 });
 
 describe('buildCallContexts', () => {
@@ -126,6 +136,39 @@ describe('ngữ cảnh gọi — từ đầu tới cuối', () => {
 
     expect(readers(handle, 'setting:blocks/a.liquid#block.padding')).toEqual(['snippets/spacing.liquid']);
     expect(readers(handle, 'setting:blocks/b.liquid#block.padding')).toEqual([]);
+  });
+
+  it('block có sẵn trong snippet chỉ là theme block đang render, không phải block cục bộ của section', async () => {
+    await write('sections/list.liquid', `{%- for block in section.blocks -%}{% render 'card', block: block %}{%- endfor -%}{% schema %}{"name":"l","presets":[{"name":"l"}],"blocks":[{"type":"c","name":"c","settings":[{"id":"title","type":"text"}]}]}{% endschema %}`);
+    await write('sections/header.liquid', `{%- for block in section.blocks -%}{% render 'card' %}{%- endfor -%}{% schema %}{"name":"h","presets":[{"name":"h"}],"blocks":[{"type":"c","name":"c","settings":[{"id":"title","type":"text"}]}]}{% endschema %}`);
+    await write('snippets/card.liquid', '{{ block.settings.title }}');
+
+    const handle = await analyzed();
+
+    expect(readers(handle, 'setting:sections/list.liquid#block.title')).toEqual(['snippets/card.liquid']);
+    expect(readers(handle, 'setting:sections/header.liquid#block.title')).toEqual([]);
+  });
+
+  it('include dùng chung biến lặp block của section', async () => {
+    await write('sections/list.liquid', `{%- for block in section.blocks -%}{% include 'row' %}{%- endfor -%}{% schema %}{"name":"l","presets":[{"name":"l"}],"blocks":[{"type":"c","name":"c","settings":[{"id":"title","type":"text"}]}]}{% endschema %}`);
+    await write('snippets/row.liquid', '{{ block.settings.title }}');
+
+    const handle = await analyzed();
+
+    expect(readers(handle, 'setting:sections/list.liquid#block.title')).toEqual(['snippets/row.liquid']);
+  });
+
+  it('section.settings mà snippet chuyển tiếp chỉ tới section tổ tiên của snippet đó', async () => {
+    // product render outer, outer chuyển section.settings cho inner; other render inner trực tiếp mà không truyền gì.
+    await write('sections/product.liquid', `{% render 'outer' %}${schema(['zoom'])}`);
+    await write('sections/other.liquid', `{% render 'inner' %}${schema(['zoom'])}`);
+    await write('snippets/outer.liquid', "{% render 'inner', st: section.settings %}");
+    await write('snippets/inner.liquid', '{{ st.zoom }}');
+
+    const handle = await analyzed();
+
+    expect(readers(handle, 'setting:sections/product.liquid#section.zoom')).toEqual(['snippets/inner.liquid']);
+    expect(readers(handle, 'setting:sections/other.liquid#section.zoom')).toEqual([]);
   });
 
   it('giá trị viết sẵn truyền vào snippet thành tên file và khoá dịch', async () => {

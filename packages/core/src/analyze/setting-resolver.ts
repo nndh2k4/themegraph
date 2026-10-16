@@ -32,13 +32,22 @@ export type SettingResolution =
  *   section.settings.x   trong một section: setting của chính section đó
  *                        trong snippet hay block: setting của section ĐANG
  *                        render nó. Không biết là section nào khi đọc mã, nên
- *                        đích là mọi section tổ tiên có khai x.
+ *                        đích là mọi section tổ tiên có khai x. (Parser ghi
+ *                        ref này với phạm vi ANCESTOR_SECTIONS, nên graph
+ *                        builder đưa nó tới đây như thể nó nằm ở từng section
+ *                        tổ tiên; nhánh này giữ cho ref không có phạm vi.)
  *
  *   block.settings.x     trong một theme block: setting của chính block đó
  *                        trong một section: setting của block cục bộ khai
  *                        trong schema của section đó, hoặc của một theme
  *                        block mà section đó nhận (xem `themeBlocksOf`)
- *                        trong snippet: mọi section và block tổ tiên có khai x
+ *                        trong snippet: mọi theme block tổ tiên có khai x.
+ *                        block có sẵn trong snippet là theme block đang
+ *                        render nó; biến lặp block của section không đi vào
+ *                        {% render %}. Block cục bộ của section chỉ được tính
+ *                        khi nơi gọi truyền thật (`block: block`, hay
+ *                        {% include %}): khi đó ref có phạm vi chứa section
+ *                        đó và được phân giải như thể nằm ở section.
  *
  * Hai trường hợp đầu của mỗi dạng là đọc TRỰC TIẾP: file đọc setting của
  * chính nó, nên không thấy thì là lỗi (missing). Trường hợp qua tổ tiên mà
@@ -84,10 +93,11 @@ export function resolveSettingRef(
       candidates = [...themeBlocks, ref.from].map((path) => settingNodeId(path, "block", third));
       direct = true;
     } else {
-      // Không lấy theme block của section tổ tiên: trong snippet, block là
-      // block đang render nó, đã có mặt trong danh sách tổ tiên nếu có.
+      // Chỉ theme block tổ tiên: trong snippet, block có sẵn là theme block
+      // đang render nó. Section tổ tiên không góp block cục bộ của nó, vì
+      // biến lặp block của section không đi vào {% render %}.
       candidates = ancestors
-        .filter((ancestor) => ancestor.kind === "section" || ancestor.kind === "block")
+        .filter((ancestor) => ancestor.kind === "block")
         .map((ancestor) => settingNodeId(ancestor.path, "block", third));
       direct = false;
     }

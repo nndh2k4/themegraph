@@ -123,10 +123,11 @@ describe('resolveSettingRef — block.settings', () => {
     expect(resolve('sections/hero.liquid', 'section', 'block.settings.title').status).toBe('missing');
   });
 
-  it('trong một snippet: setting block của mọi section và block tổ tiên có khai nó', () => {
+  it('trong một snippet: chỉ setting của theme block tổ tiên, không phải block cục bộ của section', () => {
+    // Biến lặp block của section không đi vào {% render %}: block có sẵn của snippet là theme block đang render nó.
     expect(resolve('snippets/card.liquid', 'snippet', 'block.settings.heading', ANCESTORS)).toEqual({
       status: 'resolved',
-      targets: ['setting:blocks/text.liquid#block.heading', 'setting:sections/hero.liquid#block.heading'],
+      targets: ['setting:blocks/text.liquid#block.heading'],
     });
   });
 

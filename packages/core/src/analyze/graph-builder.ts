@@ -1,3 +1,4 @@
+import { ancestorSectionsBase } from "./parsers/liquid-objects.js";
 import { resolveSettingRef } from "./setting-resolver.js";
 import type { Ancestor, SettingResolution } from "./setting-resolver.js";
 import { resolveImport, resolveRef, TRANSLATION_PREFIX } from "./ref-resolver.js";
@@ -338,8 +339,10 @@ export class GraphBuilder {
     /**
      * Phân giải một lần đọc setting. Ref có phạm vi (đọc qua đối tượng nơi gọi
      * truyền vào, xem RawRef.scope) được phân giải như thể nó nằm ở từng file
-     * trong phạm vi; đích là hợp của các lần đó. Lần đọc gián tiếp như vậy
-     * không bao giờ bị coi là hỏng, chỉ là không xác định.
+     * trong phạm vi; đích là hợp của các lần đó. Phạm vi "section tổ tiên"
+     * (ANCESTOR_SECTIONS, xem liquid-objects.ts) mở ra thành từng section tổ
+     * tiên. Lần đọc gián tiếp như vậy không bao giờ bị coi là hỏng, chỉ là
+     * không xác định.
      */
     // Setting kiểu tài nguyên của từng file, theo kiểu: 'product' -> file -> id.
     const resourceSettingsOf = new Map<string, Map<string, string[]>>();
@@ -393,9 +396,21 @@ export class GraphBuilder {
       }
 
       const targets = new Set<string>();
-      for (const origin of ref.scope) {
-        const resolution = resolveSettingRef({ ...ref, from: origin }, kindOf.get(origin), ancestorsOf(origin), knownPaths, themeBlocksOf);
+      const collect = (resolution: SettingResolution) => {
         if (resolution.status === "resolved") for (const target of resolution.targets) targets.add(target);
+      };
+      for (const origin of ref.scope) {
+        const base = ancestorSectionsBase(origin, ref.from);
+        if (base === undefined) {
+          collect(resolveSettingRef({ ...ref, from: origin }, kindOf.get(origin), ancestorsOf(origin), knownPaths, themeBlocksOf));
+          continue;
+        }
+        // Section bao quanh lúc chạy là một trong các section tổ tiên: đọc
+        // như thể ref nằm ở từng section đó.
+        for (const ancestor of ancestorsOf(base)) {
+          if (ancestor.kind !== "section") continue;
+          collect(resolveSettingRef({ ...ref, from: ancestor.path }, "section", ancestorsOf(ancestor.path), knownPaths, themeBlocksOf));
+        }
       }
       return targets.size > 0 ? { status: "resolved", targets: [...targets].sort(compareText) } : { status: "unresolved" };
     };

@@ -54,8 +54,22 @@ describe('đối tượng qua tên khác', () => {
     expect(settingReads('snippets/gallery.liquid', 'snippet', content, context)).toEqual([
       'section.settings.enable_zoom @ sections/product.liquid',
       'block.settings.columns @ sections/header.liquid',
-      'section.settings.own',
+      'section.settings.own @ @ancestor-sections',
     ]);
+  });
+
+  it('biến lặp trùng tên che block có sẵn', () => {
+    // Wonder, snippets/simple-block.liquid: blocks không phải danh sách block nào đã biết.
+    expect(settingReads('snippets/s.liquid', 'snippet', '{%- for block in blocks -%}{{ block.settings.x }}{%- endfor -%}')).toEqual([]);
+  });
+
+  it('phép gán tự tham chiếu vẫn thấy block có sẵn ở vế phải', () => {
+    expect(settingReads('snippets/s.liquid', 'snippet', '{%- assign block = block -%}{{ block.settings.x }}')).toEqual(['block.settings.x']);
+  });
+
+  it('section.blocks trong theme block là block của section bao quanh', () => {
+    // Purity, blocks/_slide.liquid đọc section.blocks.first.settings.
+    expect(settingReads('blocks/_slide.liquid', 'block', '{{ section.blocks.first.settings.image }}')).toEqual(['block.settings.image @ @ancestor-sections']);
   });
 });
 
@@ -105,6 +119,15 @@ describe('block.settings trong section dùng theme block', () => {
     const graph = buildGraph(files, refs('image'), { settings });
     expect(graph.refs.filter((entry) => entry.kind === 'setting').map((entry) => [entry.status, entry.target])).toEqual([
       ['resolved', 'setting:blocks/_slide.liquid#block.image'],
+    ]);
+  });
+
+  it('section.blocks đọc trong theme block tìm ở section tổ tiên', () => {
+    const fromBlock = ref('blocks/_slide.liquid', 'setting', 'block.settings.image');
+    fromBlock.scope = ['@ancestor-sections'];
+    const graph = buildGraph(files, [refs('image')[0]!, fromBlock], { settings: ['setting:sections/slideshow.liquid#block.image'] });
+    expect(graph.refs.filter((entry) => entry.kind === 'setting').map((entry) => [entry.from, entry.status, entry.target])).toEqual([
+      ['blocks/_slide.liquid', 'resolved', 'setting:sections/slideshow.liquid#block.image'],
     ]);
   });
 
