@@ -8,6 +8,7 @@ import type {
   GraphNode,
   RawRef,
   RefKind,
+  Resolution,
   ResolvedRef,
   ThemeFile,
   ThemeGraph,
@@ -202,13 +203,24 @@ export class GraphBuilder {
     // chúng, settings.x là đọc tham số đó, không phải setting toàn cục.
     const settingsShadowedIn = new Set<string>();
 
+    // Block cục bộ khai trong schema của từng section/block. Trong cùng một
+    // section Shopify không trộn block cục bộ với theme block, nên type nằm
+    // trong danh sách này là block cục bộ dù blocks/ có file trùng tên.
+    const localBlocksOf = new Map(schemas.map((schema) => [schema.file, new Set(schema.localBlockTypes ?? [])]));
+
     for (const ref of rawRefs) {
       if (ref.kind === "setting") {
         settingRefs.push(ref);
         continue;
       }
 
-      const resolution = ref.kind === "import" ? resolveImport(ref, importTargets, knownPaths) : resolveRef(ref, knownPaths);
+      const isLocalBlock =
+        ref.kind === "block" && ref.source === "json" && ref.parent !== undefined && localBlocksOf.get(ref.parent)?.has(ref.to) === true;
+      const resolution: Resolution = isLocalBlock
+        ? { status: "local_block" }
+        : ref.kind === "import"
+          ? resolveImport(ref, importTargets, knownPaths)
+          : resolveRef(ref, knownPaths);
 
       // Section được tải lúc chạy: chỉ giữ những tên ứng với một section có
       // thật, và bỏ trường hợp một section tự xin lại chính nó (cách thường gặp
@@ -450,8 +462,10 @@ export class GraphBuilder {
       ),
       // Chỉ giữ schema của file có trong theme: bảng schemas tham chiếu tới
       // bảng nodes, nên một dòng mồ côi sẽ bị database từ chối.
+      // localBlockTypes chỉ phục vụ việc dựng đồ thị nên không đưa ra ngoài.
       schemas: schemas
         .filter((schema) => filePaths.has(schema.file))
+        .map(({ file, presets, acceptsThemeBlocks }) => ({ file, presets, acceptsThemeBlocks }))
         .sort((a, b) => compareText(a.file, b.file)),
       fileHashes: fileHashes
         .filter((entry) => filePaths.has(entry.file))

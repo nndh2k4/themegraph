@@ -45,8 +45,8 @@ export function extractJsonRefs(file: ThemeFile, content: string): RawRef[] {
   const refs: RawRef[] = [];
 
   // Hàm con để mọi ref được tạo ở đúng một chỗ, cùng một khuôn.
-  const addRef = (kind: RefKind, to: string, conditional: boolean): void => {
-    refs.push({ from: file.path, to, kind, source: "json", conditional, line: 0 });
+  const addRef = (kind: RefKind, to: string, conditional: boolean, parent?: string): void => {
+    refs.push({ from: file.path, to, kind, source: "json", conditional, line: 0, ...(parent === undefined ? {} : { parent }) });
   };
 
   // "layout": "password" nghĩa là trang này dùng layout/password.liquid thay
@@ -64,8 +64,11 @@ export function extractJsonRefs(file: ThemeFile, content: string): RawRef[] {
    *
    * `parentDisabled` truyền trạng thái tắt từ trên xuống: block nằm trong một
    * section hoặc block đã bị tắt thì cũng không được render.
+   *
+   * `parent` là file của section hoặc theme block chứa các block này; ghi vào
+   * ref để resolver biết type có phải block cục bộ của section đó không.
    */
-  const collectBlocks = (blocks: unknown, parentDisabled: boolean): void => {
+  const collectBlocks = (blocks: unknown, parentDisabled: boolean, parent: string): void => {
     if (!isObject(blocks)) return;
 
     for (const block of Object.values(blocks)) {
@@ -79,10 +82,10 @@ export function extractJsonRefs(file: ThemeFile, content: string): RawRef[] {
 
       // Lưu ý: type ở đây có thể là block cục bộ khai trong {% schema %} của
       // section (kiểu Dawn) chứ không phải file trong blocks/. Tầng parse không
-      // phân biệt được; resolver sẽ quyết định khi đối chiếu với danh sách file.
-      addRef("block", block.type, disabled);
+      // phân biệt được; tầng dựng đồ thị quyết định nhờ `parent` và schema.
+      addRef("block", block.type, disabled, parent);
 
-      collectBlocks(block.blocks, disabled);
+      collectBlocks(block.blocks, disabled, `blocks/${block.type}.liquid`);
     }
   };
 
@@ -95,7 +98,7 @@ export function extractJsonRefs(file: ThemeFile, content: string): RawRef[] {
       const disabled = section.disabled === true;
 
       addRef("section", section.type, disabled);
-      collectBlocks(section.blocks, disabled);
+      collectBlocks(section.blocks, disabled, `sections/${section.type}.liquid`);
     }
   }
 

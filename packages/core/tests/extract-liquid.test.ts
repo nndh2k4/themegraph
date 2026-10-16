@@ -456,7 +456,7 @@ describe('extractLiquid — dữ kiện schema', () => {
   it('trả dữ kiện rỗng khi thân schema là JSON nhưng không phải object', () => {
     expect(extractLiquid(SECTION, '{% schema %}[]{% endschema %}')).toEqual({
       refs: [],
-      schema: { presets: 0, acceptsThemeBlocks: false },
+      schema: { presets: 0, acceptsThemeBlocks: false, localBlockTypes: [] },
       translationKeys: [],
       settings: [],
       elements: [],

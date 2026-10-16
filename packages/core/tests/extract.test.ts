@@ -48,7 +48,7 @@ describe('ThemeFileParser — toàn bộ kết quả', () => {
     const result = parser.parse(file, content);
 
     expect(result.refs.map((r) => r.to)).toEqual(['price']);
-    expect(result.schema).toEqual({ presets: 1, acceptsThemeBlocks: false });
+    expect(result.schema).toEqual({ presets: 1, acceptsThemeBlocks: false, localBlockTypes: [] });
   });
 
   it('trả schema null cho file .json và file không chứa quan hệ', () => {

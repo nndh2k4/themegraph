@@ -79,6 +79,12 @@ export interface RawRef {
   // (xem ObjectOrigin): setting được tìm trong các file này, như thể lần đọc
   // nằm ở đó, thay vì trong mọi tổ tiên của file đang đọc.
   scope?: string[];
+  // Chỉ có ở ref `block` nguồn `json`: đường dẫn file của section
+  // (sections/<type>.liquid) hoặc theme block cha (blocks/<type>.liquid) chứa
+  // block đó. Cần để biết type này là block CỤC BỘ của section hay là theme
+  // block: Shopify không trộn hai loại trong cùng một section, nên một type
+  // trùng tên file trong blocks/ vẫn có thể chỉ là block cục bộ.
+  parent?: string;
 }
 
 /**

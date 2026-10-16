@@ -12,6 +12,10 @@ export interface SchemaInfo {
   // true khi "blocks" có mục { "type": "@theme" }: file này nhận MỌI theme
   // block công khai (file trong blocks/ có tên không bắt đầu bằng "_").
   acceptsThemeBlocks: boolean;
+  // Type của các block CỤC BỘ (mục có "name" trong "blocks" của schema). Chỉ
+  // dùng lúc dựng đồ thị, để ref block trong JSON template không bị nối sang
+  // file cùng tên trong blocks/; không lưu vào đồ thị.
+  localBlockTypes?: string[];
 }
 
 /**

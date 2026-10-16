@@ -35,6 +35,7 @@ export interface ParsedSchema {
   blockTypes: string[]; // tên các theme block (file trong blocks/) được nhắc tới
   presets: number; // số mục trong "presets"
   acceptsThemeBlocks: boolean; // "blocks" có mục "@theme" hay không
+  localBlockTypes: string[]; // type của các block cục bộ (mục có "name" trong "blocks")
   settings: string[]; // id của các setting khai ở tầng ngoài cùng của schema
   // Id của các setting khai trong block CỤC BỘ, gộp mọi loại block lại và bỏ
   // trùng. Gộp vì mã đọc chúng qua cùng một cách viết, block.settings.x, và
@@ -60,7 +61,7 @@ export interface ParsedSchema {
 export function parseSchema(schemaBody: string): ParsedSchema {
   const schema: unknown = parseThemeJson(schemaBody);
   if (!isObject(schema)) {
-    return { blockTypes: [], presets: 0, acceptsThemeBlocks: false, settings: [], blockSettings: [], resourceSettings: [] };
+    return { blockTypes: [], presets: 0, acceptsThemeBlocks: false, localBlockTypes: [], settings: [], blockSettings: [], resourceSettings: [] };
   }
 
   // Block CỤC BỘ: khai báo ngay trong schema, nhận ra nhờ có "name" (Shopify
@@ -124,6 +125,7 @@ export function parseSchema(schemaBody: string): ParsedSchema {
     // Chỉ xét "blocks" ở tầng ngoài cùng: đó là nơi schema khai nó nhận gì.
     // "@theme" nằm trong presets không có nghĩa này.
     acceptsThemeBlocks: declared.some((block) => block.type === "@theme"),
+    localBlockTypes: [...localTypes],
     settings: settingIdsOf(schema.settings),
     blockSettings: [...new Set(declared.flatMap((block) => settingIdsOf(block.settings)))],
     resourceSettings: (Array.isArray(schema.settings) ? schema.settings : [])

@@ -347,7 +347,7 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
         addRef("block", blockType, node, "schema", true);
       }
 
-      schema = { presets: parsed.presets, acceptsThemeBlocks: parsed.acceptsThemeBlocks };
+      schema = { presets: parsed.presets, acceptsThemeBlocks: parsed.acceptsThemeBlocks, localBlockTypes: parsed.localBlockTypes };
 
       // Setting ở tầng ngoài của schema thuộc về chính file: đọc bằng
       // block.settings nếu file là theme block, bằng section.settings nếu là
