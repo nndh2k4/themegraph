@@ -1,4 +1,5 @@
 import type { RawRef } from "../../models/index.js";
+import { lineIndex } from "./line-index.js";
 
 /**
  * Tìm những chỗ mã JavaScript nạp một module khác:
@@ -38,18 +39,10 @@ function blank(text: string): string {
   return text.replace(/[^\n]/g, " ");
 }
 
-/** Số dòng (đếm từ 1) của vị trí `index` trong `content`. */
-function lineAt(content: string, index: number): number {
-  let line = 1;
-  for (let i = 0; i < index; i++) {
-    if (content.charCodeAt(i) === 10) line++;
-  }
-  return line;
-}
-
 /** Các module mà mã JavaScript `content` của file `from` nạp. */
 export function extractImports(from: string, content: string): RawRef[] {
   const code = content.replace(COMMENTS, blank);
+  const lineAt = lineIndex(code);
   const found: { to: string; index: number; conditional: boolean }[] = [];
 
   for (const match of code.matchAll(STATIC)) {
@@ -70,7 +63,7 @@ export function extractImports(from: string, content: string): RawRef[] {
       kind: "import" as const,
       source: "js" as const,
       conditional,
-      line: lineAt(code, index),
+      line: lineAt(index),
     }));
 }
 

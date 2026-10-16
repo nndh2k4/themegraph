@@ -131,6 +131,19 @@ describe('resolveRef — khoá dịch', () => {
   });
 });
 
+describe('resolveRef — khoá shopify.*', () => {
+  it('khoá do nền tảng cung cấp, không có trong locale, thì không phải ref hỏng', () => {
+    expect(resolveRef(ref('translation', 'shopify.online_store.x'), new Set(['t:general.a']))).toEqual({ status: 'none' });
+  });
+
+  it('khoá shopify.* mà theme tự khai trong locale vẫn được nối', () => {
+    expect(resolveRef(ref('translation', 'shopify.online_store.x'), new Set(['t:shopify.online_store.x']))).toEqual({
+      status: 'resolved',
+      path: 't:shopify.online_store.x',
+    });
+  });
+});
+
 describe('resolveRef — dạng số nhiều của khoá dịch', () => {
   // Locale có "cart.items": { "one": ..., "other": ... }, tức một node t:cart.items.
   const KNOWN = new Set(['t:cart.items', 't:cart.title']);

@@ -250,7 +250,15 @@ export class LiquidValues {
     let values = this.expression(expression, at, bindings);
 
     for (const filter of filters) {
-      if (values === undefined) return undefined;
+      if (values === undefined) {
+        // Giá trị gốc không biết (x | default: "khoá"): x có thể rỗng, và khi
+        // đó kết quả là giá trị mặc định. Vậy mặc định là một khả năng nên giữ
+        // lại; ref sinh ra vẫn bị đánh dấu computed vì x có thể là thứ khác.
+        const [fallback] = filter.args;
+        if (filter.name !== "default" || fallback === undefined || fallback.type === NodeTypes.NamedArgument) return undefined;
+        values = this.expression(fallback, at, bindings);
+        continue;
+      }
 
       // Tham số có tên (ví dụ `t: count: 3`) không thuộc các filter ở đây.
       const args: PossibleValues[] = [];
@@ -402,7 +410,11 @@ export class LiquidValues {
    * Các lệnh gán của `name` có thể là lệnh gán cuối cùng đã chạy khi tới `at`
    * (reaching definitions):
    *
-   *   - đi ngược từ `at` qua các lệnh gán đứng trước, dừng ở lệnh đầu tiên
+   *   - đi ngược từ `at` qua các lệnh gán đứng trước, tức là KẾT THÚC trước khi
+   *     `at` bắt đầu. Một lệnh gán chứa `at` (ví dụ `at` là vế phải của
+   *     {% assign product = block.settings[product] %}) chưa chạy xong khi vế
+   *     phải được tính, nên không tính là đã chạy trước; vế phải thấy giá trị
+   *     của lệnh gán đứng trước nó. Dừng ở lệnh đầu tiên
    *     CHẮC CHẮN đã chạy (không nằm trong nhánh nào mà `at` không nằm trong).
    *     Vì vậy {% assign x = 'a' %}{% assign x = x | append: 'b' %} cho x = 'ab'
    *     ở sau, và lệnh thứ hai thấy x = 'a'.
@@ -419,7 +431,7 @@ export class LiquidValues {
 
     for (let i = all.length - 1; i >= 0; i--) {
       const definition = all[i];
-      if (definition === undefined || definition.node.position.start >= start) continue;
+      if (definition === undefined || definition.node.position.end > start) continue;
       definitions.push(definition);
       if (this.alwaysRunsBefore(definition.node, at)) {
         certain = true;
@@ -430,6 +442,8 @@ export class LiquidValues {
     // Đã gom theo chiều ngược; trả về theo thứ tự trong file.
     definitions.reverse();
 
+    // Lệnh gán bắt đầu trước `at` đã được xét ở trên, hoặc chứa `at` (đang
+    // chạy dở, xem trên), nên bỏ qua; chỉ lấy những lệnh bắt đầu từ `at` trở đi.
     const loops = this.enclosingLoops(at);
     for (const definition of all) {
       if (definition.node.position.start < start) continue;

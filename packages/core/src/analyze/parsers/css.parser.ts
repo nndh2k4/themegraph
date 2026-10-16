@@ -1,6 +1,7 @@
 import type { Extraction, RawRef, ThemeFile } from "../../models/index.js";
 import { emptyExtraction } from "./file-parser.js";
 import type { FileParser } from "./file-parser.js";
+import { lineIndex } from "./line-index.js";
 
 /**
  * File nạp qua url() trong CSS: font của @font-face, ảnh nền. Mọi asset của
@@ -18,8 +19,7 @@ export function extractCssUrls(from: string, content: string): RawRef[] {
   // Thay chú thích bằng khoảng trắng nhưng giữ xuống dòng, để số dòng không lệch.
   const code = content.replace(COMMENTS, (c) => c.replace(/[^\n]/g, " "));
   const refs: RawRef[] = [];
-  let line = 1;
-  let cursor = 0;
+  const lineAt = lineIndex(code);
 
   for (const match of code.matchAll(CSS_URL)) {
     const raw = (match[2] ?? "").trim();
@@ -30,8 +30,7 @@ export function extractCssUrls(from: string, content: string): RawRef[] {
     const name = raw.replace(/^\.\//, "").replace(/[?#].*$/, "");
     if (name === "" || name.includes("/")) continue;
 
-    for (; cursor < match.index; cursor++) if (code.charCodeAt(cursor) === 10) line++;
-    refs.push({ from, to: name, kind: "asset", source: "css", conditional: false, line, computed: true });
+    refs.push({ from, to: name, kind: "asset", source: "css", conditional: false, line: lineAt(match.index), computed: true });
   }
   return refs;
 }

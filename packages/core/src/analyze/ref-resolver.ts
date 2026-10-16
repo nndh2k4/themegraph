@@ -86,6 +86,11 @@ export function resolveRef(ref: RawRef, knownPaths: ReadonlySet<string>): Resolu
     }
   }
 
+  // Khoá "shopify.*" thuộc không gian khoá do nền tảng cung cấp (ví dụ
+  // shopify.online_store.spam_detection.disclaimer_html); theme không khai chúng
+  // trong locale. Không thấy trong theme không có nghĩa là khoá hỏng.
+  if (ref.kind === "translation" && ref.to.startsWith("shopify.")) return { status: "none" };
+
   // JSON template liệt kê mọi block của một section, gồm cả block cục bộ khai
   // trong {% schema %} của section đó (kiểu Dawn). Block cục bộ không có file
   // riêng, nên ở đây "không thấy file" được hiểu là block cục bộ.

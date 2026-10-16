@@ -27,6 +27,7 @@ import type { FileParser } from "./file-parser.js";
 import { settingNodeId } from "./global-settings.parser.js";
 import { extractImportMap } from "./import-map.parser.js";
 import { extractImports, extractModuleScriptImports } from "./js-imports.parser.js";
+import { lineIndex } from "./line-index.js";
 import { LiquidObjects } from "./liquid-objects.js";
 import { LiquidValues } from "./liquid-values.js";
 import { parseSchema, RESOURCE_SETTING_TYPES } from "./schema.parser.js";
@@ -110,20 +111,6 @@ const BUILTIN_KIND: ReadonlyMap<string, ObjectKind> = new Map([
   ["section", "section"],
   ["block", "block"],
 ]);
-
-/**
- * Đổi một vị trí ký tự (offset) trong chuỗi thành số dòng, đếm từ 1.
- *
- * Parser chỉ cho vị trí ký tự của mỗi nút; số dòng phải tự tính bằng cách
- * đếm ký tự xuống dòng đứng trước vị trí đó.
- */
-function lineAt(content: string, offset: number): number {
-  let line = 1;
-  for (let i = 0; i < offset; i++) {
-    if (content.charCodeAt(i) === 10) line++; // 10 là mã của '\n'
-  }
-  return line;
-}
 
 /**
  * Trích quan hệ thô từ một file Liquid. Là extractLiquid() chỉ lấy phần refs.
@@ -248,6 +235,10 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
     return false;
   };
 
+  // Số dòng của một vị trí ký tự. Dựng một lần cho cả file: ref nhiều thì tra
+  // nhị phân, không đếm lại từ đầu file ở mỗi ref.
+  const lineAt = lineIndex(content);
+
   // Hàm con để mọi ref được tạo ở đúng một chỗ, cùng một khuôn.
   // Mặc định source là 'liquid' và conditional được tính từ vị trí của nút;
   // nhánh schema truyền giá trị riêng cho cả hai.
@@ -264,7 +255,7 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
       kind,
       source,
       conditional,
-      line: lineAt(content, node.position.start),
+      line: lineAt(node.position.start),
     });
   };
 

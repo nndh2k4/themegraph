@@ -229,9 +229,10 @@ export class GraphBuilder {
         continue;
       }
 
-      // Import tới thứ không phải file của theme (URL, gói ngoài), và tên
-      // tính ra không ứng với gì: không phải quan hệ, không giữ lại.
-      if ((ref.kind === "import" || ref.computed === true) && resolution.status === "none") continue;
+      // Import tới thứ không phải file của theme (URL, gói ngoài), tên tính ra
+      // không ứng với gì, và khoá dịch của nền tảng (shopify.*): không phải
+      // quan hệ, không giữ lại.
+      if ((ref.kind === "import" || ref.kind === "translation" || ref.computed === true) && resolution.status === "none") continue;
 
       if (ref.kind === "layout" || ref.kind === "no_layout") {
         templatesWithLayoutChoice.add(ref.from);

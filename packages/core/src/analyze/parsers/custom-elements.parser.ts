@@ -1,4 +1,5 @@
 import type { ElementMention, ElementRole } from "../../models/index.js";
+import { lineIndex } from "./line-index.js";
 
 /**
  * Tìm những chỗ một file ĐỊNH NGHĨA hoặc DÙNG một custom element.
@@ -53,15 +54,6 @@ function blankComments(content: string): string {
   return content.replace(COMMENTS, (comment) => comment.replace(/[^\n]/g, " "));
 }
 
-/** Số dòng (đếm từ 1) của vị trí `index` trong `content`. */
-function lineAt(content: string, index: number): number {
-  let line = 1;
-  for (let i = 0; i < index; i++) {
-    if (content.charCodeAt(i) === 10) line++;
-  }
-  return line;
-}
-
 /** Vị trí `index` có nằm sau một dấu // trên cùng dòng không (chú thích của JavaScript). */
 function afterLineComment(content: string, index: number): boolean {
   const lineStart = content.lastIndexOf("\n", index - 1) + 1;
@@ -76,6 +68,7 @@ function afterLineComment(content: string, index: number): boolean {
  */
 export function extractElements(content: string): ElementMention[] {
   const text = blankComments(content);
+  const lineAt = lineIndex(text);
   const found: { name: string; role: ElementRole; index: number }[] = [];
 
   for (const match of text.matchAll(DEFINE)) {
@@ -100,7 +93,7 @@ export function extractElements(content: string): ElementMention[] {
     const key = `${role} ${name}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    mentions.push({ name, role, line: lineAt(text, index) });
+    mentions.push({ name, role, line: lineAt(index) });
   }
 
   return mentions;

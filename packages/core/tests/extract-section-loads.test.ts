@@ -16,6 +16,10 @@ describe('extractSectionLoads — section_id trong URL', () => {
     expect(loads('const queryParams = [`section_id=card-product`];')).toEqual([['card-product', 1]]);
   });
 
+  it('nhận section_id= đứng ngay sau một biểu thức ${...}', () => {
+    expect(loads('fetch(`${href}${variant}section_id=cart-quick-edit`)')).toEqual([['cart-quick-edit', 1]]);
+  });
+
   it('bỏ qua tên là biến', () => {
     expect(loads('fetch(`${url}?section_id=${this.sectionId}`)')).toEqual([]);
     expect(loads('params.push(`section_id=${this.sectionId}`);')).toEqual([]);

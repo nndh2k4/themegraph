@@ -108,4 +108,11 @@ describe('{% capture %}', () => {
     expect(names("{%- capture k -%}{{ product.handle }}.svg{%- endcapture -%}{{ k | asset_url }}", 'asset')).toEqual([]);
     expect(names("{%- capture k -%}{% render 'x' %}{%- endcapture -%}{{ k | asset_url }}", 'asset')).toEqual([]);
   });
+
+  it('phép gán dùng chính tên biến ở vế phải lấy giá trị của lệnh gán trước nó', () => {
+    const content =
+      "{%- for i in (1..2) -%}{%- capture product -%}product_{{ i }}{%- endcapture -%}{%- assign product = block.settings[product] -%}{%- endfor -%}";
+
+    expect(names(content, 'setting')).toEqual(['block.settings.product_1', 'block.settings.product_2']);
+  });
 });

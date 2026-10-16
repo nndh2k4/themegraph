@@ -1,4 +1,5 @@
 import type { RawRef, RefSource } from "../../models/index.js";
+import { lineIndex } from "./line-index.js";
 
 /**
  * Tìm những chỗ một file yêu cầu Shopify render RIÊNG một section rồi trả về
@@ -42,8 +43,12 @@ const NAME = "[A-Za-z0-9][A-Za-z0-9_-]*";
 
 // (?![\w${-]) chặn trường hợp tên chỉ là phần đầu của một biểu thức, ví dụ
 // "section_id=main-${type}": chữ "main-" không phải là tên một section.
-const SECTION_ID = new RegExp(`[?&"'\`]section_id=(${NAME})(?![\\w\${-])`, "g");
-const SECTIONS = new RegExp(`[?&"'\`]sections=(${NAME}(?:,${NAME})*)(?![\\w\${,-])`, "g");
+//
+// Ký tự đứng trước "section_id=" có thể là `}`: URL ghép từ nhiều biểu thức
+// liền nhau, `${href}${variant}section_id=x`. Chữ và `_` thì không, để
+// "my_section_id=" không bị tính.
+const SECTION_ID = new RegExp(`[?&"'\`}]section_id=(${NAME})(?![\\w\${-])`, "g");
+const SECTIONS = new RegExp(`[?&"'\`}]sections=(${NAME}(?:,${NAME})*)(?![\\w\${,-])`, "g");
 const SECTION_PROPERTY = new RegExp(`\\bsection:\\s*["'](${NAME})["']`, "g");
 const ID_PROPERTY = new RegExp(`\\bid:\\s*["'](${NAME})["']`, "g");
 const SECTIONS_TO_RENDER = /getSectionsToRender\s*\([^)]*\)\s*\{/g;
@@ -56,8 +61,8 @@ const SEARCH_PARAM = new RegExp(`\\.(?:set|append)\\(\\s*["'](?:section_id|secti
 // Dạng 6: tên biến đứng ở chỗ của tên section.
 const IDENTIFIER = "[A-Za-z_$][\\w$]*";
 const VARIABLE_USES = [
-  new RegExp(`[?&"'\`](?:section_id|sections)=\\$\\{\\s*(${IDENTIFIER})\\s*\\}`, "g"),
-  new RegExp(`[?&"'\`](?:section_id|sections)=["'\`]\\s*\\+\\s*(${IDENTIFIER})(?![\\w$.(])`, "g"),
+  new RegExp(`[?&"'\`}](?:section_id|sections)=\\$\\{\\s*(${IDENTIFIER})\\s*\\}`, "g"),
+  new RegExp(`[?&"'\`}](?:section_id|sections)=["'\`]\\s*\\+\\s*(${IDENTIFIER})(?![\\w$.(])`, "g"),
   new RegExp(`${KEY}\\s*:\\s*(${IDENTIFIER})(?![\\w$.(])`, "g"),
   new RegExp(`\\.(?:set|append)\\(\\s*["'](?:section_id|sections)["']\\s*,\\s*(${IDENTIFIER})\\s*\\)`, "g"),
 ];
@@ -84,15 +89,6 @@ function literalsAssignedTo(name: string, content: string): string[] {
   return [...names];
 }
 
-/** Số dòng (đếm từ 1) của vị trí `index` trong `content`. */
-function lineAt(content: string, index: number): number {
-  let line = 1;
-  for (let i = 0; i < index; i++) {
-    if (content.charCodeAt(i) === 10) line++;
-  }
-  return line;
-}
-
 /**
  * Trích các section mà nội dung này tải qua Section Rendering API.
  *
@@ -101,6 +97,7 @@ function lineAt(content: string, index: number): number {
  * "section:" và "id:" xuất hiện ở rất nhiều chỗ không liên quan.
  */
 export function extractSectionLoads(from: string, content: string, source: Extract<RefSource, "js" | "liquid">): RawRef[] {
+  const lineAt = lineIndex(content);
   const found: { name: string; index: number }[] = [];
 
   for (const match of content.matchAll(SECTION_ID)) {
@@ -151,6 +148,6 @@ export function extractSectionLoads(from: string, content: string, source: Extra
       kind: "section_load" as const,
       source,
       conditional: true,
-      line: lineAt(content, index),
+      line: lineAt(index),
     }));
 }

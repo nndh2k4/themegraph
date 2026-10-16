@@ -137,7 +137,25 @@ describe('tên ghép — không tính được thì không ghi gì', () => {
   });
 });
 
+describe('default với giá trị gốc không biết', () => {
+  it('vẫn cho khoá mặc định', () => {
+    expect(refsOf("{{ image.alt | default: 'outfit.alt' | t }}", 'translation').map(([to]) => to)).toEqual(['outfit.alt']);
+  });
+
+  it('đánh dấu computed vì giá trị gốc mới là thứ quyết định', () => {
+    expect(refsOf("{{ image.alt | default: 'outfit.alt' | t }}", 'translation')).toEqual([['outfit.alt', 1, false, true]]);
+  });
+});
+
 describe('tên ghép — tầng dựng đồ thị', () => {
+  it('bỏ ref khoá shopify.* không có trong locale, không báo là khoá thiếu', () => {
+    const content = "{{ 'shopify.online_store.spam_detection.disclaimer_html' | t }}";
+
+    const graph = buildGraph([SNIPPET], extractLiquidRefs(SNIPPET, content));
+
+    expect(graph.refs).toEqual([]);
+  });
+
   it('chỉ giữ tên có thật, không báo tên thừa là tham chiếu hỏng', () => {
     const content = "{%- for i in (1..3) -%}{{ 'slide-' | append: i | append: '.webp' | asset_url }}{%- endfor -%}";
     const files = [SNIPPET, file('assets/slide-1.webp', 'asset'), file('assets/slide-2.webp', 'asset')];
