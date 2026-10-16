@@ -13,8 +13,11 @@ function linkNotes(link: ContextLink): string {
 /** Mọi thứ ở ngay quanh một file: ai gọi nó, nó gọi ai, đọc setting và khoá dịch nào. */
 export class ContextView implements TextView<ContextResult> {
   render(result: ContextResult, options: ViewOptions = {}): string[] {
-    const { node, usedBy, uses, translations, settings, broken, pages } = result;
+    const { node, usedBy, uses, translations, settings, broken, errors, pages } = result;
     const lines = [`${node.id} (${node.kind})`];
+
+    // Ngay sau tiêu đề: quan hệ liệt kê bên dưới có thể chưa đủ.
+    for (const message of errors) lines.push(`  Cảnh báo: ${message}`);
 
     // Với chính một loại trang thì câu "thuộc trang nào" không có nghĩa.
     if (node.kind !== "page_type") {

@@ -33,6 +33,9 @@ export interface ContextResult {
   // tức trả lời được "section.settings.x trong snippet này là của section nào".
   settings: ContextLink[];
   broken: BrokenRef[]; // tham chiếu hỏng nằm trong file này
+  // Lỗi khi phân tích chính file này; rỗng nếu đọc được trọn vẹn. Có lỗi thì
+  // quan hệ ở trên có thể thiếu.
+  errors: string[];
   pages: Reached[]; // các loại trang đi tới được node này, qua bao nhiêu tầng cũng tính
   totalPages: number;
 }

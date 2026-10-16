@@ -83,6 +83,7 @@ function pageTypeOf(templatePath: string): { page: string; alternate: boolean } 
  *     là thẻ của một app, của Shopify, hoặc một kết quả tìm thừa
  *   - importMap: import map của theme, để đổi specifier của ref import thành
  *     file. Không được giữ lại trong đồ thị
+ *   - fileErrors: file không phân tích được trọn vẹn; chỉ được giữ lại và sắp xếp
  *   - resourceSettings: setting kiểu tài nguyên (product, collection...), để
  *     phân giải closest.<kiểu>. Không được giữ lại trong đồ thị
  *
@@ -103,6 +104,7 @@ export class GraphBuilder {
       elements = [],
       importMap = [],
       resourceSettings = [],
+      fileErrors = [],
     } = facts;
 
     const filePaths = new Set(files.map((file) => file.path));
@@ -459,6 +461,9 @@ export class GraphBuilder {
         .sort(
           (a, b) => compareText(a.name, b.name) || compareText(a.role, b.role) || compareText(a.file, b.file),
         ),
+      fileErrors: fileErrors
+        .filter((entry) => filePaths.has(entry.file))
+        .sort((a, b) => compareText(a.file, b.file) || compareText(a.message, b.message)),
     };
   }
 }

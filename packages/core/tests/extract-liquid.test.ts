@@ -78,9 +78,11 @@ describe('extractLiquidRefs — render và include', () => {
     expect(brief("{% if x %}{% render 'a' %}")).toEqual([['render', 'a', 1]]);
   });
 
-  it('ném lỗi có tên file khi cú pháp Liquid hỏng hẳn', () => {
-    // Tag mở mà không có dấu đóng %} thì parser không đọc tiếp được.
-    expect(() => extractLiquidRefs(SECTION, "{% render 'a'")).toThrow('sections/hero.liquid');
+  it('Liquid hỏng mà parser dễ dãi vẫn đọc được thì giữ quan hệ, không ném lỗi', () => {
+    // Tag mở mà không có dấu đóng %}: parser chuẩn ném lỗi, parser dễ dãi thì không.
+    const result = extractLiquid(SECTION, "{% render 'a'");
+
+    expect(result.warnings).toEqual([expect.stringContaining('dễ dãi')]);
   });
 });
 
@@ -256,10 +258,11 @@ describe('extractLiquidRefs — schema', () => {
     ]);
   });
 
-  it('ném lỗi có tên file khi JSON trong schema hỏng', () => {
-    expect(() => extractLiquidRefs(SECTION, '{% schema %}{ "name": {% endschema %}')).toThrow(
-      'sections/hero.liquid',
-    );
+  it('JSON trong schema hỏng thì ghi cảnh báo, không ném lỗi', () => {
+    const result = extractLiquid(SECTION, '{% schema %}{ "name": {% endschema %}');
+
+    expect(result.schema).toBeNull();
+    expect(result.warnings).toEqual([expect.stringContaining('{% schema %}')]);
   });
 });
 
@@ -424,6 +427,7 @@ describe('extractLiquid — dữ kiện schema', () => {
       importMap: [],
       calls: [],
       resourceSettings: [],
+      warnings: [],
     });
   });
 
@@ -459,6 +463,7 @@ describe('extractLiquid — dữ kiện schema', () => {
       importMap: [],
       calls: [],
       resourceSettings: [],
+      warnings: [],
     });
   });
 

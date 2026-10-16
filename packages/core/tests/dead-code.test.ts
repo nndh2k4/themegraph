@@ -175,6 +175,7 @@ describe('deadCode — từng quy tắc', () => {
       unusedTranslationKeys: [],
       unusedSettings: [],
       notLoaded: [],
+      fileErrors: [],
     });
   });
 

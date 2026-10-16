@@ -1,6 +1,7 @@
 import type {
   EdgeType,
   FileElement,
+  FileError,
   FileHash,
   FileSchema,
   GraphEdge,
@@ -90,6 +91,12 @@ export interface GraphRepository {
   /** Mọi cặp (file định nghĩa một thẻ, file KHÁC dùng thẻ đó), xếp theo (definer, name, user). */
   elementPairs(): ElementPair[];
   fileHashes(): FileHash[];
+  /**
+   * File không phân tích được trọn vẹn lúc analyze (hỏng hẳn, hoặc chỉ một
+   * phần như {% schema %} sai JSON), xếp theo (file, message). Quan hệ của chúng
+   * có thể thiếu, nên dead-code không được tin tuyệt đối khi danh sách này khác rỗng.
+   */
+  fileErrors(): FileError[];
   /** Số node theo loại, số cạnh theo loại, số tham chiếu theo trạng thái; mỗi bảng xếp theo tên khoá. */
   counts(): GraphCounts;
   /** Những gì phép tự kiểm tra của nơi lưu trữ báo ra; rỗng là nguyên vẹn. */

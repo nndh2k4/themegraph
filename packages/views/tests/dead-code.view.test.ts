@@ -11,6 +11,7 @@ describe('DeadCodeView — nhóm dùng mà không nạp', () => {
     certain: 0,
     review: 0,
     notLoaded: [],
+    fileErrors: [],
     acceptsThemeBlocks: false,
     unusedTranslationKeys: [],
     unusedSettings: [],
@@ -74,5 +75,21 @@ describe('DeadCodeView — nhóm dùng mà không nạp', () => {
 
     expect(lines.filter((line) => line.includes('định nghĩa <'))).toHaveLength(1);
     expect(lines.join('\n')).toContain('... và 1 dòng nữa');
+  });
+
+  it('in cảnh báo file lỗi ở ĐẦU, trước mọi mục khác', () => {
+    const lines = view.render({
+      ...EMPTY,
+      files: [{ id: 'snippets/old.liquid', kind: 'snippet', confidence: 'review', reason: 'unreferenced', usedBy: [] }],
+      review: 1,
+      fileErrors: [{ file: 'sections/header.liquid', message: 'Không đọc được JSON trong {% schema %}: x' }],
+    });
+
+    expect(lines.slice(0, 3)).toEqual([
+      'Cảnh báo: 1 file không phân tích được trọn vẹn; kết quả có thể thiếu quan hệ của chúng:',
+      '  sections/header.liquid  Không đọc được JSON trong {% schema %}: x',
+      '',
+    ]);
+    expect(lines[3]).toContain('Không trang nào dùng tới');
   });
 });

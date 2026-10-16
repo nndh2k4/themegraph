@@ -252,6 +252,7 @@ describe('section do JavaScript tải — tầng trích và resolver', () => {
       importMap: [],
       calls: [],
       resourceSettings: [],
+      warnings: [],
     });
   });
 

@@ -120,6 +120,7 @@ export class SqliteGraphStore implements GraphStore {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       );
       const insertFileHash = db.prepare("INSERT INTO file_hashes (file, hash) VALUES (?, ?)");
+      const insertFileError = db.prepare("INSERT INTO file_errors (file, message) VALUES (?, ?)");
       const insertSchema = db.prepare(
         "INSERT INTO schemas (file, presets, accepts_theme_blocks) VALUES (?, ?, ?)",
       );
@@ -168,6 +169,10 @@ export class SqliteGraphStore implements GraphStore {
 
         for (const entry of graph.fileHashes) {
           insertFileHash.run(entry.file, entry.hash);
+        }
+
+        for (const entry of graph.fileErrors) {
+          insertFileError.run(entry.file, entry.message);
         }
 
         for (const entry of graph.elements) {

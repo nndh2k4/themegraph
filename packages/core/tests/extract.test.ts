@@ -68,6 +68,7 @@ describe('ThemeFileParser — toàn bộ kết quả', () => {
       importMap: [],
       calls: [],
       resourceSettings: [],
+      warnings: [],
     });
   });
 });

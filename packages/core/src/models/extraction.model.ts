@@ -1,3 +1,4 @@
+import type { FileError } from "./graph.model.js";
 import type { RawRef } from "./ref.model.js";
 
 /**
@@ -129,6 +130,9 @@ export interface Extraction {
   calls: SnippetCall[];
   // Các setting kiểu tài nguyên mà schema của file khai (xem ResourceSetting).
   resourceSettings: ResourceSetting[];
+  // Lỗi ở MỘT PHẦN của file (ví dụ JSON trong {% schema %} hỏng). File vẫn được
+  // phân tích; các quan hệ còn đọc được vẫn có trong `refs`.
+  warnings: string[];
 }
 
 /** Dữ kiện schema của một file cụ thể, dạng lưu trong đồ thị. */
@@ -160,4 +164,6 @@ export interface GraphFacts {
   importMap?: readonly FileImportMapEntry[];
   // Setting kiểu tài nguyên của mọi file, để phân giải closest.<kiểu>.
   resourceSettings?: readonly ResourceSetting[];
+  // File không phân tích được trọn vẹn, để dead-code và context cảnh báo.
+  fileErrors?: readonly FileError[];
 }

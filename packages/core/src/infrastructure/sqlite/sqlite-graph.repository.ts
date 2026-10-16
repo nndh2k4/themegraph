@@ -15,6 +15,7 @@ import type {
   EdgeType,
   ElementRole,
   FileElement,
+  FileError,
   FileHash,
   FileSchema,
   GraphEdge,
@@ -239,6 +240,12 @@ export class SqliteGraphRepository implements GraphRepository {
     return this.prepare("SELECT file, hash FROM file_hashes ORDER BY file")
       .all()
       .map((row) => ({ file: String(row.file), hash: String(row.hash) }));
+  }
+
+  fileErrors(): FileError[] {
+    return this.prepare("SELECT file, message FROM file_errors ORDER BY file, message")
+      .all()
+      .map((row) => ({ file: String(row.file), message: String(row.message) }));
   }
 
   counts(): GraphCounts {

@@ -1,4 +1,4 @@
-import { NodeTypes, toLiquidAST, walk } from "@shopify/liquid-html-parser";
+import { NodeTypes, toLiquidAST, toTolerantLiquidAST, walk } from "@shopify/liquid-html-parser";
 import type {
   ComplexLiquidExpression,
   LiquidExpression,
@@ -113,7 +113,10 @@ export function extractLiquidRefs(file: ThemeFile, content: string, context?: Ca
 export function extractLiquid(file: ThemeFile, content: string, context?: CallContext): Extraction {
   // Chỉ file .liquid mới chứa mã Liquid. Asset (.css, .js) có thể chứa chuỗi
   // trông giống tag nhưng Shopify không chạy Liquid trong đó.
-  if (file.ext !== "liquid") return { refs: [], schema: null, translationKeys: [], settings: [], elements: [], importMap: [], calls: [], resourceSettings: [] };
+  if (file.ext !== "liquid") return { refs: [], schema: null, translationKeys: [], settings: [], elements: [], importMap: [], calls: [], resourceSettings: [], warnings: [] };
+
+  // Lỗi của MỘT PHẦN file: file vẫn được phân tích, người dùng được báo.
+  const warnings: string[] = [];
 
   let ast;
   try {
@@ -122,11 +125,19 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
     // tag Liquid; nhờ vậy một file có HTML viết sai (thẻ không đóng) vẫn đọc được.
     ast = toLiquidAST(content);
   } catch (error) {
-    // Bọc lỗi để thông báo có tên file; giữ lỗi gốc trong `cause`.
     const reason = error instanceof Error ? error.message : String(error);
-    throw new Error(`Không phân tích được Liquid của "${file.path}": ${reason}`, {
-      cause: error,
-    });
+    try {
+      // Shopify chấp nhận một số Liquid lệch mà parser chuẩn từ chối (ví dụ
+      // {%- endif- %}, hay đóng tag sai thứ tự). Parser dễ dãi vẫn dựng được
+      // cây từ đó, nên đọc quan hệ bằng nó và báo cho người dùng biết.
+      ast = toTolerantLiquidAST(content);
+      warnings.push(`Liquid không chuẩn, đã đọc bằng parser dễ dãi: ${reason}`);
+    } catch {
+      // Bọc lỗi để thông báo có tên file; giữ lỗi gốc trong `cause`.
+      throw new Error(`Không phân tích được Liquid của "${file.path}": ${reason}`, {
+        cause: error,
+      });
+    }
   }
 
   const refs: RawRef[] = [];
@@ -323,11 +334,11 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
       try {
         parsed = parseSchema(node.body.value);
       } catch (error) {
+        // Chỉ phần schema hỏng: các quan hệ Liquid của file vẫn đáng giữ, nên
+        // ghi cảnh báo thay vì ném lỗi làm mất cả file.
         const reason = error instanceof Error ? error.message : String(error);
-        throw new Error(
-          `Không đọc được JSON trong {% schema %} của "${file.path}": ${reason}`,
-          { cause: error },
-        );
+        warnings.push(`Không đọc được JSON trong {% schema %}: ${reason}`);
+        return;
       }
 
       // conditional = true: schema chỉ nói file này NHẬN ĐƯỢC các block đó.
@@ -499,7 +510,7 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
   // khi file có chữ đó.
   const importMap = content.includes("importmap") ? extractImportMap(ast, content, values) : [];
 
-  return { refs, schema, translationKeys: [], settings, elements: [], importMap, calls, resourceSettings };
+  return { refs, schema, translationKeys: [], settings, elements: [], importMap, calls, resourceSettings, warnings };
 }
 
 /**

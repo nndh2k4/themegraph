@@ -1,4 +1,4 @@
-import type { NodeKind } from "../../models/index.js";
+import type { FileError, NodeKind } from "../../models/index.js";
 
 /**
  * Mức tin cậy của một kết luận "file này không được dùng".
@@ -56,6 +56,9 @@ export interface DeadCodeResult {
   // Asset không trang nào nạp nhưng có nơi cần tới (xem NotLoadedAsset), xếp
   // theo id. Tách khỏi `files` vì lời khuyên ngược hẳn: không xoá, mà nạp nó.
   notLoaded: NotLoadedAsset[];
+  // File không phân tích được trọn vẹn. Quan hệ của chúng có thể thiếu, nên khi
+  // danh sách này khác rỗng thì mọi mục của `files` đều ở mức review.
+  fileErrors: FileError[];
   // Theme có file ĐANG DÙNG nào nhận mọi theme block qua "@theme" hay không.
   // Nếu có, block công khai không bao giờ bị báo, vì merchant thêm được chúng
   // vào file đó. Một file nhận "@theme" mà chính nó không ai dùng thì không

@@ -2,6 +2,12 @@ import type { FileElement, FileHash, FileSchema } from "./extraction.model.js";
 import type { ResolvedRef } from "./ref.model.js";
 import type { FileKind } from "./theme-file.model.js";
 
+/** Một file không phân tích được, hoặc chỉ phân tích được một phần. */
+export interface FileError {
+  file: string; // cùng định dạng với ThemeFile.path
+  message: string;
+}
+
 /**
  * Loại node trong đồ thị: mọi loại file, cộng thêm các thứ không phải file:
  * loại trang, khoá dịch và setting.
@@ -110,4 +116,6 @@ export interface ThemeGraph {
   // Mọi định nghĩa custom element, và những lần dùng một thẻ mà theme có
   // định nghĩa. Lần dùng thẻ không ai định nghĩa thì không được giữ.
   elements: FileElement[];
+  // File không phân tích được, hoặc chỉ phân tích được một phần; xếp theo file rồi message.
+  fileErrors: FileError[];
 }

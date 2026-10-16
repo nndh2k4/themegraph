@@ -329,7 +329,8 @@ describe('analyze', () => {
     const result = await core().analyzer.analyze(themeRoot);
 
     expect(result.errors.map((e) => e.path)).toEqual(['snippets/broken.liquid']);
-    expect(result.errors[0]?.message).toContain('snippets/broken.liquid');
+    // Tag mở dở vẫn đọc được bằng parser dễ dãi: file được giữ, lỗi thành cảnh báo.
+    expect(result.errors[0]?.message).toContain('dễ dãi');
     // File hỏng vẫn là một node; các file khác vẫn được phân tích đầy đủ.
     expect(result.stats.files).toBe(14);
     expect(result.stats.edgesByType.RENDERS).toBe(9);

@@ -3,10 +3,10 @@ import path from "node:path";
 /**
  * Phiên bản của lược đồ bảng bên dưới. Tăng số này mỗi khi đổi cấu trúc bảng,
  * hoặc khi analyze bắt đầu ghi thêm một loại quan hệ (bản 5: cạnh
- * LOADS_SECTION và hash của file .js; bản 6: bảng elements), để công cụ đọc
+ * LOADS_SECTION và hash của file .js; bản 6: bảng elements; bản 7: bảng file_errors), để công cụ đọc
  * biết một graph.db cũ có còn dùng được hay phải analyze lại.
  */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 /** Thư mục công cụ ghi dữ liệu vào, nằm ngay trong thư mục theme. */
 export const DATA_DIR = ".themegraph";
@@ -41,6 +41,10 @@ export function graphDbPath(themeRoot: string): string {
  *
  * file_hashes: hash nội dung của từng file analyze đã đọc. Lệnh status so nó
  * với nội dung hiện có trên đĩa để biết đồ thị còn khớp hay không.
+ *
+ * file_errors: file nào không phân tích được trọn vẹn và vì sao. Không có khoá
+ * chính vì một file có thể có vài cảnh báo; dead-code và context đọc bảng này
+ * để nói rằng kết quả của chúng có thể thiếu quan hệ.
  *
  * elements: file nào định nghĩa và file nào dùng mỗi custom element. Để ở
  * bảng riêng chứ không thành cạnh, vì "file này viết thẻ <cart-drawer>" không
@@ -96,6 +100,11 @@ CREATE TABLE file_hashes (
   file TEXT PRIMARY KEY REFERENCES nodes (id),
   hash TEXT NOT NULL
 ) STRICT, WITHOUT ROWID;
+
+CREATE TABLE file_errors (
+  file    TEXT NOT NULL REFERENCES nodes (id),
+  message TEXT NOT NULL
+) STRICT;
 
 CREATE TABLE elements (
   name TEXT    NOT NULL,

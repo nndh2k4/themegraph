@@ -37,6 +37,11 @@ export class ContextService {
       expected: String(ref.target),
     }));
 
+    const errors = this.graph
+      .fileErrors()
+      .filter((error) => error.file === node.id)
+      .map((error) => error.message);
+
     // "File này thuộc trang nào" chính là phần trang của câu hỏi impact.
     const { pages, totalPages } = this.impact.findImpact(node.id);
 
@@ -51,6 +56,7 @@ export class ContextService {
       translations: outgoing.filter((link) => link.type === TRANSLATION_EDGE),
       settings: outgoing.filter((link) => link.type === SETTING_EDGE),
       broken,
+      errors,
       pages,
       totalPages,
     };

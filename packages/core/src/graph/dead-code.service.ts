@@ -46,6 +46,9 @@ export class DeadCodeService {
    *     merchant thêm được block vào nó.
    *   - Còn lại là `certain`.
    *
+   * Nếu có file không phân tích được trọn vẹn thì mọi kết quả đều là `review`:
+   * file đó có thể là nơi gọi duy nhất của một file khác mà đồ thị không thấy.
+   *
    * Riêng asset định nghĩa một custom element mà file đang dùng có viết thì
    * không vào danh sách trên mà vào `notLoaded` (xem findNotLoaded).
    */
@@ -63,6 +66,8 @@ export class DeadCodeService {
     const unused: GraphNode[] = this.graph.nodesOfKinds(CANDIDATE_KINDS).filter((node) => !live.has(node.id));
 
     const unusedIds = new Set(unused.map((node) => node.id));
+
+    const fileErrors = this.graph.fileErrors();
 
     const acceptsThemeBlocks = acceptors.some((id) => !unusedIds.has(id));
 
@@ -135,7 +140,7 @@ export class DeadCodeService {
         return {
           id: node.id,
           kind: node.kind,
-          confidence: needsReview.has(node.id) ? "review" : "certain",
+          confidence: needsReview.has(node.id) || fileErrors.length > 0 ? "review" : "certain",
           reason: usedBy.length === 0 ? "unreferenced" : "only_used_by_unused",
           usedBy,
         };
@@ -162,6 +167,7 @@ export class DeadCodeService {
       certain: files.length - review,
       review,
       notLoaded,
+      fileErrors,
       acceptsThemeBlocks,
       unusedTranslationKeys,
       unusedSettings,

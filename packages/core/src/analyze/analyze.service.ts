@@ -120,6 +120,9 @@ export class AnalyzeService {
     const resourceSettings: ResourceSetting[] = [];
 
     for (const { file, extraction } of parsed) {
+      // Lỗi một phần: lấy từ kết quả CUỐI của file (sau khi phân tích lại snippet
+      // theo ngữ cảnh) để mỗi cảnh báo chỉ được ghi một lần.
+      for (const message of extraction.warnings) errors.push({ path: file.path, message });
       resourceSettings.push(...extraction.resourceSettings);
       rawRefs.push(...extraction.refs);
       translationKeys.push(...extraction.translationKeys);
@@ -140,6 +143,9 @@ export class AnalyzeService {
       elements,
       importMap,
       resourceSettings,
+      // Cả file hỏng hẳn lẫn cảnh báo: dead-code và context cần biết file nào
+      // có thể đã thiếu quan hệ.
+      fileErrors: errors.map((error) => ({ file: error.path, message: error.message })),
     });
 
     // Bước 5: ghi xuống đĩa. Cùng một thời điểm được ghi vào đồ thị và vào sổ

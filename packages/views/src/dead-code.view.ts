@@ -74,6 +74,21 @@ function notLoadedLines(assets: DeadCodeResult["notLoaded"], options: ViewOption
   ];
 }
 
+/** Cảnh báo ở đầu kết quả khi có file không đọc được trọn vẹn; rỗng khi không có. */
+function fileErrorLines(errors: DeadCodeResult["fileErrors"], options: ViewOptions): string[] {
+  if (errors.length === 0) return [];
+
+  return [
+    `Cảnh báo: ${errors.length} file không phân tích được trọn vẹn; kết quả có thể thiếu quan hệ của chúng:`,
+    ...capped(
+      errors.map((error) => `  ${error.file}  ${error.message}`),
+      options,
+      "file",
+    ),
+    "",
+  ];
+}
+
 /** File, khoá dịch và setting không còn được dùng. */
 export class DeadCodeView implements TextView<DeadCodeResult> {
   render(result: DeadCodeResult, options: ViewOptions = {}): string[] {
@@ -83,14 +98,17 @@ export class DeadCodeView implements TextView<DeadCodeResult> {
       ...unusedSettingLines(result.unusedSettings, options),
     ];
 
+    const warning = fileErrorLines(result.fileErrors, options);
+
     if (result.files.length === 0) {
-      return ["Không tìm thấy file nào không được dùng.", ...extras];
+      return [...warning, "Không tìm thấy file nào không được dùng.", ...extras];
     }
 
     const certain = result.files.filter((entry) => entry.confidence === "certain");
     const review = result.files.filter((entry) => entry.confidence === "review");
 
     const lines = [
+      ...warning,
       `Không trang nào dùng tới ${result.files.length} file: ${result.certain} chắc chắn, ${result.review} cần xem lại.`,
     ];
 

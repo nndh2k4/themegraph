@@ -15,6 +15,7 @@ import type {
 import type {
   EdgeType,
   FileElement,
+  FileError,
   FileHash,
   FileSchema,
   GraphEdge,
@@ -31,7 +32,7 @@ import type {
  * SearchService vẫn chạy y như cũ.
  */
 class InMemoryGraphRepository implements GraphRepository {
-  readonly meta: GraphMeta = { schemaVersion: 6, toolVersion: 'test', analyzedAt: '2026-10-14T00:00:00.000Z' };
+  readonly meta: GraphMeta = { schemaVersion: 7, toolVersion: 'test', analyzedAt: '2026-10-14T00:00:00.000Z' };
 
   constructor(
     readonly themeRoot: string,
@@ -142,6 +143,10 @@ class InMemoryGraphRepository implements GraphRepository {
   }
 
   fileHashes(): FileHash[] {
+    return [];
+  }
+
+  fileErrors(): FileError[] {
     return [];
   }
 
