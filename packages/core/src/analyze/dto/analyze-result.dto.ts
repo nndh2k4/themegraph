@@ -24,7 +24,9 @@ export interface AnalyzeResult {
   stats: AnalyzeStats;
   missing: ResolvedRef[]; // các tham chiếu hỏng, kèm file và dòng
   skipped: string[]; // file nằm trong theme nhưng ngoài quy ước thư mục
-  errors: AnalyzeError[]; // file không đọc hoặc không phân tích được
+  // File không đọc hoặc không phân tích được (hỏng hẳn), và cảnh báo của file
+  // chỉ đọc được một phần (ví dụ {% schema %} sai JSON). Xếp theo path rồi message.
+  errors: AnalyzeError[];
   // false khi không ghi được theme vào sổ đăng ký toàn cục (ví dụ thư mục home
   // không cho ghi). Đồ thị vẫn được ghi đầy đủ; chỉ lệnh list là không thấy theme.
   registered: boolean;

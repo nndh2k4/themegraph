@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { extractImports, extractModuleScriptImports } from '../src/analyze/parsers/js-imports.parser.js';
+import { extractImports, extractInlineScriptImports } from '../src/analyze/parsers/js-imports.parser.js';
 import { extractLiquidRefs } from '../src/analyze/parsers/liquid.parser.js';
 import type { GraphRepository } from '../src/graph/graph.repository.js';
 import type { FileImportMapEntry } from '../src/models/index.js';
@@ -65,7 +65,7 @@ describe('extractImports — các cách viết', () => {
     expect(imports(content)).toEqual([['./real.js', 3, false]]);
   });
 
-  it('trong file Liquid chỉ đọc bên trong <script type="module">', () => {
+  it('trong file Liquid chỉ đọc import tĩnh bên trong <script type="module">', () => {
     const content = [
       '<p>import "./not-code.js"</p>',
       '<script type="module">',
@@ -74,8 +74,30 @@ describe('extractImports — các cách viết', () => {
       '<script>import "./classic.js"</script>',
     ].join('\n');
 
-    expect(extractModuleScriptImports('sections/x.liquid', content).map((entry) => [entry.to, entry.line])).toEqual([
+    expect(extractInlineScriptImports('sections/x.liquid', content).map((entry) => [entry.to, entry.line])).toEqual([
       ['@theme/dialog', 3],
+    ]);
+  });
+
+  it('trong <script> thường chỉ đọc import() động, không đọc import tĩnh', () => {
+    // Trình duyệt cho import() chạy trong mọi script, còn import tĩnh chỉ hợp
+    // lệ trong type="module".
+    const content = [
+      "<script>document.addEventListener('click', () => import('@t/a'))</script>",
+      '<script>import "./classic.js"</script>',
+      '<script type="module">',
+      "  import { open } from '@theme/dialog';",
+      "  import('@theme/lazy');",
+      '</script>',
+      "<p>import('@t/not-code')</p>",
+      '<script type="importmap">{ "imports": { "@t/a": "import(\'@t/in-map\')" } }</script>',
+      "<script data-type=\"module\">import { x } from '@t/not-module';</script>",
+    ].join('\n');
+
+    expect(extractInlineScriptImports('sections/x.liquid', content).map((entry) => [entry.to, entry.line, entry.conditional])).toEqual([
+      ['@t/a', 1, true],
+      ['@theme/dialog', 4, false],
+      ['@theme/lazy', 5, true],
     ]);
   });
 });
@@ -230,6 +252,27 @@ describe('import — từ đầu tới cuối', () => {
 
     // Mục import map chỉ là ánh xạ: không thành cạnh từ snippet in nó ra.
     expect(graph.edgesTo('assets/core.js').map((edge) => [edge.from, edge.type])).toEqual([['assets/app.js', 'USES_ASSET']]);
+  });
+
+  it('import() động trong <script> thường của file Liquid nối tới module qua import map', async () => {
+    await mkdir(path.join(themeRoot, 'assets'), { recursive: true });
+    await writeFile(
+      path.join(themeRoot, 'snippets', 'lazy-loader.liquid'),
+      [
+        '<script type="importmap">{ "imports": { "@t/a": "{{ \'a.js\' | asset_url }}" } }</script>',
+        "<script>document.addEventListener('click', () => import('@t/a'))</script>",
+      ].join('\n'),
+    );
+    await writeFile(path.join(themeRoot, 'assets', 'a.js'), 'export const a = 1;');
+    await appendFile(path.join(themeRoot, 'layout', 'theme.liquid'), "\n{% render 'lazy-loader' %}");
+
+    await core().analyzer.analyze(themeRoot);
+    graph = openGraph(themeRoot);
+
+    expect(graph.edgesTo('assets/a.js').map((edge) => [edge.from, edge.type, edge.conditional])).toEqual([
+      ['snippets/lazy-loader.liquid', 'USES_ASSET', true],
+    ]);
+    expect(scopeOf(graph).deadCode.findUnused().files.map((entry) => entry.id)).not.toContain('assets/a.js');
   });
 });
 

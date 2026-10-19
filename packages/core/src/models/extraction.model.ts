@@ -73,7 +73,10 @@ export type ObjectKind = "settings" | "section" | "block" | "blocks" | "section.
  */
 export interface ObjectOrigin {
   kind: ObjectKind;
-  origins: string[]; // đường dẫn file, đã xếp
+  // Đã xếp. Mỗi mục là đường dẫn file, hoặc "@ancestor-sections" /
+  // "@ancestor-sections:<file>": các section tổ tiên của file đang đọc, hay
+  // của <file> (xem ANCESTOR_SECTIONS trong analyze/parsers/liquid-objects.ts).
+  origins: string[];
 }
 
 /** Một tham số truyền vào snippet: nó là đối tượng loại nào, và có thể mang giá trị nào. */

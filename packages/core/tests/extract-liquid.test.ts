@@ -78,11 +78,56 @@ describe('extractLiquidRefs — render và include', () => {
     expect(brief("{% if x %}{% render 'a' %}")).toEqual([['render', 'a', 1]]);
   });
 
-  it('Liquid hỏng mà parser dễ dãi vẫn đọc được thì giữ quan hệ, không ném lỗi', () => {
-    // Tag mở mà không có dấu đóng %}: parser chuẩn ném lỗi, parser dễ dãi thì không.
+  it('tag mở dở thì không ném lỗi, mất lời gọi dở đó và cảnh báo có thể thiếu quan hệ', () => {
+    // Tag mở mà không có dấu đóng %}: parser chuẩn ném lỗi, parser dễ dãi thì
+    // không, nhưng biến cả tag dở thành một nút lỗi nên lời gọi 'a' bị mất.
     const result = extractLiquid(SECTION, "{% render 'a'");
 
-    expect(result.warnings).toEqual([expect.stringContaining('dễ dãi')]);
+    expect(result.refs).toEqual([]);
+    expect(result.warnings).toEqual([expect.stringMatching(/dễ dãi.*có thể bị thiếu/)]);
+  });
+
+  it('đóng tag sai thứ tự thì giữ lời gọi ngoài khối lệch, mất lời gọi bên trong', () => {
+    // endfor đóng for khi if còn mở: Shopify vẫn chạy, parser chuẩn ném lỗi.
+    // Parser dễ dãi bỏ cả thân for, chỉ còn render 'b' ở sau.
+    const result = extractLiquid(SECTION, "{% for x in l %}{% if x %}{% render 'inner' %}{% endfor %}{% render 'b' %}");
+
+    expect(result.refs.map((r) => r.to)).toEqual(['b']);
+    expect(result.warnings).toEqual([expect.stringMatching(/dễ dãi.*có thể bị thiếu/)]);
+  });
+
+  it('tag đóng có dấu - dính sau tên ({%- endif- %}) đọc bằng parser chuẩn, đủ quan hệ, không cảnh báo', () => {
+    // Shopify lấy tên tag là phần chữ (endif) và bỏ qua dấu - phía sau, nên
+    // cách viết này chạy bình thường; không được làm mất khối for chứa nó.
+    const content =
+      "{% for x in l %}{% if x %}{% render 'inner' %}{%- endif- %}{% render 'after_if' %}{% endfor %}{% render 'b' %}";
+    const result = extractLiquid(SECTION, content);
+
+    expect(result.refs.map((r) => [r.to, r.conditional])).toEqual([
+      ['inner', true],
+      ['after_if', true],
+      ['b', false],
+    ]);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('tag đóng có dấu - dính sau tên vẫn đóng khối: lời gọi phía sau không bị coi là có điều kiện', () => {
+    // Không chuẩn hoá thì parser chuẩn KHÔNG báo lỗi mà coi endif- là một tag
+    // lạ: khối if không đóng và render 'b' bị coi là nằm trong if.
+    const content = "{% if x %}a{%- endif- %}\n{% unless y %}b{% endunless- %}\n{% render 'b' %}";
+
+    expect(extractLiquidRefs(SECTION, content).map((r) => [r.to, r.conditional, r.line])).toEqual([['b', false, 3]]);
+  });
+
+  it('không đụng tới -%} là dấu cắt khoảng trắng hợp lệ', () => {
+    const content = "{% if x %}{% render 'a' -%}{%- endif-%}{% render 'b' %}";
+    const result = extractLiquid(SECTION, content);
+
+    expect(result.refs.map((r) => [r.to, r.conditional])).toEqual([
+      ['a', true],
+      ['b', false],
+    ]);
+    expect(result.warnings).toEqual([]);
   });
 });
 
@@ -585,8 +630,8 @@ describe('extractLiquid — setting khai trong schema', () => {
 
     expect(result.schema).toEqual(expect.objectContaining({ presets: 1 }));
     expect(result.settings).toEqual(['setting:sections/hero.liquid#section.a']);
-});
   });
+});
 
 describe('extractLiquidRefs — đọc setting', () => {
   const settingRefs = (content: string, file: ThemeFile = SECTION) =>

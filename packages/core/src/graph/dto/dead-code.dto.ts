@@ -56,8 +56,10 @@ export interface DeadCodeResult {
   // Asset không trang nào nạp nhưng có nơi cần tới (xem NotLoadedAsset), xếp
   // theo id. Tách khỏi `files` vì lời khuyên ngược hẳn: không xoá, mà nạp nó.
   notLoaded: NotLoadedAsset[];
-  // File không phân tích được trọn vẹn. Quan hệ của chúng có thể thiếu, nên khi
-  // danh sách này khác rỗng thì mọi mục của `files` đều ở mức review.
+  // File không phân tích được trọn vẹn, xếp theo file. Quan hệ của chúng có
+  // thể thiếu, nên khi trong đó có file Liquid hay JSON template / section
+  // group thì mọi mục của `files` đều ở mức review. Lỗi ở file không gọi file
+  // nào (locale, config, asset .css.liquid / .js.liquid) không hạ mức.
   fileErrors: FileError[];
   // Theme có file ĐANG DÙNG nào nhận mọi theme block qua "@theme" hay không.
   // Nếu có, block công khai không bao giờ bị báo, vì merchant thêm được chúng

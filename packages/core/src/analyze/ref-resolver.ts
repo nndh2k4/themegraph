@@ -95,9 +95,11 @@ export function resolveRef(ref: RawRef, knownPaths: ReadonlySet<string>): Resolu
   // trong {% schema %} của section đó (kiểu Dawn). Block cục bộ không có file
   // riêng, nên ở đây "không thấy file" được hiểu là block cục bộ.
   //
-  // Giới hạn đã biết: ref thô không ghi block thuộc section nào, nên không
-  // kiểm được type đó có thật sự được khai trong schema hay không. Một type
-  // gõ sai trong JSON cũng sẽ rơi vào nhánh này.
+  // Hàm này chỉ có danh sách đường dẫn, không có schema: block cục bộ TRÙNG
+  // tên một file trong blocks/ đã được graph-builder nhận ra trước khi gọi tới
+  // đây (nhờ `parent` của ref). Giới hạn còn lại: không kiểm được type không
+  // có file kia có thật sự được khai trong schema hay không, nên một type gõ
+  // sai trong JSON cũng rơi vào nhánh này.
   if (ref.kind === "block" && ref.source === "json") return { status: "local_block" };
 
   // Tên lấy từ JavaScript bằng mẫu chữ (section: 'x', id: 'x') có thể không

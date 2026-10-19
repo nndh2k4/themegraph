@@ -26,6 +26,21 @@ const CANDIDATE_KINDS: readonly NodeKind[] = ["section", "section_group", "snipp
  */
 const REVIEW_ROOT_KINDS: ReadonlySet<NodeKind> = new Set<NodeKind>(["section", "asset", "layout"]);
 
+/**
+ * File lỗi có thể che một lời gọi tới file mức `certain` hay không.
+ *
+ * Snippet, block và section group chỉ được gọi từ mã Liquid hoặc từ JSON
+ * template / section group (xem REVIEW_ROOT_KINDS), nên chỉ lỗi ở các file đó
+ * mới làm đồ thị thiếu một lời gọi như vậy. Không tính:
+ *   - assets/*.css.liquid, *.js.liquid: Liquid trong đó chỉ in CSS/JS, không
+ *     render snippet hay block nào
+ *   - locales/*.json, config/*.json: Shopify đọc thẳng, không gọi file nào
+ */
+function canHideCalls(file: string): boolean {
+  if (file.endsWith(".liquid")) return !file.endsWith(".css.liquid") && !file.endsWith(".js.liquid");
+  return file.endsWith(".json") && (file.startsWith("templates/") || file.startsWith("sections/"));
+}
+
 /** Tên của theme block riêng tư bắt đầu bằng "_": merchant không thêm được chúng. */
 const PRIVATE_BLOCK_PREFIX = "blocks/_";
 
@@ -46,8 +61,10 @@ export class DeadCodeService {
    *     merchant thêm được block vào nó.
    *   - Còn lại là `certain`.
    *
-   * Nếu có file không phân tích được trọn vẹn thì mọi kết quả đều là `review`:
-   * file đó có thể là nơi gọi duy nhất của một file khác mà đồ thị không thấy.
+   * Nếu có file Liquid hay JSON template / section group không phân tích được
+   * trọn vẹn thì mọi kết quả đều là `review`: file đó có thể là nơi gọi duy
+   * nhất của một file khác mà đồ thị không thấy (xem canHideCalls). Lỗi ở file
+   * khác, ví dụ locale, vẫn có trong `fileErrors` nhưng không hạ mức.
    *
    * Riêng asset định nghĩa một custom element mà file đang dùng có viết thì
    * không vào danh sách trên mà vào `notLoaded` (xem findNotLoaded).
@@ -68,6 +85,7 @@ export class DeadCodeService {
     const unusedIds = new Set(unused.map((node) => node.id));
 
     const fileErrors = this.graph.fileErrors();
+    const callsMayBeMissing = fileErrors.some((error) => canHideCalls(error.file));
 
     const acceptsThemeBlocks = acceptors.some((id) => !unusedIds.has(id));
 
@@ -140,7 +158,7 @@ export class DeadCodeService {
         return {
           id: node.id,
           kind: node.kind,
-          confidence: needsReview.has(node.id) || fileErrors.length > 0 ? "review" : "certain",
+          confidence: needsReview.has(node.id) || callsMayBeMissing ? "review" : "certain",
           reason: usedBy.length === 0 ? "unreferenced" : "only_used_by_unused",
           usedBy,
         };

@@ -21,6 +21,11 @@ import type { AnalyzeError, AnalyzeResult } from "./dto/analyze-result.dto.js";
 import type { GraphBuilder } from "./graph-builder.js";
 import type { ThemeFileParser } from "./parsers/theme-file.parser.js";
 
+/** So sánh hai chuỗi theo mã ký tự, giống cách scanner sắp xếp. */
+function compareText(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 /** Đếm số phần tử theo một khoá, trả về object có khoá xếp theo bảng chữ cái. */
 function countBy<T>(items: readonly T[], keyOf: (item: T) => string): Record<string, number> {
   const counts = new Map<string, number>();
@@ -28,7 +33,7 @@ function countBy<T>(items: readonly T[], keyOf: (item: T) => string): Record<str
     const key = keyOf(item);
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
-  return Object.fromEntries([...counts].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+  return Object.fromEntries([...counts].sort(([a], [b]) => compareText(a, b)));
 }
 
 /**
@@ -133,6 +138,10 @@ export class AnalyzeService {
         schemas.push({ file: file.path, ...extraction.schema });
       }
     }
+
+    // Lỗi cứng được ghi lúc đọc, cảnh báo ghi ở vòng trên; xếp lại theo file
+    // rồi câu báo để đầu ra không phụ thuộc vào lúc mỗi loại được ghi.
+    errors.sort((a, b) => compareText(a.path, b.path) || compareText(a.message, b.message));
 
     // Bước 4: dựng đồ thị (phân giải tên thô thành file, gộp cạnh, thêm loại trang).
     const graph = this.builder.build(files, rawRefs, {

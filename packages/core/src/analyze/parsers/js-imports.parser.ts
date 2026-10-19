@@ -1,4 +1,5 @@
 import type { RawRef } from "../../models/index.js";
+import { scriptRanges } from "./import-map.parser.js";
 import { lineIndex } from "./line-index.js";
 
 /**
@@ -30,23 +31,30 @@ const DYNAMIC = /(?<![\w$."'`])import\s*\(\s*(["'`])([^"'`\s,][^"'`\n]*?)\1\s*[,
 // trong một chuỗi không bị coi là chú thích) hay sau dấu ngoặc kép.
 const COMMENTS = /\/\*[\s\S]*?\*\/|(?<![:"'`\\])\/\/[^\n]*/g;
 
-/** Thẻ mở và thẻ đóng của một <script type="module"> trong file Liquid. */
-const MODULE_SCRIPT_OPEN = /<script\b[^>]*\btype\s*=\s*["']?module["']?[^>]*>/gi;
-const SCRIPT_CLOSE = /<\/script\s*>/gi;
-
 /** Thay mọi ký tự trừ xuống dòng bằng dấu cách, để số dòng không đổi. */
 function blank(text: string): string {
   return text.replace(/[^\n]/g, " ");
 }
 
-/** Các module mà mã JavaScript `content` của file `from` nạp. */
-export function extractImports(from: string, content: string): RawRef[] {
-  const code = content.replace(COMMENTS, blank);
-  const lineAt = lineIndex(code);
-  const found: { to: string; index: number; conditional: boolean }[] = [];
+/** Một chỗ nạp module; `index` là vị trí trong chuỗi đã tìm, để xếp theo thứ tự viết. */
+interface FoundImport {
+  to: string;
+  index: number;
+  conditional: boolean;
+}
 
-  for (const match of code.matchAll(STATIC)) {
-    if (match[2] !== undefined) found.push({ to: match[2], index: match.index, conditional: false });
+/**
+ * Các chỗ nạp module trong mã `content`. `withStatic` là false thì chỉ tìm
+ * import() động (xem extractInlineScriptImports).
+ */
+function findImports(content: string, withStatic: boolean): FoundImport[] {
+  const code = content.replace(COMMENTS, blank);
+  const found: FoundImport[] = [];
+
+  if (withStatic) {
+    for (const match of code.matchAll(STATIC)) {
+      if (match[2] !== undefined) found.push({ to: match[2], index: match.index, conditional: false });
+    }
   }
   for (const match of code.matchAll(DYNAMIC)) {
     // `./${name}.js` là một biểu thức, không phải specifier viết sẵn.
@@ -54,6 +62,13 @@ export function extractImports(from: string, content: string): RawRef[] {
       found.push({ to: match[2], index: match.index, conditional: true });
     }
   }
+
+  return found;
+}
+
+/** Đổi các chỗ tìm được thành ref, theo thứ tự viết; `content` để tính số dòng. */
+function toRefs(from: string, content: string, found: FoundImport[]): RawRef[] {
+  const lineAt = lineIndex(content);
 
   return found
     .sort((a, b) => a.index - b.index)
@@ -67,26 +82,40 @@ export function extractImports(from: string, content: string): RawRef[] {
     }));
 }
 
+/** Các module mà mã JavaScript `content` của file `from` nạp. */
+export function extractImports(from: string, content: string): RawRef[] {
+  return toRefs(from, content, findImports(content, true));
+}
+
 /**
- * Các module mà thẻ <script type="module"> viết thẳng trong một file Liquid
- * nạp. Phần ngoài các thẻ đó bị xoá trắng trước khi tìm, để chữ "import"
- * trong HTML hay trong Liquid không bị tính.
+ * Các module mà thẻ <script> viết thẳng trong một file Liquid nạp:
+ *   - trong <script type="module">: cả import tĩnh lẫn import() động
+ *   - trong <script> thường: chỉ import() động. Trình duyệt chạy import()
+ *     trong mọi script, còn import tĩnh ngoài module là lỗi cú pháp nên
+ *     không nạp gì.
+ *
+ * Bỏ qua <script src="..."> (thân rỗng) và <script type="importmap"> (chỉ là
+ * ánh xạ, xem scriptRanges). Phần ngoài các thẻ script bị xoá trắng trước khi
+ * tìm, để chữ "import" trong HTML hay trong Liquid không bị tính.
  */
-export function extractModuleScriptImports(from: string, content: string): RawRef[] {
-  let code = "";
+export function extractInlineScriptImports(from: string, content: string): RawRef[] {
+  let modules = "";
+  let classic = "";
   let cursor = 0;
 
-  for (const open of content.matchAll(MODULE_SCRIPT_OPEN)) {
-    const start = open.index + open[0].length;
-    if (start < cursor) continue;
+  for (const { start, end, kind, isModule } of scriptRanges(content)) {
+    // start < cursor: chữ "<script>" nằm trong thân một script trước đó.
+    if (kind !== "inline" || start < cursor) continue;
 
-    SCRIPT_CLOSE.lastIndex = start;
-    const close = SCRIPT_CLOSE.exec(content);
-    const end = close === null ? content.length : close.index;
-
-    code += blank(content.slice(cursor, start)) + content.slice(start, end);
+    // Hai bản sao của file, mỗi bản chỉ giữ thân của một loại script, để vị
+    // trí trong cả hai bản vẫn là vị trí trong file gốc.
+    const gap = blank(content.slice(cursor, start));
+    const body = content.slice(start, end);
+    modules += gap + (isModule ? body : blank(body));
+    classic += gap + (isModule ? blank(body) : body);
     cursor = end;
   }
 
-  return cursor === 0 ? [] : extractImports(from, code);
+  if (cursor === 0) return [];
+  return toRefs(from, content, [...findImports(modules, true), ...findImports(classic, false)]);
 }

@@ -340,14 +340,6 @@ export class GraphBuilder {
       return [...list].sort(compareText);
     };
 
-    /**
-     * Phân giải một lần đọc setting. Ref có phạm vi (đọc qua đối tượng nơi gọi
-     * truyền vào, xem RawRef.scope) được phân giải như thể nó nằm ở từng file
-     * trong phạm vi; đích là hợp của các lần đó. Phạm vi "section tổ tiên"
-     * (ANCESTOR_SECTIONS, xem liquid-objects.ts) mở ra thành từng section tổ
-     * tiên. Lần đọc gián tiếp như vậy không bao giờ bị coi là hỏng, chỉ là
-     * không xác định.
-     */
     // Setting kiểu tài nguyên của từng file, theo kiểu: 'product' -> file -> id.
     const resourceSettingsOf = new Map<string, Map<string, string[]>>();
     for (const { setting, type } of resourceSettings) {
@@ -385,6 +377,14 @@ export class GraphBuilder {
       return found;
     };
 
+    /**
+     * Phân giải một lần đọc setting. Ref có phạm vi (đọc qua đối tượng nơi gọi
+     * truyền vào, xem RawRef.scope) được phân giải như thể nó nằm ở từng file
+     * trong phạm vi; đích là hợp của các lần đó. Phạm vi "section tổ tiên"
+     * (ANCESTOR_SECTIONS, xem liquid-objects.ts) mở ra thành từng section tổ
+     * tiên. Lần đọc gián tiếp như vậy không bao giờ bị coi là hỏng, chỉ là
+     * không xác định.
+     */
     const resolveSetting = (ref: RawRef): SettingResolution => {
       // closest.product: setting kiểu product của một section hay block bao
       // quanh. Không thể biết file nào gần nhất ở lúc chạy, nên đích là

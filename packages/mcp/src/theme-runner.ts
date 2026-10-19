@@ -21,7 +21,9 @@ export class ThemeRunner {
     const lines = this.graphs.use(themeRoot, query);
 
     // Agent thường hỏi ngay sau khi vừa sửa file, tức đúng lúc đồ thị dễ cũ
-    // nhất. Phép so này đọc lại hash của mọi file, mất dưới nửa giây.
+    // nhất. Phép so này đọc lại và tính hash mọi file analyze đọc, nên tốn
+    // thời gian tỉ lệ với cỡ theme; đổi lại câu trả lời không âm thầm dựa trên
+    // đồ thị cũ.
     const status = await this.themes.status(themeRoot);
 
     return [...this.note.render(status), "", ...lines];

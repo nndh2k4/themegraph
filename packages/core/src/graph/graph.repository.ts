@@ -94,7 +94,8 @@ export interface GraphRepository {
   /**
    * File không phân tích được trọn vẹn lúc analyze (hỏng hẳn, hoặc chỉ một
    * phần như {% schema %} sai JSON), xếp theo (file, message). Quan hệ của chúng
-   * có thể thiếu, nên dead-code không được tin tuyệt đối khi danh sách này khác rỗng.
+   * có thể thiếu, nên dead-code hạ mức khi một trong số đó có thể gọi file
+   * khác (xem DeadCodeService.findUnused).
    */
   fileErrors(): FileError[];
   /** Số node theo loại, số cạnh theo loại, số tham chiếu theo trạng thái; mỗi bảng xếp theo tên khoá. */

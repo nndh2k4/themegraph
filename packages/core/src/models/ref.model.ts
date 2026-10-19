@@ -102,9 +102,11 @@ export interface RawRef {
  *
  * - resolved: tìm thấy đích; `path` là id của node đích, tức ThemeFile.path
  *   với file, hoặc 't:<khoá>' với khoá dịch
- * - local_block: ref tới một block không có file trong blocks/, đến từ JSON
- *   template. Được coi là block cục bộ khai trong {% schema %} của section;
- *   không phải lỗi, nhưng cũng không thành cạnh trong đồ thị.
+ * - local_block: ref tới một block CỤC BỘ khai trong {% schema %} của section,
+ *   đến từ JSON template hoặc section group: hoặc là type đó được khai cục bộ
+ *   trong schema của file cha (`parent`), kể cả khi blocks/ có file trùng tên;
+ *   hoặc là blocks/ không có file nào mang tên đó. Không phải lỗi, nhưng cũng
+ *   không thành cạnh trong đồ thị.
  * - missing: tham chiếu HỎNG. `expected` là đường dẫn lẽ ra phải có.
  * - none: ref không trỏ tới đâu (no_layout).
  * - unresolved: không xác định được đích khi chỉ đọc mã. Chỉ gặp ở ref đọc

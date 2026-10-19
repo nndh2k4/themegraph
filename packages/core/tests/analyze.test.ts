@@ -339,6 +339,17 @@ describe('analyze', () => {
     expect(result.stats.edgesByType.RENDERS).toBe(9);
   });
 
+  it('lỗi cứng và cảnh báo một phần được xếp chung theo file', async () => {
+    // templates/broken.json hỏng hẳn (ghi ngay khi đọc), sections/a-broken.liquid
+    // chỉ hỏng schema (ghi sau, từ cảnh báo); kết quả vẫn xếp theo đường dẫn.
+    await writeFile(path.join(themeRoot, 'templates', 'broken.json'), '{ "sections": ');
+    await writeFile(path.join(themeRoot, 'sections', 'a-broken.liquid'), '{% schema %}{ oops }{% endschema %}');
+
+    const result = await core().analyzer.analyze(themeRoot);
+
+    expect(result.errors.map((e) => e.path)).toEqual(['sections/a-broken.liquid', 'templates/broken.json']);
+  });
+
   it('không có lỗi nào khi mọi file đều đọc được', async () => {
     const result = await core().analyzer.analyze(themeRoot);
 

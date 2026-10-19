@@ -26,7 +26,7 @@ import { extractElements } from "./custom-elements.parser.js";
 import type { FileParser } from "./file-parser.js";
 import { settingNodeId } from "./global-settings.parser.js";
 import { extractImportMap, scriptRanges } from "./import-map.parser.js";
-import { extractImports, extractModuleScriptImports } from "./js-imports.parser.js";
+import { extractImports, extractInlineScriptImports } from "./js-imports.parser.js";
 import { lineIndex } from "./line-index.js";
 import { LiquidObjects } from "./liquid-objects.js";
 import { LiquidValues } from "./liquid-values.js";
@@ -67,6 +67,28 @@ function parseLaxRenderMarkup(markup: string): LaxRender | null {
   if (head === null || head[2] === undefined) return null;
   const rest = markup.slice(head[0].length);
   return { snippet: head[2], args: [...rest.matchAll(LAX_ARG)].map((m) => ({ name: m[1] ?? "", value: m[2] ?? "" })) };
+}
+
+/**
+ * Dấu `-` dính ngay sau tên một tag đóng, theo sau là khoảng trắng hoặc dấu
+ * cắt khoảng trắng `-%}`: `{%- endif- %}`, `{% endfor- %}`, `{% endcase--%}`.
+ *
+ * Shopify lấy tên tag là phần chữ (\w+) nên tên vẫn là endif; phần `-` còn
+ * lại là markup, mà tag đóng thì bỏ qua markup. Parser của ThemeGraph lại lấy
+ * cả `endif-` làm tên: hoặc ném lỗi (khối lồng nhau), hoặc tệ hơn là im lặng
+ * coi đó là một tag lạ, để khối if không bao giờ đóng và mọi thứ phía sau bị
+ * coi là nằm trong if.
+ *
+ * Không khớp `endif-%}`: ở đó `-%}` là dấu cắt khoảng trắng hợp lệ.
+ */
+const GLUED_END_TAG_DASH = /(\{%-?\s*end\w+)-(?=\s|-%\})/g;
+
+/**
+ * Thay dấu `-` thừa của tag đóng (xem GLUED_END_TAG_DASH) bằng một dấu cách.
+ * Giữ nguyên độ dài chuỗi để vị trí và số dòng không đổi.
+ */
+function normalizeEndTags(content: string): string {
+  return content.replace(GLUED_END_TAG_DASH, "$1 ");
 }
 
 /** Đọc một giá trị rời thành biểu thức bằng cách bọc nó trong {{ }}; không đọc được thì null. */
@@ -132,20 +154,24 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
   // Lỗi của MỘT PHẦN file: file vẫn được phân tích, người dùng được báo.
   const warnings: string[] = [];
 
+  // Chỉ để dựng cây; mọi chỗ khác vẫn đọc `content` gốc. Hai chuỗi dài bằng
+  // nhau nên vị trí và số dòng lấy từ cây vẫn đúng với file gốc.
+  const parsable = normalizeEndTags(content);
+
   let ast;
   try {
     // toLiquidAST chỉ phân tích phần Liquid và coi HTML là văn bản thường.
     // Chọn nó thay cho toLiquidHtmlAST vì các quan hệ cần trích đều nằm trong
     // tag Liquid; nhờ vậy một file có HTML viết sai (thẻ không đóng) vẫn đọc được.
-    ast = toLiquidAST(content);
+    ast = toLiquidAST(parsable);
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     try {
       // Shopify chấp nhận một số Liquid lệch mà parser chuẩn từ chối (ví dụ
-      // {%- endif- %}, hay đóng tag sai thứ tự). Parser dễ dãi vẫn dựng được
-      // cây từ đó, nên đọc quan hệ bằng nó và báo cho người dùng biết.
-      ast = toTolerantLiquidAST(content);
-      warnings.push(`Liquid không chuẩn, đã đọc bằng parser dễ dãi: ${reason}`);
+      // đóng tag sai thứ tự). Parser dễ dãi vẫn dựng được cây từ đó, nhưng nó
+      // bỏ cả khối viết lệch, nên báo rõ là quan hệ có thể thiếu.
+      ast = toTolerantLiquidAST(parsable);
+      warnings.push(`Liquid không chuẩn, đã đọc bằng parser dễ dãi; quan hệ trong khối viết lệch có thể bị thiếu: ${reason}`);
     } catch {
       // Bọc lỗi để thông báo có tên file; giữ lỗi gốc trong `cause`.
       throw new Error(`Không phân tích được Liquid của "${file.path}": ${reason}`, {
@@ -608,7 +634,7 @@ export function extractLiquid(file: ThemeFile, content: string, context?: CallCo
  * File .liquid: mọi quan hệ trong mã Liquid (xem extractLiquid), cộng ba thứ
  * nằm trong phần HTML mà bộ phân tích Liquid không trích:
  *   - URL kiểu ?section_id=ten (section tải lúc chạy, xem extractSectionLoads)
- *   - import trong thẻ <script type="module"> (xem extractImports)
+ *   - import trong thẻ <script> viết thẳng (xem extractInlineScriptImports)
  *   - thẻ custom element (xem extractElements)
  *
  * File assets/*.js.liquid là JavaScript có chèn Liquid nên phần section tải
@@ -625,7 +651,7 @@ export class LiquidParser implements FileParser {
     const extraction = extractLiquid(file, content, context);
     const isJavaScript = file.path.endsWith(".js.liquid");
     const source = isJavaScript ? "js" : "liquid";
-    const imports = isJavaScript ? extractImports(file.path, content) : extractModuleScriptImports(file.path, content);
+    const imports = isJavaScript ? extractImports(file.path, content) : extractInlineScriptImports(file.path, content);
 
     const cssUrls = file.path.endsWith(".css.liquid") ? extractCssUrls(file.path, content) : [];
 

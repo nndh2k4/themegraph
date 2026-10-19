@@ -39,6 +39,9 @@ const SCRIPT_CLOSE = /<\/script\s*>/gi;
 /** Thuộc tính type="importmap"; `(?<![\w-])` để không dính data-type. */
 const IMPORT_MAP_TYPE = /(?<![\w-])type\s*=\s*["']?importmap\b/i;
 
+/** Thuộc tính type="module"; `(?<![\w-])` để không dính data-type. */
+const MODULE_TYPE = /(?<![\w-])type\s*=\s*["']?module\b/i;
+
 /** Thuộc tính src; `(?<![\w-])` để không dính data-src. */
 const SRC_ATTRIBUTE = /(?<![\w-])src\s*=/i;
 
@@ -54,6 +57,14 @@ const ASSET_URL = "asset_url";
 /** Số vòng lặp tối đa khi chạy thử, để một vòng lặp lồng lớn không treo. */
 const MAX_ITERATIONS = 1000;
 
+/** Thân của một thẻ <script> (xem scriptRanges). */
+export interface ScriptRange {
+  start: number;
+  end: number;
+  kind: "importmap" | "inline";
+  isModule: boolean;
+}
+
 /**
  * Phần thân (giữa thẻ mở và thẻ đóng) của các thẻ <script> trong một file
  * Liquid, theo thứ tự xuất hiện. `end` là vị trí ngay trước `</script>`.
@@ -62,11 +73,13 @@ const MAX_ITERATIONS = 1000;
  * - inline: mọi <script> còn lại không có src; chuỗi in ra ở đây là mã
  *   JavaScript (hoặc JSON-LD) nên một URL in vào là để mã đó dùng
  *
+ * `isModule`: thẻ có type="module", nơi duy nhất import tĩnh chạy được.
+ *
  * <script src="..."> bị bỏ qua vì thân của nó rỗng; còn URL trong chính thẻ mở
  * là URL nạp file thật, không thuộc vùng nào.
  */
-export function scriptRanges(content: string): { start: number; end: number; kind: "importmap" | "inline" }[] {
-  const ranges: { start: number; end: number; kind: "importmap" | "inline" }[] = [];
+export function scriptRanges(content: string): ScriptRange[] {
+  const ranges: ScriptRange[] = [];
 
   for (const open of content.matchAll(SCRIPT_OPEN)) {
     const attributes = open[1] ?? "";
@@ -77,7 +90,12 @@ export function scriptRanges(content: string): { start: number; end: number; kin
     const close = SCRIPT_CLOSE.exec(content);
     const end = close === null ? content.length : close.index;
 
-    ranges.push({ start, end, kind: IMPORT_MAP_TYPE.test(attributes) ? "importmap" : "inline" });
+    ranges.push({
+      start,
+      end,
+      kind: IMPORT_MAP_TYPE.test(attributes) ? "importmap" : "inline",
+      isModule: MODULE_TYPE.test(attributes),
+    });
   }
 
   return ranges;

@@ -166,8 +166,9 @@ export class ThemeService {
    * soạn thảo lưu lại file) và có thể không đổi khi nội dung đổi (file được
    * chép đè kèm thời điểm cũ).
    *
-   * Chỉ file .liquid, .json và .js mới được xét là "đã sửa": đó là những file
-   * mà analyze đọc nội dung. Sửa một ảnh hay một file css không làm đồ thị đổi.
+   * Chỉ những file analyze đọc nội dung (READ_EXTENSIONS: .liquid, .json, .js,
+   * .mjs, .css) mới được xét là "đã sửa". Sửa một ảnh hay một font không làm
+   * đồ thị đổi.
    *
    * Ném GraphNotReadyError nếu theme chưa có đồ thị dùng được.
    */
