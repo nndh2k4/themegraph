@@ -98,10 +98,15 @@ flowchart LR
    - *Liquid*: phân tích thành cây cú pháp, lấy `render`, `include`, `section`, `sections`, `content_for`, filter `asset_url` và `t`, các lần đọc `settings.x` / `section.settings.x` / `block.settings.x`, khối `{% schema %}`, và import map trong `<script type="importmap">`.
      - Tên ghép từ chữ viết sẵn được tính ra: `assign`, `capture`, `split`, `append`, vòng `for` trên một danh sách hay một khoảng số, theo thứ tự thực thi (lệnh gán chắc chắn đã chạy che lệnh gán cũ, nên phép cộng dồn `x = x | append: ...` tính được). Ví dụ `'slide-' | append: i | asset_url` với `i` chạy từ 1 tới 3.
      - Lần đọc setting qua tên khác cũng được nhận ra: `assign st = section.settings`, `assign b = block`, `section.blocks | where: ... | first`, `x | default: block.settings`.
-     - Khoá Shopify tự đọc: `date: format: 'x'` dùng `date_formats.x`; `closest.product` (và collection, article, blog, page) đọc setting kiểu đó của section hay block bao quanh.
+     - Đối tượng có sẵn theo đúng phạm vi của Shopify. Trong snippet, `block` chỉ là theme block đang render snippet, hoặc block mà nơi gọi truyền qua `block:`; biến lặp `block` của section không đi vào `{% render %}`. Trong theme block, `section.blocks` là block của section bao quanh. Biến lặp hay biến gán trùng tên `block`, `section`, `settings` che đối tượng có sẵn.
+     - Khoá Shopify tự đọc: `date: format: 'x'` dùng `date_formats.x`; `closest.product` (và collection, article, blog, page) đọc setting kiểu đó của section hay block bao quanh. Khoá dịch `shopify.*` do Shopify cung cấp nên không bị báo là hỏng.
+     - `asset_url` được xét theo chỗ in ra. Trong import map nó chỉ đặt tên cho một module, chưa nạp gì, nên được ghi lại mà không thành cạnh; file chỉ tính là được dùng khi có `import` thật. URL đưa cho JavaScript (`| json`, hay nằm trong `<script>` nội tuyến) thành cạnh *có điều kiện*, vì không biết JavaScript có dùng tới nó không.
+     - `render` và `include` viết lỏng mà Shopify vẫn chạy (`{% render 'x' | a: b %}`) cũng được đọc.
+     - File lệch cú pháp chuẩn mà Shopify vẫn chạy (`{%- endif- %}`) được đọc lại bằng chế độ dễ dãi của parser; JSON hỏng trong `{% schema %}` chỉ làm mất phần schema. Quan hệ còn đọc được vẫn giữ, và file được ghi vào bảng `file_errors` kèm lý do thay vì bị bỏ cả file.
    - *Ngữ cảnh gọi snippet*: snippet không tự biết tham số của nó là gì, nên sau lượt đọc đầu, mỗi snippet được phân tích lại với những gì mọi nơi gọi truyền vào: tham số của `render` (kể cả `with`/`for ... as`), mọi biến của nơi `include`. Lặp tới khi ổn định, nên đi qua được nhiều tầng snippet. Đối tượng truyền vào giữ nguồn gốc: `section_st: section.settings` từ `sections/product.liquid` chỉ nối tới setting của chính file đó; giá trị viết sẵn (`icon: 'cart'`) dùng được trong tên ghép của snippet.
-   - *JSON*: template và section group cho biết section và block nào được xếp vào trang; `config/settings_schema.json` cho các setting toàn cục; file locale mặc định cho các khoá dịch.
-   - *JavaScript*: không phân tích cú pháp, chỉ dò vài cách viết quen thuộc: `import` tĩnh và động, section được tải qua Section Rendering API (tên viết sẵn, hoặc một biến được gán chữ viết sẵn trong cùng file), và `customElements.define("tên")`.
+   - *JSON*: đọc như Shopify, chấp nhận dấu phẩy thừa trước `]` hay `}`. Template và section group cho biết section và block nào được xếp vào trang; block mà section tự khai trong schema của nó (block cục bộ, có `name`) không bị nối sang file `blocks/` trùng tên. `config/settings_schema.json` cho các setting toàn cục; file locale mặc định cho các khoá dịch.
+   - *CSS*: `url()` trong file `.css` và `.css.liquid` của `assets/` (font, ảnh) thành cạnh tới asset đó.
+   - *JavaScript* (`.js` và `.mjs`): không phân tích cú pháp, chỉ dò vài cách viết quen thuộc: `import` tĩnh và động, section được tải qua Section Rendering API (tên viết sẵn, hoặc một biến được gán chữ viết sẵn trong cùng file), và `customElements.define("tên")`.
 3. **Phân giải.** Đổi mỗi cái tên thành một file theo quy ước: `render 'x'` là `snippets/x.liquid`, `section 'x'` là `sections/x.liquid`. Tên không ứng với file nào thành một *tham chiếu hỏng*, được ghi lại kèm file và số dòng.
 4. **Dựng đồ thị.** Gộp các lời gọi trùng thành cạnh, thêm node loại trang suy từ tên template (`templates/product.alt.json` thuộc trang `product`), thêm cạnh suy từ quy ước (template không nêu layout thì dùng `layout/theme.liquid`).
 5. **Ghi.** Toàn bộ đồ thị vào một file SQLite, thay hẳn bản cũ.
@@ -170,10 +175,10 @@ FROM walk w GROUP BY w.id;
 ```
 
 - `reach` dùng `UNION` (không phải `UNION ALL`), nên một node đã có thì không được thêm lần nữa: truy vấn tự dừng cả khi đồ thị có vòng.
-- `walk` cho **độ sâu ngắn nhất** tới mỗi node. Ở đây `UNION` không cứu được: đi quanh một vòng sinh ra `(a, 0)`, `(a, 2)`, `(a, 4)`... là các dòng khác nhau. Vì vậy độ sâu bị chặn, bắt đầu ở 16. Nếu số node trong `walk` ít hơn trong `reach`, tức còn node nằm xa hơn mức chặn, thì nhân đôi mức chặn và chạy lại. Theme sâu nhất từng đo là 7 tầng, nên vòng nhân đôi gần như không bao giờ chạy.
+- `walk` cho **độ sâu ngắn nhất** tới mỗi node. Ở đây `UNION` không cứu được: đi quanh một vòng sinh ra `(a, 0)`, `(a, 2)`, `(a, 4)`... là các dòng khác nhau. Vì vậy độ sâu bị chặn, bắt đầu ở 16. Nếu số node trong `walk` ít hơn trong `reach`, tức còn node nằm xa hơn mức chặn, thì nhân đôi mức chặn và chạy lại. Theme sâu nhất từng đo là 9 tầng, nên vòng nhân đôi gần như không bao giờ chạy.
 - `sure` cho biết quan hệ **luôn xảy ra** hay chỉ **có thể xảy ra**: một node là chắc chắn khi có ít nhất một đường tới nó mà mọi cạnh đều vô điều kiện.
 
-**Vì sao không dùng cơ sở dữ liệu đồ thị** (Neo4j, hay LadybugDB như GitNexus)? Đồ thị của một theme nhỏ: 1 300 tới 3 800 node, 1 800 tới 5 500 cạnh trên ba theme đã đo. Ở cỡ đó phần duyệt bằng truy vấn đệ quy chỉ mất cỡ mili giây (một phép duyệt ngược trên Dawn đo được dưới 1 ms), còn `node:sqlite` có sẵn trong Node.js nên gói cài không kéo theo thư viện native nào, không cần trình biên dịch, và chỉ nặng 393 KB. Cơ sở dữ liệu đồ thị mạnh hơn ở truy vấn theo mẫu nhiều bước và ở đồ thị hàng triệu cạnh, là thứ bài toán này không cần.
+**Vì sao không dùng cơ sở dữ liệu đồ thị** (Neo4j, hay LadybugDB như GitNexus)? Đồ thị của một theme nhỏ: 1 300 tới 3 900 node, 1 800 tới 5 900 cạnh trên ba theme đã đo. Ở cỡ đó phần duyệt bằng truy vấn đệ quy chỉ mất cỡ mili giây (một phép duyệt ngược trên Dawn đo được dưới 1 ms), còn `node:sqlite` có sẵn trong Node.js nên gói cài không kéo theo thư viện native nào, không cần trình biên dịch, và chỉ nặng 393 KB. Cơ sở dữ liệu đồ thị mạnh hơn ở truy vấn theo mẫu nhiều bước và ở đồ thị hàng triệu cạnh, là thứ bài toán này không cần.
 
 **Vì sao không nạp cả đồ thị vào bộ nhớ rồi duyệt theo chiều rộng (BFS) bằng JavaScript?** Cách đó cũng đúng, và ThemeGraph có cài nó, nhưng dùng làm **phép kiểm chứng**: lệnh `themegraph verify` chạy cả hai cách từ mọi node theo cả hai chiều rồi so từng kết quả. Hai cách viết khác hẳn nhau mà ra cùng kết quả thì mới tin được cả hai. Trên ba theme đã đo, số chỗ sai khác là 0. Truy vấn SQL được chọn làm đường chính vì mỗi câu hỏi chỉ đọc phần đồ thị nó cần, và vì chính file `graph.db` trở thành thứ ai cũng tự truy vấn được bằng `sqlite3`.
 
@@ -193,7 +198,9 @@ Kết quả không phải một danh sách "xoá được" duy nhất mà chia t
 - **Cần xem lại**: section, asset, layout không ai gọi, cùng mọi thứ nằm dưới chúng. Ba loại này còn cách dùng công cụ không thấy (JavaScript tải section bằng tên là biến, tên asset ghép lúc chạy).
 - **Dùng thẻ mà không nạp file**: file JavaScript định nghĩa một custom element mà theme đang viết ra, nhưng không thẻ `<script>` nào nạp nó. Đây không phải mã chết mà là lỗi của theme; cách chữa là nạp file, không phải xoá.
 
-**Ưu điểm:** không khẳng định quá điều công cụ biết. **Nhược điểm:** nhóm "cần xem lại" có thể dài (46 file trên Dawn, phần lớn là asset) và vẫn cần người kiểm.
+Khi có file chỉ đọc được một phần (bảng `file_errors`), lệnh in danh sách các file đó trước kết quả và hạ mọi mục "chắc chắn" xuống "cần xem lại": một quan hệ bị thiếu ở file lỗi có thể làm một file khác trông như không dùng.
+
+**Ưu điểm:** không khẳng định quá điều công cụ biết. **Nhược điểm:** nhóm "cần xem lại" có thể dài (45 file trên Dawn, phần lớn là asset) và vẫn cần người kiểm.
 
 ### 5. Bố cục đồ thị trên giao diện
 
@@ -204,7 +211,7 @@ Vẽ bằng Sigma.js (WebGL), để vài nghìn node vẫn kéo và phóng to đ
 
 ## Cấu trúc của `graph.db`
 
-Mỗi theme có một file `<theme>/.themegraph/graph.db`, là một cơ sở dữ liệu SQLite bảy bảng. Mở được bằng bất kỳ công cụ SQLite nào.
+Mỗi theme có một file `<theme>/.themegraph/graph.db`, là một cơ sở dữ liệu SQLite tám bảng. Mở được bằng bất kỳ công cụ SQLite nào.
 
 ```mermaid
 erDiagram
@@ -213,6 +220,7 @@ erDiagram
     nodes ||--o| schemas : "file"
     nodes ||--o| file_hashes : "file"
     nodes ||--o{ elements : "file"
+    nodes ||--o{ file_errors : "file"
     nodes {
         TEXT id PK
         TEXT kind
@@ -251,6 +259,10 @@ erDiagram
         TEXT file PK
         INTEGER line
     }
+    file_errors {
+        TEXT file
+        TEXT message
+    }
     meta {
         TEXT key PK
         TEXT value
@@ -265,6 +277,7 @@ erDiagram
 | `schemas` | Dữ kiện từ `{% schema %}` của một section hoặc block | Điểm vào của phép tìm mã chết |
 | `file_hashes` | SHA-1 nội dung của một file đã đọc | Biết đồ thị còn khớp với đĩa hay không |
 | `elements` | Một custom element: file nào định nghĩa, file nào dùng | Tìm file JavaScript dùng mà không nạp |
+| `file_errors` | Một cảnh báo: file chỉ đọc được một phần, và vì sao | `dead-code` và `context` báo kết quả có thể thiếu quan hệ |
 | `meta` | `schema_version`, `tool_version`, `analyzed_at` | Biết file do phiên bản nào ghi, lúc nào |
 
 **Node.** `id` là chuỗi đọc được, tự nói lên nó là gì:
@@ -283,12 +296,14 @@ erDiagram
 | `USES_TEMPLATE` | loại trang → template | Trang này dùng template này |
 | `USES_LAYOUT` | template → layout | Template nằm trong layout này |
 | `RENDERS` | file → file | `render`, `include`, `section`, `sections`, block; hoặc JSON xếp section vào trang |
-| `USES_ASSET` | file → asset | Qua filter `asset_url`, `asset_img_url`, `inline_asset_content`; hoặc JavaScript `import` một file khác trong `assets/` (theo import map hay đường dẫn tương đối) |
+| `USES_ASSET` | file → asset | Qua filter `asset_url`, `asset_img_url`, `inline_asset_content` (trừ `asset_url` viết trong import map); `url()` trong file CSS; hoặc JavaScript `import` một file khác trong `assets/` (theo import map hay đường dẫn tương đối) |
 | `LOADS_SECTION` | file → section | JavaScript tải riêng section này lúc chạy |
 | `USES_TRANSLATION` | file → khoá dịch | Qua filter `t` |
 | `READS_SETTING` | file → setting | Đọc `settings.x`, `section.settings.x`, `block.settings.x` |
 
-Cột `conditional` là 1 khi mọi lời gọi gộp vào cạnh đều có điều kiện. Cột `sources` ghi cạnh đến từ đâu: `liquid`, `json`, `js`, `schema`, hoặc `convention` cho cạnh suy từ quy ước; nhiều nguồn thì nối bằng dấu phẩy. Cột `count` là số lời gọi đã gộp.
+Cột `conditional` là 1 khi mọi lời gọi gộp vào cạnh đều có điều kiện. Cột `sources` ghi cạnh đến từ đâu: `liquid`, `json`, `js`, `css`, `schema`, hoặc `convention` cho cạnh suy từ quy ước; nhiều nguồn thì nối bằng dấu phẩy. Cột `count` là số lời gọi đã gộp.
+
+Ở bảng `refs`, block mà section nhận qua schema mang số dòng của `{% content_for 'blocks' %}` đầu tiên (không có thì dòng của thẻ `{% schema %}`), và lệnh `context` in kèm nguồn khi quan hệ không đến từ Liquid, ví dụ `dòng 5 (schema)`.
 
 **Tự truy vấn.** Ví dụ, những file gọi trực tiếp `snippets/price.liquid`, kèm số dòng (cần có sẵn công cụ dòng lệnh `sqlite3`, hoặc mở file bằng một trình xem SQLite bất kỳ):
 
@@ -306,7 +321,7 @@ Trên Dawn, bốn dòng đầu là `sections/featured-product.liquid` dòng 121,
 
 **Khoá chính của `edges` là `(src, dst, type)`, bảng `WITHOUT ROWID`.** Dữ liệu được xếp ngay theo khoá chính, nên chính bảng đã là chỉ mục cho chiều xuôi ("node này trỏ tới đâu"). Chiều ngược có chỉ mục riêng `edges_by_dst (dst, type)`; không có nó, mỗi bước của truy vấn ngược phải đọc cả bảng. *Nhược:* mỗi cạnh được lưu hai lần (bảng và chỉ mục).
 
-**`id` là chuỗi, không phải số.** Mọi bảng dùng thẳng đường dẫn file làm khoá. *Ưu:* đọc file bằng mắt được, viết truy vấn tay không cần nối bảng để ra tên; `id` ổn định giữa các lần phân tích. *Nhược:* chuỗi lặp lại ở mọi cạnh và mọi tham chiếu nên file to hơn dùng số nguyên (1,2 tới 3,7 MB trên ba theme), và so sánh chuỗi chậm hơn so sánh số. Ở cỡ đồ thị này cả hai đều không đáng kể.
+**`id` là chuỗi, không phải số.** Mọi bảng dùng thẳng đường dẫn file làm khoá. *Ưu:* đọc file bằng mắt được, viết truy vấn tay không cần nối bảng để ra tên; `id` ổn định giữa các lần phân tích. *Nhược:* chuỗi lặp lại ở mọi cạnh và mọi tham chiếu nên file to hơn dùng số nguyên (1,2 tới 3,9 MB trên ba theme), và so sánh chuỗi chậm hơn so sánh số. Ở cỡ đồ thị này cả hai đều không đáng kể.
 
 **Bảng `STRICT` và khoá ngoại.** SQLite mặc định cho ghi chuỗi vào cột số; `STRICT` bắt đúng kiểu. Mọi cạnh phải trỏ tới node có thật, nên một lỗi ở bước dựng đồ thị làm việc ghi thất bại thay vì để lại cạnh treo. *Nhược:* `kind`, `type` và `status` là chuỗi tự do, cơ sở dữ liệu không tự chặn giá trị lạ (chỉ `conditional`, `count` và `elements.role` có ràng buộc `CHECK`); cột `refs.target` không có khoá ngoại; `sources` là danh sách nối bằng dấu phẩy chứ không tách bảng, nên lọc theo nguồn phải dùng `LIKE`.
 
@@ -314,7 +329,7 @@ Trên Dawn, bốn dòng đầu là `sections/featured-product.liquid` dòng 121,
 
 **Ghi nguyên tử, mở chỉ đọc.** `analyze` ghi vào một file tạm trong một transaction rồi mới đổi tên thành `graph.db`. File vì thế luôn là bản cũ hoặc bản mới hoàn chỉnh, không bao giờ là bản ghi dở. Mọi lệnh hỏi, MCP server và API đều mở file ở chế độ chỉ đọc. *Nhược:* mỗi lần phân tích thay hẳn file, nên không có lịch sử, không so được đồ thị hôm nay với hôm qua.
 
-**Đánh số phiên bản lược đồ, không di trú.** `meta.schema_version` (hiện là 6) tăng mỗi khi cấu trúc bảng đổi. Gặp file của phiên bản khác, công cụ từ chối đọc và bảo chạy lại `analyze`. Vì đồ thị dựng lại từ mã nguồn trong khoảng một giây, viết mã di trú là thừa. *Nhược:* nâng phiên bản công cụ xong phải phân tích lại mọi theme.
+**Đánh số phiên bản lược đồ, không di trú.** `meta.schema_version` (hiện là 7) tăng mỗi khi cấu trúc bảng đổi. Gặp file của phiên bản khác, công cụ từ chối đọc và bảo chạy lại `analyze`. Vì đồ thị dựng lại từ mã nguồn trong khoảng một giây, viết mã di trú là thừa. *Nhược:* nâng phiên bản công cụ xong phải phân tích lại mọi theme.
 
 **Phát hiện đồ thị cũ bằng hash.** `file_hashes` giữ SHA-1 nội dung của từng file đã đọc; khi cần biết đồ thị còn khớp không, công cụ tính lại hash của file trên đĩa rồi so. SHA-1 là đủ vì ở đây chỉ cần phát hiện thay đổi, không phải chống giả mạo. *Nhược:* mỗi lần kiểm phải đọc lại mọi file của theme.
 
@@ -324,23 +339,28 @@ Trên Dawn, bốn dòng đầu là `sections/featured-product.liquid` dòng 121,
 
 | | Dawn | Horizon | Theme thương mại |
 | --- | --- | --- | --- |
-| File được đọc | 192 | 439 | 484 |
-| Node / cạnh | 1 299 / 1 850 | 2 420 / 3 747 | 3 811 / 5 801 |
+| File được đọc | 256 | 442 | 515 |
+| Node / cạnh | 1 299 / 1 850 | 2 420 / 3 736 | 3 911 / 5 876 |
 | `analyze` (trung vị, cả tiến trình) | 0,55 giây | 0,74 giây | 1,64 giây |
 | Một câu hỏi ảnh hưởng (cả tiến trình) | 0,20 giây | 0,30 giây | 0,43 giây |
-| Cỡ `graph.db` | 1,2 MB | 1,6 MB | 3,7 MB |
+| Cỡ `graph.db` | 1,2 MB | 2,4 MB | 3,9 MB |
 | Sai khác giữa SQL và BFS (`verify`) | 0 | 0 | 0 |
 
 Độ chính xác được đo bằng cách lấy ngẫu nhiên 30 trường hợp trên ba theme rồi đối chiếu với phép tìm chuỗi không dùng công cụ: 60 quan hệ công cụ nêu ra đều được xác nhận, 2 quan hệ bị sót (cả hai do thư mục `listings/` không được quét). Người phân xử các chỗ lệch cũng là người viết công cụ; đó là điểm yếu của phép đo này.
+
+Ngoài ba theme trên, bản hiện tại được chạy trên 11 theme (Dawn, Horizon và chín theme thương mại) và so với bản trước. Mọi quan hệ mất đi đều được đối chiếu với mã nguồn: đó là các quan hệ trước đây nối sai (block cục bộ bị nối sang file `blocks/`, `block` của section bị coi là đi vào snippet, module trong import map bị coi là đã nạp) hoặc chỉ đổi số dòng. `verify` đạt trên cả 11 theme.
 
 ## Giới hạn đã biết
 
 ThemeGraph phân tích tĩnh: nó đọc mã, không chạy theme. Vì vậy:
 
-- Tên ghép chỉ được tính khi mọi mảnh đều là chữ viết sẵn, trong file hoặc truyền vào từ nơi gọi. Mảnh lấy từ dữ liệu của Shopify (`product.type`, `section.settings[block.id]`) thì không thành quan hệ.
+- Tên ghép chỉ được tính khi mọi mảnh đều là chữ viết sẵn, trong file hoặc truyền vào từ nơi gọi. Mảnh lấy từ dữ liệu của Shopify (`product.type`, `section.settings[block.id]`) thì không thành quan hệ, kể cả khi chỉ mảnh giữa là không biết (`'placeholder_' | append: index | append: '.webp'`). Asset hay setting chỉ được gọi theo cách đó sẽ hiện trong kết quả mã chết.
 - Giá trị của một tham số snippet là hợp của mọi nơi gọi, và mọi nhánh `if` đều được coi là có thể chạy. Kết quả có thể thừa tên; tên không ứng với file, khoá dịch hay setting nào thì bị bỏ, không báo là tham chiếu hỏng.
-- Trong snippet, `section.settings.x` và `block.settings.x` viết thẳng (không qua tham số) được nối tới mọi section hay block tổ tiên có khai `x`, vì không biết lúc chạy ai đang render snippet.
-- JavaScript không được phân tích cú pháp. Section do JavaScript tải bằng một tên đọc từ DOM hay từ tham số (`this.dataset.section`) nằm ngoài đồ thị; `import()` với specifier là biến cũng vậy.
+- Điều kiện theo tham số viết sẵn ở nơi gọi chưa được tính. Với `render 'hero', type: 'single'` mà trong snippet có `if type == 'blocks'`, hay `render 'theme-runtime', app: false` với `unless app == false`, nhánh đó vẫn được coi là có thể chạy; quan hệ bên trong chỉ mang nhãn có điều kiện.
+- Trong snippet, `section.settings.x` viết thẳng (không qua tham số) được nối tới mọi section tổ tiên có khai `x`, vì không biết lúc chạy section nào đang render snippet.
+- Biến lặp hay biến gán trùng tên `block` che đối tượng có sẵn trong cả file, không theo từng đoạn: một theme block viết `{% for block in block.blocks %}` sẽ mất các lần đọc `block.settings` nằm ngoài vòng lặp.
+- `visible_if` và tham chiếu `closest.*` viết trong `{% schema %}` chưa được đọc; setting chỉ dùng trong `visible_if` của setting khác bị coi là không dùng.
+- JavaScript không được phân tích cú pháp. Section do JavaScript tải bằng một tên đọc từ DOM hay từ tham số (`this.dataset.section`, thuộc tính `data-*-section-id`, hàm nhận tên section làm tham số như `renderAjax($el, 'header-search-block')`) nằm ngoài đồ thị; `import()` với specifier là biến cũng vậy, kể cả `import(obj.key)` khi `obj` là đối tượng cấu hình do Liquid in ra.
 - Thư mục `listings/` không được quét.
 - Những gì merchant thêm từ theme editor mà không nằm trong file của theme (app block, nội dung nhập tay) thì công cụ không biết.
 - File JavaScript được nạp ở trang này nhưng thẻ của nó viết ở trang khác thì chưa phát hiện.
