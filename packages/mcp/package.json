@@ -1,6 +1,6 @@
 {
   "name": "@themegraph/mcp",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "description": "MCP server của ThemeGraph: sáu tool cho AI agent, bọc quanh @themegraph/core",
   "type": "module",
